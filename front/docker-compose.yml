@@ -1,0 +1,12 @@
+services:
+  front:
+    build:
+      context: .          # Dockerfile 위치
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "3000:3000"       # 호스트:컨테이너 포트 포워딩 (브라우저에서 localhost:3000으로 접근)
+    restart: always
+    command: pnpm dev
+    environment:
+      DEPLOY_PATH: 'localhost:8080' #백엔드 url

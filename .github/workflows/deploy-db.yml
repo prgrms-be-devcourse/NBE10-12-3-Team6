@@ -1,0 +1,59 @@
+name: Deploy MySQL to Oracle Cloud
+
+# ────────────────────────────────────────────────────────────
+# 트리거 조건
+#   - main 브랜치에 deploy-version-db.yml 파일이 변경되어 push될 때 자동 실행
+#   - 또는 GitHub Actions UI에서 수동으로 실행 가능 (workflow_dispatch)
+# ────────────────────────────────────────────────────────────
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - deploy-version-db.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # [1] SSH로 Oracle Cloud 서버에 접속하여 MySQL 컨테이너 배포
+      #     - docker network create: spring-backend와 mysql이 컨테이너 이름으로 통신하기 위한 네트워크 생성
+      #     - mysql_data volume: 컨테이너 삭제 후에도 DB 데이터 유지
+      #     - mysql:8.0: arm64 지원 공식 이미지 (별도 빌드 불필요)
+      - name: 🐳 Deploy MySQL on Oracle Cloud VM via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ubuntu
+          key: ${{ secrets.KEY }}
+          envs: MYSQL_ROOT_PASSWORD,MYSQL_PASSWORD
+          script: |
+            docker network create triplog-net || true
+            docker stop mysql || true
+            docker rm mysql || true
+            docker pull mysql:8.0
+            docker run -d \
+              --name mysql \
+              --network triplog-net \
+              --restart unless-stopped \
+              -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
+              -e MYSQL_DATABASE=triplog \
+              -e MYSQL_USER=triplog \
+              -e MYSQL_PASSWORD=$MYSQL_PASSWORD \
+              -e TZ=Asia/Seoul \
+              -v mysql_data:/var/lib/mysql \
+              -p 3306:3306 \
+              mysql:8.0 \
+              --default-time-zone=Asia/Seoul
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}

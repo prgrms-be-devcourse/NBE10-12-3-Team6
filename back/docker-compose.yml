@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  back:
+    build:
+      context: . # Dockerfile 위치
+      dockerfile: Dockerfile # Docker 파일 이름
+    container_name: backend # 컨테이너 이름
+    ports: # 포트포워딩
+      - "8080:8080"
+    environment: # spring app 설정
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/travel
+      SPRING_DATASOURCE_USERNAME: azalea #root 말고 다른 사용자로 이용해야합니다
+      SPRING_DATASOURCE_PASSWORD: root1234
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver # dev 프로파일의 H2 드라이버 덮어쓰기
+    depends_on:
+      - db
+  db:
+    image: mysql:latest
+    container_name: containerName
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: travel # SPRING_DATASOURCE_URL의 DB명과 일치
+      MYSQL_USER: azalea # SPRING_DATASOURCE_USERNAME과 일치
+      MYSQL_PASSWORD: root1234 # SPRING_DATASOURCE_PASSWORD와 일치
+
+    volumes:
+      - db-data:/var/lib/mysql
+
+volumes: # named volume 선언(db restart할때 혹시라도 데이터 유지하가 위해)
+  db-data:

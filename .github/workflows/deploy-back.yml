@@ -1,0 +1,136 @@
+name: Deploy Spring Boot to Oracle Cloud
+
+# ────────────────────────────────────────────────────────────
+# 트리거 조건
+#   - dev 브랜치에 deploy-version-back.yml 파일이 변경되어 push될 때 자동 실행
+#   - 또는 GitHub Actions UI에서 수동으로 실행 가능 (workflow_dispatch)
+# ────────────────────────────────────────────────────────────
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - deploy-version-back.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write   # ghcr.io에 이미지 push 권한
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/triplog-backend
+  CONTAINER_NAME: spring-backend
+  TARGET_DIR: /home/ubuntu/triplog/back
+  HOST_PORT: 8080
+  CONTAINER_PORT: 8080
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      # [1] GitHub 레포지토리 코드를 Actions Runner(빌드 서버)에 내려받기
+      - name: 🍏 Checkout Repository
+        uses: actions/checkout@v4
+
+      # [2] deploy-version-back.yml에서 version 값을 읽어 이미지 태그로 사용
+      - name: 🍏 Extract version
+        run: |
+          VERSION=$(jq -r .version < deploy-version-back.yml)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      # [3] GitHub Secrets에 등록된 값으로 .env 파일 생성
+      - name: 🍏 Create .env file from Secrets
+        run: |
+          echo "SPRING_PROFILES_ACTIVE=prod" > .env
+          echo "FILE_UPLOAD_BASE_URL=${{ secrets.FILE_UPLOAD_BASE_URL }}" >> .env
+          echo "MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> .env
+          echo "CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}" >> .env
+          echo "S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}" >> .env
+          echo "S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}" >> .env
+          echo "S3_NAMESPACE=${{ secrets.S3_NAMESPACE }}" >> .env
+
+      # [4] ghcr.io 로그인 (GITHUB_TOKEN은 Actions에서 자동 발급, 별도 등록 불필요)
+      - name: 🍏 Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # [5] arm64 크로스 플랫폼 빌드를 위한 QEMU 에뮬레이터 설치
+      #      - name: 🍏 Set up QEMU
+      #        uses: docker/setup-qemu-action@v3
+      #        with:
+      #          platforms: linux/arm64
+
+      # [6] 멀티 플랫폼 Docker 이미지 빌드를 위한 Buildx 설정
+      - name: 🍏 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # [7] arm64 이미지 빌드 후 ghcr.io에 push
+      #     tarball 저장/전송 없이 registry에 직접 업로드
+      - name: 🍏 Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./back
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+          cache-from: type=gha           # 빌드 캐쉬
+          cache-to: type=gha,mode=max    # 빌드 캐쉬
+
+      # [8] .env 파일을 서버로 전송
+      - name: 🍏 Copy .env to Oracle Cloud
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.HOST }}
+          username: ubuntu
+          key: ${{ secrets.KEY }}
+          source: .env
+          target: ${{ env.TARGET_DIR }}
+
+      # [9] SSH로 서버에 접속하여 ghcr.io에서 이미지 pull 후 컨테이너 교체
+      #     --restart unless-stopped: 서버 재부팅 시 컨테이너 자동 재시작
+      - name: 🐳 Deploy on Oracle Cloud VM via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ubuntu
+          key: ${{ secrets.KEY }}
+          envs: GITHUB_TOKEN,GITHUB_ACTOR,IMAGE_NAME,VERSION,CONTAINER_NAME,HOST_PORT,CONTAINER_PORT,TARGET_DIR
+          script: |
+            echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+            docker pull $IMAGE_NAME:$VERSION
+            docker stop $CONTAINER_NAME || true
+            docker rm $CONTAINER_NAME || true
+            docker network create triplog-net || true
+            docker run -d \
+              --name $CONTAINER_NAME \
+              --network triplog-net \
+              --restart unless-stopped \
+              --env-file $TARGET_DIR/.env \
+              -v /home/ubuntu/triplog/uploadedimages:/root/triplog/uploadedimages \
+              -e TZ=Asia/Seoul \
+              -p $HOST_PORT:$CONTAINER_PORT \
+              $IMAGE_NAME:$VERSION
+            docker image prune -f
+            sleep 10
+            docker ps | grep $CONTAINER_NAME || (docker logs $CONTAINER_NAME --tail 50 && exit 1)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          VERSION: ${{ env.VERSION }}
+          CONTAINER_NAME: ${{ env.CONTAINER_NAME }}
+          HOST_PORT: ${{ env.HOST_PORT }}
+          CONTAINER_PORT: ${{ env.CONTAINER_PORT }}
+          TARGET_DIR: ${{ env.TARGET_DIR }}
+
+      # [10] Actions Runner에 남아있는 임시 파일 삭제
+      - name: 🍏 Clean up local temp files
+        run: rm -f .env

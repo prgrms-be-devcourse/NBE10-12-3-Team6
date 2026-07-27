@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:h2:./db_dev;MODE=MySQL;AUTO_SERVER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true  # 쿼리 보기 좋게 포맷
+    hibernate:
+      ddl-auto: update
+logging:
+  level:
+    com.back : DEBUG
