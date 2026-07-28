@@ -2,7 +2,7 @@ package csh.back.domain.vote.vote.entity;
 
 import csh.back.domain.trip.group.entity.TripGroup;
 import csh.back.domain.trip.member.entity.TripMember;
-import csh.back.domain.trip.timeline.entity.TimeLine;
+import csh.back.domain.trip.timeline.entity.Timeline;
 import csh.back.domain.vote.vote.enums.VoteConfirmStatus;
 import csh.back.domain.vote.vote.enums.VoteStatus;
 import csh.back.global.entity.BaseEntity;
@@ -29,11 +29,12 @@ public class Vote extends BaseEntity {
     @JoinColumn(name = "trip_group_id", nullable = false)
     private TripGroup tripGroup;
 
+
     //FK
     //Join TripTimeline Table
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trip_timeline_id",  nullable = false)
-    private TimeLine timeLine;
+    private Timeline timeline;
 
     //FK
     //Join TripMember Table
@@ -52,9 +53,9 @@ public class Vote extends BaseEntity {
     //생성자
     //빌드 사용
     @Builder
-    private Vote(TripGroup tripGroup, TimeLine timeLine, TripMember tripMember, LocalDateTime expireTime) {
+    private Vote(TripGroup tripGroup, Timeline timeline, TripMember tripMember, LocalDateTime expireTime) {
         this.tripGroup = tripGroup;
-        this.timeLine = timeLine;
+        this.timeline = timeline;
         this.tripMember = tripMember;
         this.expireTime = expireTime;
     }

@@ -1,7 +1,7 @@
 package csh.back.domain.vote.user.entity;
 
 import csh.back.domain.trip.member.entity.TripMember;
-import csh.back.domain.trip.timeline.entity.TimeLine;
+import csh.back.domain.trip.timeline.entity.Timeline;
 import csh.back.domain.vote.item.entity.VoteItem;
 import csh.back.domain.vote.vote.entity.Vote;
 import csh.back.global.entity.BaseEntity;
@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "trip_vote_users",
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_vote_user",
-                columnNames = {"vote_id", "trip_member_id"}  // vote_id 기준
+                columnNames = {"trip_vote_id", "trip_member_id"}  // trip_vote_id 기준
         )
 )
 
@@ -26,13 +26,13 @@ public class VoteUser extends BaseEntity {
     //FK
     //Join Vote Table
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "vote_id",  nullable = false)
+    @JoinColumn(name = "trip_vote_id",  nullable = false)
     private Vote vote;
 
     //FK
     //Join VoteItem Table
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "vote_item_id",  nullable = false)
+    @JoinColumn(name = "trip_vote_item_id",  nullable = false)
     private VoteItem voteItem;
 
     //FK

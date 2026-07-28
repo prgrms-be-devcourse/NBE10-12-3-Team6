@@ -1,6 +1,6 @@
 package csh.back.domain.vote.vote.jobs;
 
-import csh.back.domain.trip.timeline.service.TimeLineService;
+import csh.back.domain.trip.timeline.service.TimelineService;
 import csh.back.domain.vote.vote.entity.Vote;
 import csh.back.domain.vote.vote.enums.VoteStatus;
 import jakarta.persistence.EntityManagerFactory;
@@ -48,7 +48,7 @@ public class VoteExpireBatchConfig {
 
     // ── Writer: 서비스에 위임 (id만 넘김) ─────────────────────
     @Bean
-    public ItemWriter<Vote> expireVoteWriter(TimeLineService timeLineService) {
+    public ItemWriter<Vote> expireVoteWriter(TimelineService timeLineService) {
         return chunk -> {
             for (Vote v : chunk) {
                 timeLineService.expireAndConfirmBySystem(v.getId());

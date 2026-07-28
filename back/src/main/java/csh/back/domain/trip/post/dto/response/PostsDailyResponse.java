@@ -1,7 +1,7 @@
 package csh.back.domain.trip.post.dto.response;
 
 import csh.back.domain.trip.post.entity.Post;
-import csh.back.domain.trip.timeline.entity.TimeLine;
+import csh.back.domain.trip.timeline.entity.Timeline;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDate;
@@ -29,11 +29,11 @@ public record PostsDailyResponse(
             LocalDateTime createdAt
     ) {
         public static PostSummary from(Post post) {
-            Long timeLineId = post.getTimeLine() != null ? post.getTimeLine().getId() : null;
-            LocalDateTime startTime = timeLineId != null ? post.getTimeLine().getStartTime() : null;
-            LocalDateTime endTime = timeLineId != null ? post.getTimeLine().getEndTime() : null;
-            TimeLine timeLine = post.getTimeLine();
-            String confirmedPlaceName = timeLine != null && timeLine.getConfirmedPlace() != null ? post.getTimeLine().getConfirmedPlace().getName() : null;
+            Long timeLineId = post.getTimeline() != null ? post.getTimeline().getId() : null;
+            LocalDateTime startTime = timeLineId != null ? post.getTimeline().getStartTime() : null;
+            LocalDateTime endTime = timeLineId != null ? post.getTimeline().getEndTime() : null;
+            Timeline timeLine = post.getTimeline();
+            String confirmedPlaceName = timeLine != null && timeLine.getConfirmedPlace() != null ? post.getTimeline().getConfirmedPlace().getName() : null;
 
             return new PostSummary(
                     post.getId(),
