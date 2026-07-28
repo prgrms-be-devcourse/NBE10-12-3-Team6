@@ -19,12 +19,12 @@ import java.time.LocalDateTime;
 public class Timeline extends BaseEntity {
 
     //최소 일차
-    private static final int MINIMUM_DAY = 1;
+    private static final long MINIMUM_DAY = 1L;
 
     //FK
     //Join tripGroup Table
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trip_id", nullable = false)
+    @JoinColumn(name = "trip_group_id", nullable = false)
     private TripGroup tripGroup;
 
     //FK
@@ -32,11 +32,11 @@ public class Timeline extends BaseEntity {
     //시간 카테고리를 처음 만들 땐 확정 장소가 없기에
     //nullable을 true로 변경
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "confirmed_place_id", nullable = true)
-    private TripPlace confirmedPlace;
+    @JoinColumn(name = "trip_wish_place_id")
+    private TripPlace tripWishPlace;
 
     //이 타임라인이 몇 일차에 속하는 지
-    private int dayNumber;
+    private Long dayNumber;
 
     //시작 시간
     private LocalDateTime startTime;
@@ -47,9 +47,9 @@ public class Timeline extends BaseEntity {
     //생성자
     //빌드 사용
     @Builder
-    private Timeline(TripGroup tripGroup, int dayNumber, LocalDateTime startTime, LocalDateTime endTime) {
+    private Timeline(TripGroup tripGroup, Long dayNumber, LocalDateTime startTime, LocalDateTime endTime) {
 
-        validateTimeLine(tripGroup, dayNumber, startTime, endTime);
+        validateTimeline(tripGroup, dayNumber, startTime, endTime);
 
         this.tripGroup = tripGroup;
         this.dayNumber = dayNumber;
@@ -58,7 +58,7 @@ public class Timeline extends BaseEntity {
     }
 
     //타임라인 생성에 필요한 기본값 검증
-    private void validateTimeLine(TripGroup tripGroup, int dayNumber, LocalDateTime startTime, LocalDateTime endTime) {
+    private void validateTimeline(TripGroup tripGroup, Long dayNumber, LocalDateTime startTime, LocalDateTime endTime) {
         validateTripGroup(tripGroup);
         validateDayNumber(dayNumber);
         validateTimeRange(startTime, endTime);
@@ -72,7 +72,10 @@ public class Timeline extends BaseEntity {
     }
 
     //dayNumber가 1일차 이상인지 -> 0 이하이면 막는 메서드
-    private void validateDayNumber(int dayNumber) {
+    private void validateDayNumber(Long dayNumber) {
+        if (dayNumber == null) {
+            throw new IllegalArgumentException("일차는 필수입니다.");
+        }
         if (dayNumber < MINIMUM_DAY) {
             throw new IllegalArgumentException("일차는 " + MINIMUM_DAY + " 이상이어야 합니다.");
         }
@@ -82,8 +85,8 @@ public class Timeline extends BaseEntity {
     private void validateTimeRange(LocalDateTime startTime, LocalDateTime endTime) {
         if (startTime == null || endTime == null) {
             throw new IllegalArgumentException("시작 시간과 종료 시간은 필수입니다.");
-        //startTime이 endTime보다 늦을 경우
-        }else if (!endTime.isAfter(startTime)) {
+            //startTime이 endTime보다 늦을 경우
+        } else if (!endTime.isAfter(startTime)) {
             //막음
             throw new IllegalArgumentException("종료 시간은 시작 시간보다 늦어야 합니다.");
         }
@@ -97,12 +100,12 @@ public class Timeline extends BaseEntity {
     }
 
     //확정 장소 반영 메서드
-    public void updateConfirmedPlace(TripPlace confirmedPlace) {
+    public void updateTripWishPlace(TripPlace tripWishPlace) {
         //null 검증
-        if (confirmedPlace == null) {
+        if (tripWishPlace == null) {
             throw new IllegalArgumentException("확정할 장소가 없습니다.");
         }
         //null이 아닐 경우 값을 넣음
-        this.confirmedPlace = confirmedPlace;
+        this.tripWishPlace = tripWishPlace;
     }
 }

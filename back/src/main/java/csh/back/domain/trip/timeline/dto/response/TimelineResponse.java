@@ -6,17 +6,17 @@ import java.time.LocalDateTime;
 
 public record TimelineResponse(
         Long timelineId,
-        Integer dayNumber,
+        Long dayNumber,
         LocalDateTime startTime,
         LocalDateTime endTime
 ) {
     //서비스 로직에서 조회 결과를 응답으로 바꿀 때 편하게 하기 위한 정적 메서드
-    public static TimelineResponse from(Timeline timeLine) {
+    public static TimelineResponse from(Timeline timeline) {
         return new TimelineResponse(
-                timeLine.getId(),
-                timeLine.getDayNumber(),
-                timeLine.getStartTime(),
-                timeLine.getEndTime()
+                timeline.getId(),
+                timeline.getDayNumber(),
+                timeline.getStartTime(),
+                timeline.getEndTime()
         );
     }
 }
