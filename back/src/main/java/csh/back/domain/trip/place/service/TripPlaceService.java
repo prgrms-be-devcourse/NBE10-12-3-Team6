@@ -41,7 +41,7 @@ public class TripPlaceService {
     @Transactional
     public TripPlaceSaveResponse savePlace(Long tripId,
                                            String name,
-                                           String theme,
+                                           String category,
                                            String address,
                                            String kakaoPlaceId,
                                            String kakaoMapUrl,
@@ -55,7 +55,7 @@ public class TripPlaceService {
                 .builder()
                 .tripGroup(tripGroup)
                 .name(name)
-                .theme(theme)
+                .category(category)
                 .address(address)
                 .kakaoPlaceId(kakaoPlaceId)
                 .kakaoMapUrl(kakaoMapUrl)

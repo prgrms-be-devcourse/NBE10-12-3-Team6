@@ -29,6 +29,7 @@ public class Vote extends BaseEntity {
     @JoinColumn(name = "trip_group_id", nullable = false)
     private TripGroup tripGroup;
 
+
     //FK
     //Join TripTimeline Table
     @ManyToOne(fetch = FetchType.LAZY)
