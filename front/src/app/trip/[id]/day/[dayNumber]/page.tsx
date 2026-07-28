@@ -11,9 +11,8 @@ import AnimatedBottomSheet from "../../../../components/AnimatedBottomSheet";
 const THEMES: PlanTheme[] = ["meal", "cafe", "activity", "etc"];
 const MEMBER_COLORS = ["blue", "orange", "green", "purple", "pink", "teal", "indigo", "cyan"];
 
-type TimeLineApiItem = {
-  timeLineId?: number;
-  timelineId?: number;
+type TimelineApiItem = {
+  timelineId: number;
   voteId?: number | null;
   dayNumber: number;
   startTime: string;
@@ -48,9 +47,9 @@ const wait = (ms: number) => new Promise(resolve => window.setTimeout(resolve, m
 
 type SyncBannerPhase = "enter" | "visible" | "exit";
 
-const toActivityBlocks = (items: TimeLineApiItem[]): ActivityBlock[] =>
+const toActivityBlocks = (items: TimelineApiItem[]): ActivityBlock[] =>
   items.map((item, i) => ({
-    id: String(item.timeLineId ?? item.timelineId ?? i),
+    id: String(item.timelineId),
     order: i + 1,
     theme: THEMES[i % THEMES.length],
     startMinute: isoToMinutes(item.startTime),
@@ -529,7 +528,7 @@ export default function DayPlanPage() {
   }, []);
 
   const applyTimelineItems = async (
-    items: TimeLineApiItem[],
+    items: TimelineApiItem[],
     { clearWhenEmpty = false, animateRemoved = false } = {}
   ) => {
     if (!trip || dayIdx < 0) return;
@@ -539,8 +538,7 @@ export default function DayPlanPage() {
     const draftBlocks = currentDay.blocks.filter(block => !isPersistedBlock(block));
     const nextPersistedIds = new Set(
       items
-        .map(item => item.timeLineId ?? item.timelineId)
-        .filter((timelineId): timelineId is number => timelineId != null)
+        .map(item => item.timelineId)
         .map(String)
     );
     const removedBlockIds = animateRemoved
@@ -576,12 +574,12 @@ export default function DayPlanPage() {
     }
   };
 
-  const fetchTimeLinesForDay = async ({ clearWhenEmpty = true, animateRemoved = false } = {}) => {
+  const fetchTimelinesForDay = async ({ clearWhenEmpty = true, animateRemoved = false } = {}) => {
     if (!id || !trip || dayIdx < 0) return;
     const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/timelines?dayNumber=${dayNum}`);
     if (!response.ok) throw new Error("타임라인을 불러오지 못했습니다.");
     const body = await response.json();
-    const items: TimeLineApiItem[] = body.data ?? [];
+    const items: TimelineApiItem[] = body.data ?? [];
     await applyTimelineItems(items, { clearWhenEmpty, animateRemoved });
   };
 
@@ -640,7 +638,7 @@ export default function DayPlanPage() {
 
   useEffect(() => {
     if (!id || !trip || dayIdx < 0) return;
-    fetchTimeLinesForDay({ clearWhenEmpty: true }).catch(() => {});
+    fetchTimelinesForDay({ clearWhenEmpty: true }).catch(() => {});
   }, [id, dayNum, trip?.id]);
 
   useEffect(() => {
@@ -775,10 +773,10 @@ export default function DayPlanPage() {
     return true;
   };
 
-  const syncTimeLines = async () => {
+  const syncTimelines = async () => {
     setSyncLoading(true);
     try {
-      await fetchTimeLinesForDay({ clearWhenEmpty: true, animateRemoved: true });
+      await fetchTimelinesForDay({ clearWhenEmpty: true, animateRemoved: true });
       await closeSyncBanner();
       setIsEditingTimeRanges(false);
     } catch (error) {
@@ -794,7 +792,7 @@ export default function DayPlanPage() {
     return rounded >= 23 * 60 ? 9 * 60 : rounded;
   };
 
-  const saveNewTimeLine = async (block: ActivityBlock) => {
+  const saveNewTimeline = async (block: ActivityBlock) => {
     setTimelineSaving(true);
     try {
       const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/timelines`, {
@@ -807,17 +805,17 @@ export default function DayPlanPage() {
         }),
       });
       if (!response.ok) throw new Error("시간 구간을 추가하지 못했습니다.");
-      await fetchTimeLinesForDay({ clearWhenEmpty: true });
+      await fetchTimelinesForDay({ clearWhenEmpty: true });
     } catch (error) {
       console.error("[타임라인 추가 실패]", error);
       setValidationError("시간 구간을 추가하지 못했습니다.");
-      await fetchTimeLinesForDay({ clearWhenEmpty: true }).catch(() => {});
+      await fetchTimelinesForDay({ clearWhenEmpty: true }).catch(() => {});
     } finally {
       setTimelineSaving(false);
     }
   };
 
-  const saveUpdatedTimeLine = async (block: ActivityBlock) => {
+  const saveUpdatedTimeline = async (block: ActivityBlock) => {
     if (!isPersistedBlock(block)) return;
 
     setTimelineSaving(true);
@@ -831,17 +829,17 @@ export default function DayPlanPage() {
         }),
       });
       if (!response.ok) throw new Error("시간 구간을 수정하지 못했습니다.");
-      await fetchTimeLinesForDay({ clearWhenEmpty: true });
+      await fetchTimelinesForDay({ clearWhenEmpty: true });
     } catch (error) {
       console.error("[타임라인 수정 실패]", error);
       setValidationError("시간 구간을 수정하지 못했습니다.");
-      await fetchTimeLinesForDay({ clearWhenEmpty: true }).catch(() => {});
+      await fetchTimelinesForDay({ clearWhenEmpty: true }).catch(() => {});
     } finally {
       setTimelineSaving(false);
     }
   };
 
-  const deletePersistedTimeLine = async (block: ActivityBlock) => {
+  const deletePersistedTimeline = async (block: ActivityBlock) => {
     if (!isPersistedBlock(block)) return;
 
     setTimelineSaving(true);
@@ -851,12 +849,12 @@ export default function DayPlanPage() {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("시간 구간을 삭제하지 못했습니다.");
-      await fetchTimeLinesForDay({ clearWhenEmpty: true });
+      await fetchTimelinesForDay({ clearWhenEmpty: true });
     } catch (error) {
       console.error("[타임라인 삭제 실패]", error);
       setValidationError("시간 구간을 삭제하지 못했습니다.");
       clearBlockRemoving(block.id);
-      await fetchTimeLinesForDay({ clearWhenEmpty: true }).catch(() => {});
+      await fetchTimelinesForDay({ clearWhenEmpty: true }).catch(() => {});
     } finally {
       setTimelineSaving(false);
     }
@@ -893,7 +891,7 @@ export default function DayPlanPage() {
     if (!validateBlocks(nextBlocks)) return;
 
     if (day.isPlanCompleted) {
-      await saveNewTimeLine(newBlock);
+      await saveNewTimeline(newBlock);
       return;
     }
 
@@ -906,7 +904,7 @@ export default function DayPlanPage() {
 
     const removed = sortedBlocks[sortedBlocks.length - 1];
     if (day.isPlanCompleted && isPersistedBlock(removed)) {
-      await deletePersistedTimeLine(removed);
+      await deletePersistedTimeline(removed);
       return;
     }
 
@@ -918,7 +916,7 @@ export default function DayPlanPage() {
     if (day.isPlanCompleted && !isEditingTimeRanges) return;
 
     if (day.isPlanCompleted && isPersistedBlock(block)) {
-      await deletePersistedTimeLine(block);
+      await deletePersistedTimeline(block);
       return;
     }
 
@@ -938,7 +936,7 @@ export default function DayPlanPage() {
 
     const updated = nextBlocks.find(block => block.id === blockId);
     if (day.isPlanCompleted && updated) {
-      await saveUpdatedTimeLine(updated);
+      await saveUpdatedTimeline(updated);
     }
   };
 
@@ -948,7 +946,7 @@ export default function DayPlanPage() {
     const sorted = normalizeOrders(day.blocks);
     if (!validateBlocks(sorted)) return;
 
-    const timeLines = sorted.map(block => ({
+    const timelines = sorted.map(block => ({
       dayNumber: dayNum,
       startTime: toDateTime(block.startMinute),
       endTime: toDateTime(block.endMinute),
@@ -959,10 +957,10 @@ export default function DayPlanPage() {
       const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/timelines/batch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dayNumber: dayNum, timeLines }),
+        body: JSON.stringify({ dayNumber: dayNum, timelines }),
       });
       if (!response.ok) throw new Error("타임라인 저장 실패");
-      await fetchTimeLinesForDay({ clearWhenEmpty: true });
+      await fetchTimelinesForDay({ clearWhenEmpty: true });
       setIsEditingTimeRanges(false);
     } catch (error) {
       console.error("[타임라인 저장 실패]", error);
@@ -992,7 +990,7 @@ export default function DayPlanPage() {
           <div className="sync-banner-card rounded-2xl bg-blue-50 px-4 py-3 flex items-center gap-3">
             <p className="flex-1 min-w-0 text-sm font-semibold text-blue-700 leading-snug">{syncMessage}</p>
             <button
-              onClick={syncTimeLines}
+              onClick={syncTimelines}
               disabled={syncLoading}
               className="shrink-0 px-3 py-2 rounded-xl bg-white text-blue-600 font-bold text-xs flex items-center gap-1.5 disabled:opacity-60"
             >
