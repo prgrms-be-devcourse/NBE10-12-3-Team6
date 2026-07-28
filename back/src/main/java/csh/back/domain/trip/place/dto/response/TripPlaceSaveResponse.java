@@ -11,7 +11,7 @@ public record TripPlaceSaveResponse(Long id,
             return new TripPlaceSaveResponse(
                     tripPlace.getId(),
                     tripPlace.getName(),
-                    tripPlace.getTheme(),
+                    tripPlace.getCategory(),
                     tripPlace.getAddress()
             );
         }

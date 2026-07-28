@@ -12,10 +12,10 @@ import lombok.NoArgsConstructor;
 //멤버 엔티티
 @Getter
 @Entity
-@Table(name = "trip_place_vote_items",
+@Table(name = "trip_vote_items",
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_vote_item",
-                columnNames = {"vote_id", "trip_wish_place_id"}  // vote_id 기준
+                columnNames = {"trip_vote_id", "trip_wish_place_id"}  // trip_vote_id 기준
         )
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -24,7 +24,7 @@ public class VoteItem extends BaseEntity {
     //FK
     //Join Vote Table
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "vote_id",  nullable = false)
+    @JoinColumn(name = "trip_vote_id",  nullable = false)
     private Vote vote;
 
     //FK

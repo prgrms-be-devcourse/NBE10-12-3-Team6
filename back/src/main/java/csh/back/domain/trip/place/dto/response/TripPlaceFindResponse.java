@@ -14,7 +14,7 @@ public record TripPlaceFindResponse(Long placeId,
                     tripPlace.getId(),
                     tripPlace.getName(),
                     tripPlace.getAddress(),
-                    tripPlace.getTheme(),
+                    tripPlace.getCategory(),
                     tripPlace.getCreatedBy().getMember().getName()
             );
         }
