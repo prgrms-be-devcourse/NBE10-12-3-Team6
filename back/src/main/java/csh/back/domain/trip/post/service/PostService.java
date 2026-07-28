@@ -8,7 +8,7 @@ import csh.back.domain.trip.member.validator.TripMemberValidator;
 import csh.back.domain.trip.place.entity.TripPlace;
 import csh.back.domain.trip.post.dto.request.UpdatePostRequest;
 import csh.back.domain.trip.post.dto.response.PostResponse;
-import csh.back.domain.trip.post.dto.response.PostTimeLineResponse;
+import csh.back.domain.trip.post.dto.response.PostTimelineResponse;
 import csh.back.domain.trip.post.dto.response.PostsDailyResponse;
 import csh.back.domain.trip.post.entity.Post;
 import csh.back.domain.trip.post.repository.PostRepository;
@@ -49,7 +49,7 @@ public class PostService {
         List<TripMember> tripMembers = tripMemberRepository.findByTripGroupId(tripGroup.getId());
 
         // 사진 목록 (timeline + confirmedPlace fetch join 되어 있음)
-        List<Post> posts = postRepository.findWithTimeLineAndPlaceByAuthorIdIn(tripMembers);
+        List<Post> posts = postRepository.findWithTimelineAndPlaceByAuthorIdIn(tripMembers);
 
         // 여행 전체 timeline 한 번 조회 → 날짜별 맵 (빈 칸 슬롯 계산에 재사용, 쿼리 1번)
         List<Timeline> allSchedules = timeLineRepository.findByTripGroupIdSorted(tripId);
@@ -87,7 +87,7 @@ public class PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
         //여행별로 포스트를 구분하고 검증하는 IF문 추가
-        if (!post.getTimeLine().getTripGroup().getId().equals(tripId)) {
+        if (!post.getTimeline().getTripGroup().getId().equals(tripId)) {
             throw new IllegalArgumentException("해당 여행의 게시글이 아닙니다.");
         }
 
@@ -145,7 +145,7 @@ public class PostService {
         // 게시글 생성
         Post post = Post.builder()
                 .author(author)
-                .timeLine(timeLine)
+                .timeline(timeLine)
                 .isImg(image != null && !image.isEmpty())
                 .contentUrl(imageUrl)
                 .build();
@@ -163,7 +163,7 @@ public class PostService {
      * - 빈 시간이면 정시 격자 규칙으로 계산한 조각 (직전 일정 끝 or 정시 기준)
      * - isTaken: 그 유저가 이 슬롯 시간대에 이미 사진을 올렸는지
      */
-    public PostTimeLineResponse getCurrentSlot(Long tripId, Long memberId, int dayNumber) {
+    public PostTimelineResponse getCurrentSlot(Long tripId, Long memberId, int dayNumber) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime dayStart = now.toLocalDate().atStartOfDay();   // 오늘 00:00:00
         LocalDateTime dayEnd = dayStart.plusDays(1);                 // 내일 00:00:00
@@ -208,11 +208,11 @@ public class PostService {
                 .anyMatch(p -> !p.getCreatedAt().isBefore(slotStart)
                         && p.getCreatedAt().isBefore(slotEnd));
 
-        return new PostTimeLineResponse(slotStart, slotEnd, timeLineId, confirmedPlaceName, isTaken);
+        return new PostTimelineResponse(slotStart, slotEnd, timeLineId, confirmedPlaceName, isTaken);
     }
 
     private PostsDailyResponse.PostSummary toSummaryWithSlot(Post post, List<Timeline> daySchedules) {
-        Timeline timeLine = post.getTimeLine();
+        Timeline timeLine = post.getTimeline();
 
         // 일정 슬롯: timeline 값 그대로
         if (timeLine != null) {
@@ -332,7 +332,7 @@ public class PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
 
-        if (!post.getTimeLine().getTripGroup().getId().equals(tripId)) {
+        if (!post.getTimeline().getTripGroup().getId().equals(tripId)) {
             throw new IllegalArgumentException("해당 여행의 게시글이 아닙니다.");
         }
 

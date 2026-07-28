@@ -12,13 +12,13 @@ import java.util.Optional;
 
 public interface VoteRepository extends JpaRepository<Vote, Long> {
 
-    @Query("SELECT v FROM Vote v JOIN FETCH v.timeLine tl WHERE tl.tripGroup.id = :tripId")
-    List<Vote> findVotesWithTimeLineByTripGroupId(Long tripId);
+    @Query("SELECT v FROM Vote v JOIN FETCH v.timeline tl WHERE tl.tripGroup.id = :tripId")
+    List<Vote> findVotesWithTimelineByTripGroupId(Long tripId);
 
-    @Query("SELECT v.timeLine.id AS timeLineId, v.id AS voteId FROM Vote v WHERE v.timeLine.id IN :timeLineIds")
-    List<VoteTimeLineIdProjection> findVoteIdsByTimeLineIds(List<Long> timeLineIds);
+    @Query("SELECT v.timeline.id AS timelineId, v.id AS voteId FROM Vote v WHERE v.timeline.id IN :timeLineIds")
+    List<VoteTimelineIdProjection> findVoteIdsByTimeLineIds(List<Long> timeLineIds);
 
-    @Query("SELECT v.timeLine FROM Vote v WHERE v.id = :voteId")
+    @Query("SELECT v.timeline FROM Vote v WHERE v.id = :voteId")
     Optional<Timeline> findTimeLineByVoteId(Long voteId);
 
 }

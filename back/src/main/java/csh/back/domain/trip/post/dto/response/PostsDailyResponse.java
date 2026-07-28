@@ -29,11 +29,11 @@ public record PostsDailyResponse(
             LocalDateTime createdAt
     ) {
         public static PostSummary from(Post post) {
-            Long timeLineId = post.getTimeLine() != null ? post.getTimeLine().getId() : null;
-            LocalDateTime startTime = timeLineId != null ? post.getTimeLine().getStartTime() : null;
-            LocalDateTime endTime = timeLineId != null ? post.getTimeLine().getEndTime() : null;
-            Timeline timeLine = post.getTimeLine();
-            String confirmedPlaceName = timeLine != null && timeLine.getConfirmedPlace() != null ? post.getTimeLine().getConfirmedPlace().getName() : null;
+            Long timeLineId = post.getTimeline() != null ? post.getTimeline().getId() : null;
+            LocalDateTime startTime = timeLineId != null ? post.getTimeline().getStartTime() : null;
+            LocalDateTime endTime = timeLineId != null ? post.getTimeline().getEndTime() : null;
+            Timeline timeLine = post.getTimeline();
+            String confirmedPlaceName = timeLine != null && timeLine.getConfirmedPlace() != null ? post.getTimeline().getConfirmedPlace().getName() : null;
 
             return new PostSummary(
                     post.getId(),

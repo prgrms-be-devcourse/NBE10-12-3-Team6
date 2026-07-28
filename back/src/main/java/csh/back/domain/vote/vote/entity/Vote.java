@@ -33,7 +33,7 @@ public class Vote extends BaseEntity {
     //Join TripTimeline Table
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trip_timeline_id",  nullable = false)
-    private Timeline timeLine;
+    private Timeline timeline;
 
     //FK
     //Join TripMember Table
@@ -52,9 +52,9 @@ public class Vote extends BaseEntity {
     //생성자
     //빌드 사용
     @Builder
-    private Vote(TripGroup tripGroup, Timeline timeLine, TripMember tripMember, LocalDateTime expireTime) {
+    private Vote(TripGroup tripGroup, Timeline timeline, TripMember tripMember, LocalDateTime expireTime) {
         this.tripGroup = tripGroup;
-        this.timeLine = timeLine;
+        this.timeline = timeline;
         this.tripMember = tripMember;
         this.expireTime = expireTime;
     }

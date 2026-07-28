@@ -15,7 +15,7 @@ import csh.back.domain.trip.timeline.dto.response.TimelineWithVoteIdResponse;
 import csh.back.domain.trip.timeline.entity.Timeline;
 import csh.back.domain.trip.timeline.repository.TimelineRepository;
 import csh.back.domain.vote.vote.dto.response.VoteConfirmResponse;
-import csh.back.domain.vote.vote.dto.web.VoteTimeLineResponse;
+import csh.back.domain.vote.vote.dto.web.VoteTimelineResponse;
 import csh.back.domain.vote.vote.enums.VoteStatus;
 import csh.back.domain.vote.vote.repository.VoteRepository;
 import csh.back.domain.vote.vote.service.VoteService;
@@ -229,7 +229,7 @@ public class TimelineService {
                 ? maxKeys.get(0)
                 : maxKeys.get(ThreadLocalRandom.current().nextInt(maxKeys.size()));
 
-        VoteTimeLineResponse voteTimeLineResponse = voteService.voteConfirm(maxVoteItemId, voteId);
+        VoteTimelineResponse voteTimeLineResponse = voteService.voteConfirm(maxVoteItemId, voteId);
         Long confirmPlaceId = voteTimeLineResponse.confirmPlaceId();
         confirmPlaceByHost(voteTimeLineResponse.timeLine() ,tripId, confirmPlaceId);
         //        //서버에 이벤트 발송
@@ -259,7 +259,7 @@ public class TimelineService {
                 : maxKeys.get(ThreadLocalRandom.current().nextInt(maxKeys.size()));
 
         // 수동과 동일: voteConfirm(CONFIRMED 박기 + timeLine 조회) → 장소 확정
-        VoteTimeLineResponse res = voteService.voteConfirm(winnerVoteItemId, voteId);
+        VoteTimelineResponse res = voteService.voteConfirm(winnerVoteItemId, voteId);
         confirmPlaceBySystem(res.timeLine(), res.confirmPlaceId());   // ★ tripId 검증 없는 버전
     }
 
@@ -291,7 +291,7 @@ public class TimelineService {
                         delete from VoteUser vu
                         where vu.vote.id in (
                             select v.id from Vote v
-                            where v.timeLine.id = :timelineId
+                            where v.timeline.id = :timelineId
                         )
                         """)
                 .setParameter("timelineId", timelineId)
@@ -301,7 +301,7 @@ public class TimelineService {
                         delete from VoteItem vi
                         where vi.vote.id in (
                             select v.id from Vote v
-                            where v.timeLine.id = :timelineId
+                            where v.timeline.id = :timelineId
                         )
                         """)
                 .setParameter("timelineId", timelineId)
@@ -309,7 +309,7 @@ public class TimelineService {
 
         entityManager.createQuery("""
                         delete from Vote v
-                        where v.timeLine.id = :timelineId
+                        where v.timeline.id = :timelineId
                         """)
                 .setParameter("timelineId", timelineId)
                 .executeUpdate();

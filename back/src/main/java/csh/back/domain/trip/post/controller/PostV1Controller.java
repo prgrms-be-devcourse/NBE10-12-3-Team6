@@ -4,7 +4,7 @@ import csh.back.domain.member.dto.response.AuthFilterDto;
 import csh.back.domain.trip.post.dto.request.CreatePostRequest;
 import csh.back.domain.trip.post.dto.request.UpdatePostRequest;
 import csh.back.domain.trip.post.dto.response.PostResponse;
-import csh.back.domain.trip.post.dto.response.PostTimeLineResponse;
+import csh.back.domain.trip.post.dto.response.PostTimelineResponse;
 import csh.back.domain.trip.post.dto.response.PostsDailyResponse;
 import csh.back.domain.trip.post.service.PostService;
 import csh.back.domain.trip.timeline.service.TimelineService;
@@ -83,7 +83,7 @@ public class PostV1Controller {
     @Operation(summary = "사진 촬영 가능 여부 판단")
     //특정 여행 모임의 특정 일차 타임라인 목록 조회
     @GetMapping("/is-taken")
-    public ResponseData<PostTimeLineResponse> getPostsWithIsTaken(
+    public ResponseData<PostTimelineResponse> getPostsWithIsTaken(
             @PathVariable Long tripId,
             @RequestParam int dayNumber,
             @AuthenticationPrincipal AuthFilterDto member) {

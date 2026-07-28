@@ -31,7 +31,7 @@ public record PostResponse(
 ) {
 
     public static PostResponse from(Post post) {
-        Long timeLineId = post.getTimeLine() != null ? post.getTimeLine().getId() : null;
+        Long timeLineId = post.getTimeline() != null ? post.getTimeline().getId() : null;
         return new PostResponse(
                 post.getId(),
                 timeLineId,

@@ -27,7 +27,7 @@ public class Post extends BaseEntity {
     //Join TripTimeline Table
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "timeline_id")
-    private Timeline timeLine;
+    private Timeline timeline;
 
     //영상인지 이미지인지 논리판단
     private Boolean isImg;
@@ -42,14 +42,14 @@ public class Post extends BaseEntity {
     @Builder
     private Post(
             TripMember author,
-            Timeline timeLine,
+            Timeline timeline,
             Boolean isImg,
             String content,
             String location,
             String contentUrl
     ) {
         this.author = author;
-        this.timeLine = timeLine;
+        this.timeline = timeline;
         this.isImg = isImg;
         this.content = content;
         this.location = location;
