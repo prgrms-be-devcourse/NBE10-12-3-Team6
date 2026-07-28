@@ -1,7 +1,7 @@
 package csh.back.domain.trip.post.dto.response;
 
 import csh.back.domain.trip.post.entity.Post;
-import csh.back.domain.trip.timeline.entity.TimeLine;
+import csh.back.domain.trip.timeline.entity.Timeline;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDate;
@@ -32,7 +32,7 @@ public record PostsDailyResponse(
             Long timeLineId = post.getTimeLine() != null ? post.getTimeLine().getId() : null;
             LocalDateTime startTime = timeLineId != null ? post.getTimeLine().getStartTime() : null;
             LocalDateTime endTime = timeLineId != null ? post.getTimeLine().getEndTime() : null;
-            TimeLine timeLine = post.getTimeLine();
+            Timeline timeLine = post.getTimeLine();
             String confirmedPlaceName = timeLine != null && timeLine.getConfirmedPlace() != null ? post.getTimeLine().getConfirmedPlace().getName() : null;
 
             return new PostSummary(

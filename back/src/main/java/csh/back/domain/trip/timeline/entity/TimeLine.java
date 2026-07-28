@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "trip_timelines")
-public class TimeLine extends BaseEntity {
+public class Timeline extends BaseEntity {
 
     //최소 일차
     private static final int MINIMUM_DAY = 1;
@@ -47,7 +47,7 @@ public class TimeLine extends BaseEntity {
     //생성자
     //빌드 사용
     @Builder
-    private TimeLine(TripGroup tripGroup, int dayNumber, LocalDateTime startTime, LocalDateTime endTime) {
+    private Timeline(TripGroup tripGroup, int dayNumber, LocalDateTime startTime, LocalDateTime endTime) {
 
         validateTimeLine(tripGroup, dayNumber, startTime, endTime);
 

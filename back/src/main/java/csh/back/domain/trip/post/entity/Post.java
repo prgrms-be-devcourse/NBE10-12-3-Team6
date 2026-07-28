@@ -3,7 +3,7 @@ package csh.back.domain.trip.post.entity;
 import csh.back.domain.member.entity.Member;
 import csh.back.domain.trip.group.entity.TripGroup;
 import csh.back.domain.trip.member.entity.TripMember;
-import csh.back.domain.trip.timeline.entity.TimeLine;
+import csh.back.domain.trip.timeline.entity.Timeline;
 import csh.back.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -27,7 +27,7 @@ public class Post extends BaseEntity {
     //Join TripTimeline Table
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "timeline_id")
-    private TimeLine timeLine;
+    private Timeline timeLine;
 
     //영상인지 이미지인지 논리판단
     private Boolean isImg;
@@ -42,7 +42,7 @@ public class Post extends BaseEntity {
     @Builder
     private Post(
             TripMember author,
-            TimeLine timeLine,
+            Timeline timeLine,
             Boolean isImg,
             String content,
             String location,

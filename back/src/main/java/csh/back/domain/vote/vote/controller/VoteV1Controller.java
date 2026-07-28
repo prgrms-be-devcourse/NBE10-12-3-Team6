@@ -1,8 +1,7 @@
 package csh.back.domain.vote.vote.controller;
 
 import csh.back.domain.member.dto.response.AuthFilterDto;
-import csh.back.domain.trip.timeline.service.TimeLineService;
-import csh.back.domain.vote.vote.dto.request.VoteConfirmPlaceRequest;
+import csh.back.domain.trip.timeline.service.TimelineService;
 import csh.back.domain.vote.vote.dto.request.VoteCreateRequest;
 import csh.back.domain.vote.vote.dto.response.*;
 import csh.back.domain.vote.vote.service.VoteService;
@@ -10,7 +9,6 @@ import csh.back.global.annotation.ApiV1;
 import csh.back.global.dto.ResponseData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +22,7 @@ import java.util.List;
 @Tag(name = "투표", description = "여행 모임 투표 관련 API")
 public class VoteV1Controller {
     private final VoteService voteService;
-    private final TimeLineService timeLineService;
+    private final TimelineService timeLineService;
 
     @Operation(summary = "투표 목록 조회", description = "특정 여행 모임의 투표 목록을 조회")
     @GetMapping

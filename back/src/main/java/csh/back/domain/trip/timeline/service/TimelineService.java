@@ -6,17 +6,16 @@ import csh.back.domain.trip.member.repository.TripMemberRepository;
 import csh.back.domain.trip.member.validator.TripMemberValidator;
 import csh.back.domain.trip.place.entity.TripPlace;
 import csh.back.domain.trip.place.repository.TripPlaceRepository;
-import csh.back.domain.trip.timeline.dto.request.TimeLineAllCreateRequest;
-import csh.back.domain.trip.timeline.dto.request.TimeLineCreateRequest;
-import csh.back.domain.trip.timeline.dto.request.TimeLineUpdateRequest;
-import csh.back.domain.trip.timeline.dto.response.TimeLineCountResponse;
-import csh.back.domain.trip.timeline.dto.response.TimeLineResponse;
-import csh.back.domain.trip.timeline.dto.response.TimeLineWithVoteIdResponse;
-import csh.back.domain.trip.timeline.entity.TimeLine;
-import csh.back.domain.trip.timeline.repository.TimeLineRepository;
+import csh.back.domain.trip.timeline.dto.request.TimelineAllCreateRequest;
+import csh.back.domain.trip.timeline.dto.request.TimelineCreateRequest;
+import csh.back.domain.trip.timeline.dto.request.TimelineUpdateRequest;
+import csh.back.domain.trip.timeline.dto.response.TimelineCountResponse;
+import csh.back.domain.trip.timeline.dto.response.TimelineResponse;
+import csh.back.domain.trip.timeline.dto.response.TimelineWithVoteIdResponse;
+import csh.back.domain.trip.timeline.entity.Timeline;
+import csh.back.domain.trip.timeline.repository.TimelineRepository;
 import csh.back.domain.vote.vote.dto.response.VoteConfirmResponse;
 import csh.back.domain.vote.vote.dto.web.VoteTimeLineResponse;
-import csh.back.domain.vote.vote.enums.VoteConfirmStatus;
 import csh.back.domain.vote.vote.enums.VoteStatus;
 import csh.back.domain.vote.vote.repository.VoteRepository;
 import csh.back.domain.vote.vote.service.VoteService;
@@ -36,15 +35,15 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class TimeLineService {
+public class TimelineService {
 
     //DB 접근을 위한 Repository를 가져옴
-    private final TimeLineRepository timeLineRepository;
+    private final TimelineRepository timeLineRepository;
     private final TripGroupRepository tripGroupRepository;
     private final TripMemberRepository tripMemberRepository;
     private final TripPlaceRepository tripPlaceRepository;
     private final VoteService voteService;
-    private final TimeLineEventService timeLineEventService;
+    private final TimelineEventService timeLineEventService;
     private final TripMemberValidator tripMemberValidator;
     private final EntityManager entityManager;
     private final VoteRepository voteRepository;
@@ -53,7 +52,7 @@ public class TimeLineService {
     private static final int MINIMUM_DAY = 1;
 
     //단건 타임라인 생성
-    public TimeLineResponse createTimeLine(Long tripId, Long memberId, TimeLineCreateRequest request) {
+    public TimelineResponse createTimeLine(Long tripId, Long memberId, TimelineCreateRequest request) {
         //여행 모임 방장 여부 검증
         validateTripAdmin(tripId, memberId);
         //시작 시간과 종료 시간의 순서 검증
@@ -69,34 +68,34 @@ public class TimeLineService {
         TripGroup tripGroup = findTripGroup(tripId);
 
         //타임라인 구간 생성
-        TimeLine timeLine = TimeLine.builder()
+        Timeline timeLine = Timeline.builder()
                 .tripGroup(tripGroup)
                 .dayNumber(request.dayNumber())
                 .startTime(request.startTime())
                 .endTime(request.endTime())
                 .build();
 
-        TimeLine savedTimeLine = timeLineRepository.save(timeLine);
+        Timeline savedTimeLine = timeLineRepository.save(timeLine);
         voteService.createVote(tripId, memberId, savedTimeLine);
         //서버에 이벤트 발송
         timeLineEventService.sendTimeLineUpdatedEventAfterCommit(tripId, memberId);
-        return TimeLineResponse.from(savedTimeLine);
+        return TimelineResponse.from(savedTimeLine);
     }
 
     //타임라인 시간 구간 일괄 생성
-    public List<TimeLineResponse> createAllTimeLines(Long tripId, Long memberId, TimeLineAllCreateRequest request) {
+    public List<TimelineResponse> createAllTimeLines(Long tripId, Long memberId, TimelineAllCreateRequest request) {
         //여행 모임 방장 여부 검증
         validateTripAdmin(tripId, memberId);
         //일괄 생성의 대표 일차와 각 시간 구간의 일차가 같은지 검증
         validateSameDayNumber(request);
         //각 시간 구간의 시작 시간과 종료 시간 순서 검증
-        for (TimeLineCreateRequest timeLine : request.timeLines()) {
+        for (TimelineCreateRequest timeLine : request.timeLines()) {
             validateStartAndEndTime(timeLine.startTime(), timeLine.endTime());
         }
         //요청으로 들어온 시간 카테고리들끼리 서로 겹치는지 검증
         validateTimeLineRange(request);
         //DB에 이미 저장된 타임라인과 시간이 겹치는지 검증
-        for (TimeLineCreateRequest timeLine : request.timeLines()) {
+        for (TimelineCreateRequest timeLine : request.timeLines()) {
             validateTimeLineOverlap(
                     tripId,
                     timeLine.dayNumber(),
@@ -108,12 +107,12 @@ public class TimeLineService {
         //tripId로 여행 모임 조회
         TripGroup tripGroup = findTripGroup(tripId);
 
-        //요청으로 들어온 시간 구간들을 TimeLine 엔티티 목록으로 변환
-        List<TimeLine> timeLines = new ArrayList<>();
+        //요청으로 들어온 시간 구간들을 Timeline 엔티티 목록으로 변환
+        List<Timeline> timeLines = new ArrayList<>();
 
         //하나씩 값을 넣음
-        for (TimeLineCreateRequest timeLine : request.timeLines()) {
-            TimeLine newTimeLine = TimeLine.builder()
+        for (TimelineCreateRequest timeLine : request.timeLines()) {
+            Timeline newTimeLine = Timeline.builder()
                     .tripGroup(tripGroup)
                     .dayNumber(timeLine.dayNumber())
                     .startTime(timeLine.startTime())
@@ -124,18 +123,18 @@ public class TimeLineService {
         }
 
         //타임라인 목록을 한 번에 저장
-        List<TimeLine> savedTimeLines = timeLineRepository.saveAll(timeLines);
+        List<Timeline> savedTimeLines = timeLineRepository.saveAll(timeLines);
         voteService.createVoteBatch(tripId, memberId, savedTimeLines);
         //서버에 이벤트 발송
         timeLineEventService.sendTimeLineUpdatedEventAfterCommit(tripId, memberId);
         //저장된 타임라인 목록을 응답 DTO 목록으로 변환
         return savedTimeLines.stream()
-                .map(TimeLineResponse::from)
+                .map(TimelineResponse::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<TimeLineWithVoteIdResponse> getTimeLines(Long tripId, Long memberId, int dayNumber) {
+    public List<TimelineWithVoteIdResponse> getTimeLines(Long tripId, Long memberId, int dayNumber) {
         //여행 모임 멤버 검증 여부 추가
         validateTripMember(tripId, memberId);
         //dayNumber 검증
@@ -143,17 +142,17 @@ public class TimeLineService {
             throw new IllegalArgumentException("일차는 " + MINIMUM_DAY + " 이상이어야 합니다.");
         }
         //tripId + dayNumber로 목록 조회
-        List<TimeLine> timeLines = timeLineRepository.findByTripGroupIdAndDayNumberOrderByStartTimeAsc(tripId, dayNumber);
+        List<Timeline> timeLines = timeLineRepository.findByTripGroupIdAndDayNumberOrderByStartTimeAsc(tripId, dayNumber);
         //TimeLineId,VoteId 으로 매핑된 맵을 반환
-        Map<Long, Long> timeLineVoteMap = voteService.findAllVoteIds(timeLines.stream().map(TimeLine::getId).toList());
+        Map<Long, Long> timeLineVoteMap = voteService.findAllVoteIds(timeLines.stream().map(Timeline::getId).toList());
         return timeLines
                 .stream()
-                .map(timeLine -> TimeLineWithVoteIdResponse.of(timeLine, timeLineVoteMap.get(timeLine.getId())))
+                .map(timeLine -> TimelineWithVoteIdResponse.of(timeLine, timeLineVoteMap.get(timeLine.getId())))
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<TimeLineCountResponse> getTimeLinesCount(Long tripId, Long memberId) {
+    public List<TimelineCountResponse> getTimeLinesCount(Long tripId, Long memberId) {
         //여행 모임 멤버 검증 여부 추가
         validateTripMember(tripId, memberId);
         Map<Integer, Long> countMap = timeLineRepository.countGroupByDayNumberId(tripId)
@@ -163,8 +162,8 @@ public class TimeLineService {
                         row -> (Long) row[1]
                 ));
 
-        List<TimeLineCountResponse> responses = countMap.entrySet().stream().map(
-                entry -> TimeLineCountResponse.of(entry.getKey(), entry.getValue()
+        List<TimelineCountResponse> responses = countMap.entrySet().stream().map(
+                entry -> TimelineCountResponse.of(entry.getKey(), entry.getValue()
                 )
         ).toList();
         //일차별 타임라인 개수 응답 반환
@@ -172,7 +171,7 @@ public class TimeLineService {
 
     }
 
-    public TimeLineResponse updateTimeLine(Long tripId, Long timelineId, Long memberId, TimeLineUpdateRequest request) {
+    public TimelineResponse updateTimeLine(Long tripId, Long timelineId, Long memberId, TimelineUpdateRequest request) {
         //여행 모임 멤버 여부 검증 추가
         validateTripMember(tripId, memberId);
         //같은 여행 모임의 타임라인 시간 수정 요청을 순차적으로 처리하기 위함
@@ -181,7 +180,7 @@ public class TimeLineService {
         validateStartAndEndTime(request.startTime(), request.endTime());
 
         //tripId와 timelineId가 모두 일치하는 타임라인 조회
-        TimeLine timeLine = findTimeLine(tripId, timelineId);
+        Timeline timeLine = findTimeLine(tripId, timelineId);
         //수정 시 자기 자신을 제외하고 DB에 이미 저장된 타임라인과 시간이 겹치는지 검증
         validateTimeLineOverlapForUpdate(
                 tripId,
@@ -196,7 +195,7 @@ public class TimeLineService {
         //서버에 이벤트 발송
         timeLineEventService.sendTimeLineUpdatedEventAfterCommit(tripId, memberId);
         // 수정된 타임라인 응답 반환
-        return TimeLineResponse.from(timeLine);
+        return TimelineResponse.from(timeLine);
     }
 
     //타임라인 삭제 메서드
@@ -205,7 +204,7 @@ public class TimeLineService {
         validateTripAdmin(tripId, memberId);
 
         //tripId와 timeLineId가 모두 일치하는 타임라인 조회
-        TimeLine timeLine = findTimeLine(tripId, timelineId);
+        Timeline timeLine = findTimeLine(tripId, timelineId);
         deleteVotesByTimeLine(timelineId);
         //타임라인 제거
         timeLineRepository.delete(timeLine);
@@ -265,13 +264,13 @@ public class TimeLineService {
     }
 
     // confirmPlaceByHost의 배치 버전: tripId 검증 없이 findById만
-    private void confirmPlaceBySystem(TimeLine timeLine, Long confirmPlaceId) {
+    private void confirmPlaceBySystem(Timeline timeLine, Long confirmPlaceId) {
         TripPlace tripPlace = tripPlaceRepository.findById(confirmPlaceId)
                 .orElseThrow(() -> new IllegalStateException("확정 장소 없음: " + confirmPlaceId));
         timeLine.updateConfirmedPlace(tripPlace);
     }
 
-    private void confirmPlaceByHost(TimeLine timeLine, Long tripId, Long confirmPlaceId) {
+    private void confirmPlaceByHost(Timeline timeLine, Long tripId, Long confirmPlaceId) {
         //tripId + confirmedPlaceId로 후보 장소 조회
         TripPlace tripPlace = tripPlaceRepository.findByIdAndTripGroupId(confirmPlaceId, tripId)
                 .orElseThrow(()-> new IllegalArgumentException("확정된 장소가 없습니다."));
@@ -280,8 +279,8 @@ public class TimeLineService {
     }
 
     private Long resolveTripIdByVoteId(Long voteId) {
-        TimeLine timeLine = voteRepository.findTimeLineByVoteId(voteId)   // ★ 실제 조회로 교체
-                .orElseThrow(() -> new IllegalStateException("TimeLine 없음: voteId=" + voteId));
+        Timeline timeLine = voteRepository.findTimeLineByVoteId(voteId)   // ★ 실제 조회로 교체
+                .orElseThrow(() -> new IllegalStateException("Timeline 없음: voteId=" + voteId));
         return timeLine.getTripGroup().getId();
     }
 
@@ -338,7 +337,7 @@ public class TimeLineService {
     }
 
     //tripId와 timelineId가 모두 일치하는 타임라인 조회
-    private TimeLine findTimeLine(Long tripId, Long timelineId) {
+    private Timeline findTimeLine(Long tripId, Long timelineId) {
         return timeLineRepository.findByIdAndTripGroupId(timelineId, tripId)
                 .orElseThrow(() -> new IllegalArgumentException("타임라인을 찾을 수 없습니다."));
     }
@@ -353,9 +352,9 @@ public class TimeLineService {
     }
 
     //일괄 생성 요청의 일차 번호가 모두 일치하는지 검증
-    private void validateSameDayNumber(TimeLineAllCreateRequest request) {
+    private void validateSameDayNumber(TimelineAllCreateRequest request) {
         //요청에 포함된 각 시간 구간의 일차를 대표 일차와 비교
-        for (TimeLineCreateRequest timeLine : request.timeLines()) {
+        for (TimelineCreateRequest timeLine : request.timeLines()) {
             if (!request.dayNumber().equals(timeLine.dayNumber())) {
                 throw new IllegalArgumentException("일차 정보가 일치하지 않습니다.");
             }
@@ -375,17 +374,17 @@ public class TimeLineService {
     }
 
     //요청으로 들어온 timeLines 끼리 서로 겹치는지 검증
-    private void validateTimeLineRange(TimeLineAllCreateRequest request) {
+    private void validateTimeLineRange(TimelineAllCreateRequest request) {
         //리스트를 이용해 생성된 타임라인들을 리스트로 변환해 넣음
-        List<TimeLineCreateRequest> timeLines = new ArrayList<>(request.timeLines());
+        List<TimelineCreateRequest> timeLines = new ArrayList<>(request.timeLines());
 
         //2개씩 확인하기 위한 이중 for 문
         //하루 단위 시간 카테고리 개수는 많지 않기 때문에 모든 조합을 직접 비교
         for (int i = 0; i <timeLines.size(); i++) {
-            TimeLineCreateRequest currentTimeLine = timeLines.get(i);
+            TimelineCreateRequest currentTimeLine = timeLines.get(i);
 
             for (int j = i+1; j < timeLines.size(); j++) {
-                TimeLineCreateRequest nextTimeLine = timeLines.get(j);
+                TimelineCreateRequest nextTimeLine = timeLines.get(j);
 
                 //두 시간 구간이 겹치는 조건
                 boolean isOverLapped =

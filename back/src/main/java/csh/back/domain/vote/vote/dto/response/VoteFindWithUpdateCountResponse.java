@@ -1,7 +1,7 @@
 package csh.back.domain.vote.vote.dto.response;
 
 import csh.back.domain.trip.place.dto.response.TripPlaceFindResponse;
-import csh.back.domain.trip.timeline.entity.TimeLine;
+import csh.back.domain.trip.timeline.entity.Timeline;
 import csh.back.domain.vote.vote.entity.Vote;
 import csh.back.domain.vote.vote.enums.VoteStatus;
 
@@ -21,7 +21,7 @@ public record VoteFindWithUpdateCountResponse(
             Vote vote
     ) {
         VoteStatus voteStatus = vote.getStatus();
-        TimeLine timeLine = vote.getTimeLine() != null ? vote.getTimeLine() : null;
+        Timeline timeLine = vote.getTimeLine() != null ? vote.getTimeLine() : null;
         Long confirmedPlaceId = timeLine.getConfirmedPlace() != null ? timeLine.getConfirmedPlace().getId() : null;
         return new VoteFindWithUpdateCountResponse(voteFindResponses, wishPlaceFindResponses, updateCount, voteStatus.getNickname(), confirmedPlaceId);
     }

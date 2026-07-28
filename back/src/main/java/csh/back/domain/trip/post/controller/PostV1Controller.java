@@ -7,7 +7,7 @@ import csh.back.domain.trip.post.dto.response.PostResponse;
 import csh.back.domain.trip.post.dto.response.PostTimeLineResponse;
 import csh.back.domain.trip.post.dto.response.PostsDailyResponse;
 import csh.back.domain.trip.post.service.PostService;
-import csh.back.domain.trip.timeline.service.TimeLineService;
+import csh.back.domain.trip.timeline.service.TimelineService;
 import csh.back.global.annotation.ApiV1;
 import csh.back.global.dto.ResponseData;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,7 +28,7 @@ import java.util.List;
 public class PostV1Controller {
 
     private final PostService postService;
-    private final TimeLineService timeLineService;
+    private final TimelineService timeLineService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "게시글 생성", description = "사진이 포함된 게시글을 생성합니다.")

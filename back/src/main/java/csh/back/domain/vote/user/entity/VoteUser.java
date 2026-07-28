@@ -1,7 +1,7 @@
 package csh.back.domain.vote.user.entity;
 
 import csh.back.domain.trip.member.entity.TripMember;
-import csh.back.domain.trip.timeline.entity.TimeLine;
+import csh.back.domain.trip.timeline.entity.Timeline;
 import csh.back.domain.vote.item.entity.VoteItem;
 import csh.back.domain.vote.vote.entity.Vote;
 import csh.back.global.entity.BaseEntity;

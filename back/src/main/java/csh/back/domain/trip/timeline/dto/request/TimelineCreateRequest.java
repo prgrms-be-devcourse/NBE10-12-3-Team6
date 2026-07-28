@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 //스웨거 테스트를 위한 스키마
 @Schema(description = "타임라인 시간 구간 생성 요청 DTO")
-public record TimeLineCreateRequest(
+public record TimelineCreateRequest(
 
         @Schema(description = "여행 일차 번호", example = "1")
         @NotNull

@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 //스웨거 테스트를 위한 스키마
 @Schema(description = "타임라인 시간 구간 수정 요청 DTO")
-public record TimeLineUpdateRequest(
+public record TimelineUpdateRequest(
 
         @Schema(description = "수정할 타임라인 시작 시간", example = "2026-07-01T09:30:00")
         @NotNull

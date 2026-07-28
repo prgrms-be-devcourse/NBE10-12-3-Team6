@@ -12,8 +12,8 @@ import csh.back.domain.trip.post.dto.response.PostTimeLineResponse;
 import csh.back.domain.trip.post.dto.response.PostsDailyResponse;
 import csh.back.domain.trip.post.entity.Post;
 import csh.back.domain.trip.post.repository.PostRepository;
-import csh.back.domain.trip.timeline.entity.TimeLine;
-import csh.back.domain.trip.timeline.repository.TimeLineRepository;
+import csh.back.domain.trip.timeline.entity.Timeline;
+import csh.back.domain.trip.timeline.repository.TimelineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,7 +35,7 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final TripMemberRepository tripMemberRepository;
-    private final TimeLineRepository timeLineRepository;
+    private final TimelineRepository timeLineRepository;
 //    private final PostImageService postImageService;
     private final S3UploadService s3UploadService;
     private final TripMemberValidator tripMemberValidator;
@@ -52,8 +52,8 @@ public class PostService {
         List<Post> posts = postRepository.findWithTimeLineAndPlaceByAuthorIdIn(tripMembers);
 
         // 여행 전체 timeline 한 번 조회 → 날짜별 맵 (빈 칸 슬롯 계산에 재사용, 쿼리 1번)
-        List<TimeLine> allSchedules = timeLineRepository.findByTripGroupIdSorted(tripId);
-        Map<LocalDate, List<TimeLine>> scheduleByDate = allSchedules.stream()
+        List<Timeline> allSchedules = timeLineRepository.findByTripGroupIdSorted(tripId);
+        Map<LocalDate, List<Timeline>> scheduleByDate = allSchedules.stream()
                 .collect(Collectors.groupingBy(t -> t.getStartTime().toLocalDate()));
 
         // 사진 날짜별 그룹핑 (TreeMap으로 날짜 오름차순 자동 정렬)
@@ -70,7 +70,7 @@ public class PostService {
                     List<Post> dailyPosts = entry.getValue();
 
                     // 그날 일정 (없는 날이면 빈 리스트 → 전부 빈 칸 슬롯으로 계산됨)
-                    List<TimeLine> daySchedules = scheduleByDate.getOrDefault(date, List.of());
+                    List<Timeline> daySchedules = scheduleByDate.getOrDefault(date, List.of());
 
                     List<PostsDailyResponse.PostSummary> summaries = dailyPosts.stream()
                             .map(post -> toSummaryWithSlot(post, daySchedules))
@@ -128,7 +128,7 @@ public class PostService {
                 .findByMemberIdAndTripGroupId(memberId, tripId)
                 .orElseThrow(() -> new IllegalArgumentException("여행 멤버가 존재하지 않습니다."));
         // 타임라인 조회
-        TimeLine timeLine = null;
+        Timeline timeLine = null;
         if(timeLineId != null) timeLine = timeLineRepository.findById(timeLineId).orElse(null);
 
         // 이미지 저장
@@ -174,7 +174,7 @@ public class PostService {
 
         // 2. 오늘 일정 목록 (startTime asc 정렬)
         //    TODO: dayNumber로 조회하는 구조면 today → dayNumber 변환해서 넘길 것
-        List<TimeLine> schedules = timeLineRepository.findByTripAndDateSorted(tripId, dayNumber);
+        List<Timeline> schedules = timeLineRepository.findByTripAndDateSorted(tripId, dayNumber);
 
         // 3. 현재 시각이 속한 슬롯 범위 계산 + placeName 계산
         LocalDateTime slotStart;
@@ -182,13 +182,13 @@ public class PostService {
         String confirmedPlaceName = null;
         Long timeLineId = null;   // 빈 칸이면 null 유지
 
-        Optional<TimeLine> current = schedules.stream()
+        Optional<Timeline> current = schedules.stream()
                 .filter(s -> !now.isBefore(s.getStartTime()) && now.isBefore(s.getEndTime()))
                 .findFirst();
 
         if (current.isPresent()) {
             // 일정 슬롯 → 일정 실제 범위 그대로
-            TimeLine timeLine = current.get();
+            Timeline timeLine = current.get();
             slotStart = timeLine.getStartTime();
             slotEnd = timeLine.getEndTime();
             timeLineId = timeLine.getId();   // ← 일정 슬롯이면 timeLineId 채움
@@ -211,8 +211,8 @@ public class PostService {
         return new PostTimeLineResponse(slotStart, slotEnd, timeLineId, confirmedPlaceName, isTaken);
     }
 
-    private PostsDailyResponse.PostSummary toSummaryWithSlot(Post post, List<TimeLine> daySchedules) {
-        TimeLine timeLine = post.getTimeLine();
+    private PostsDailyResponse.PostSummary toSummaryWithSlot(Post post, List<Timeline> daySchedules) {
+        Timeline timeLine = post.getTimeLine();
 
         // 일정 슬롯: timeline 값 그대로
         if (timeLine != null) {
@@ -244,11 +244,11 @@ public class PostService {
         );
     }
 
-    private LocalDateTime calcSlotStart(LocalDateTime time, List<TimeLine> daySchedules) {
+    private LocalDateTime calcSlotStart(LocalDateTime time, List<Timeline> daySchedules) {
         LocalDateTime hourFloor = time.truncatedTo(ChronoUnit.HOURS);
 
         LocalDateTime lastScheduleEnd = daySchedules.stream()
-                .map(TimeLine::getEndTime)
+                .map(Timeline::getEndTime)
                 .filter(end -> !end.isAfter(time))   // time 이전에 끝난 일정만
                 .max(Comparator.naturalOrder())
                 .orElse(hourFloor);
@@ -256,13 +256,13 @@ public class PostService {
         return hourFloor.isAfter(lastScheduleEnd) ? hourFloor : lastScheduleEnd;
     }
 
-    private LocalDateTime calcSlotEnd(LocalDateTime slotStart, List<TimeLine> daySchedules) {
+    private LocalDateTime calcSlotEnd(LocalDateTime slotStart, List<Timeline> daySchedules) {
         LocalDateTime end = isOnTheHour(slotStart)
                 ? slotStart.plusHours(1)
                 : slotStart.truncatedTo(ChronoUnit.HOURS).plusHours(1);
 
         LocalDateTime nextScheduleStart = daySchedules.stream()
-                .map(TimeLine::getStartTime)
+                .map(Timeline::getStartTime)
                 .filter(start -> start.isAfter(slotStart))
                 .min(Comparator.naturalOrder())
                 .orElse(end);
@@ -279,11 +279,11 @@ public class PostService {
      * 현재 시각 이전에 끝난 일정의 끝점 vs 현재 시각 정시 내림 → 더 늦은 쪽.
      * (15:30에 일정 끝, 지금 15:45 → 15:30 / 지금 16:20 → 16:00)
      */
-    private LocalDateTime calcEmptySlotStart(LocalDateTime now, List<TimeLine> schedules) {
+    private LocalDateTime calcEmptySlotStart(LocalDateTime now, List<Timeline> schedules) {
         LocalDateTime hourFloor = now.truncatedTo(ChronoUnit.HOURS);
 
         LocalDateTime lastScheduleEnd = schedules.stream()
-                .map(TimeLine::getEndTime)
+                .map(Timeline::getEndTime)
                 .filter(end -> !end.isAfter(now))        // now 이전에 끝난 것
                 .max(Comparator.naturalOrder())
                 .orElse(hourFloor);
@@ -296,13 +296,13 @@ public class PostService {
      * slotStart 기준 다음 정시. 단 그 사이에 시작하는 다음 일정이 있으면 거기서 컷.
      * (15:30 → 16:00, 16:00 → 17:00, 중간에 일정 있으면 그 시작 시각)
      */
-    private LocalDateTime calcEmptySlotEnd(LocalDateTime slotStart, List<TimeLine> schedules) {
+    private LocalDateTime calcEmptySlotEnd(LocalDateTime slotStart, List<Timeline> schedules) {
         LocalDateTime end = isOnTheHour(slotStart)
                 ? slotStart.plusHours(1)
                 : slotStart.truncatedTo(ChronoUnit.HOURS).plusHours(1);
 
         LocalDateTime nextScheduleStart = schedules.stream()
-                .map(TimeLine::getStartTime)
+                .map(Timeline::getStartTime)
                 .filter(start -> start.isAfter(slotStart))
                 .min(Comparator.naturalOrder())
                 .orElse(end);

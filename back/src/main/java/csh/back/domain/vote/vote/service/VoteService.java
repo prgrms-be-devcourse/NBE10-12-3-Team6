@@ -7,8 +7,8 @@ import csh.back.domain.trip.member.repository.TripMemberRepository;
 import csh.back.domain.trip.member.validator.TripMemberValidator;
 import csh.back.domain.trip.place.dto.response.TripPlaceFindResponse;
 import csh.back.domain.trip.place.service.TripPlaceService;
-import csh.back.domain.trip.timeline.entity.TimeLine;
-import csh.back.domain.trip.timeline.repository.TimeLineRepository;
+import csh.back.domain.trip.timeline.entity.Timeline;
+import csh.back.domain.trip.timeline.repository.TimelineRepository;
 import csh.back.domain.vote.item.entity.VoteItem;
 import csh.back.domain.vote.item.repository.VoteItemRepository;
 import csh.back.domain.vote.user.entity.VoteUser;
@@ -24,10 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +39,7 @@ public class VoteService {
     private final VoteItemRepository voteItemRepository;
     private final VoteUserRepository voteUserRepository;
     private final TripGroupRepository tripGroupRepository;
-    private final TimeLineRepository timeLineRepository;
+    private final TimelineRepository timeLineRepository;
     private final TripMemberValidator tripMemberValidator;
     private final TripMemberRepository tripMemberRepository;
     private final TripPlaceService tripPlaceService;
@@ -56,8 +53,8 @@ public class VoteService {
         TripGroup tripGroup = tripGroupRepository.findById(tripId).orElseThrow(RuntimeException::new);
 
         Integer totalDays = tripGroup.getNights() + 1;
-        Map<Integer, List<TimeLine>> byDay = timeLineRepository.findAllByTripGroupId(tripId).stream()
-                .collect(Collectors.groupingBy(TimeLine::getDayNumber));
+        Map<Integer, List<Timeline>> byDay = timeLineRepository.findAllByTripGroupId(tripId).stream()
+                .collect(Collectors.groupingBy(Timeline::getDayNumber));
 
         Map<Long, Vote> byTimeLineId = voteRepository.findVotesWithTimeLineByTripGroupId(tripId).stream()
                 .collect(Collectors.toMap(
@@ -131,12 +128,12 @@ public class VoteService {
 
     @Transactional
     public VoteCreateResponse wrapperCreateVote(Long tripId, Long memberId, Long timeLineId) {
-        TimeLine timeLine = timeLineRepository.findById(timeLineId).orElseThrow(RuntimeException::new);
+        Timeline timeLine = timeLineRepository.findById(timeLineId).orElseThrow(RuntimeException::new);
         return createVote(tripId, memberId, timeLine);
     }
 
     @Transactional
-    public VoteCreateResponse createVote(Long tripId, Long memberId, TimeLine timeLine) {
+    public VoteCreateResponse createVote(Long tripId, Long memberId, Timeline timeLine) {
         tripMemberValidator.validMember(tripId, memberId);
         TripGroup tripGroup = tripGroupRepository.findById(tripId).orElseThrow(RuntimeException::new);
         TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripId).orElseThrow(RuntimeException::new);
@@ -153,7 +150,7 @@ public class VoteService {
     }
 
     @Transactional
-    public void createVoteBatch(Long tripId, Long memberId, List<TimeLine> timeLines) {
+    public void createVoteBatch(Long tripId, Long memberId, List<Timeline> timeLines) {
         tripMemberValidator.validMember(tripId, memberId);
         TripGroup tripGroup = tripGroupRepository.findById(tripId).orElseThrow(RuntimeException::new);
         LocalDateTime expireTime = tripGroup.getStartDate().minusDays(1).atStartOfDay();
@@ -174,7 +171,7 @@ public class VoteService {
     public VoteTimeLineResponse voteConfirm(Long maxVoteItemId, Long voteId) {
         VoteItem voteItem = voteItemRepository.findById(maxVoteItemId).orElseThrow(RuntimeException::new);
         Long confirmPlaceId = voteItem.getTripPlace().getId();
-        TimeLine timeLine = voteRepository.findTimeLineByVoteId(voteId).orElseThrow(RuntimeException::new);
+        Timeline timeLine = voteRepository.findTimeLineByVoteId(voteId).orElseThrow(RuntimeException::new);
         voteItem.getVote().updateStatus(VoteStatus.CONFIRMED);
         return VoteTimeLineResponse.of(confirmPlaceId, timeLine);
     }
@@ -194,13 +191,13 @@ public class VoteService {
     }
 
     private VoteWithTimeLineResponse createVoteAndTimeLineResponse(
-            TimeLine timeLine,
+            Timeline timeLine,
             Map<Long, Vote> byTimeLindId
     ) {
         Long timeLineId = timeLine.getId();
         Vote vote = byTimeLindId.get(timeLineId);
         if(vote == null) {
-            log.error("TimeLine {}과 연결된 Vote가 존재 하지 않습니다! 확인 해주세요!", timeLineId);
+            log.error("Timeline {}과 연결된 Vote가 존재 하지 않습니다! 확인 해주세요!", timeLineId);
             return VoteWithTimeLineResponse.of(timeLine, null);
         }
         return VoteWithTimeLineResponse.of(timeLine, vote);
