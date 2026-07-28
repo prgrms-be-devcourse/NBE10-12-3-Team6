@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 
 public record TimelineWithVoteIdResponse(
         Long timelineId,
-        Integer dayNumber,
+        Long dayNumber,
         LocalDateTime startTime,
         LocalDateTime endTime,
         String confirmedPlaceName,
@@ -14,14 +14,14 @@ public record TimelineWithVoteIdResponse(
         Long voteId
 ) {
     //서비스 로직에서 조회 결과를 응답으로 바꿀 때 편하게 하기 위한 정적 메서드
-    public static TimelineWithVoteIdResponse of(Timeline timeLine, Long voteId) {
-        String confirmedPlaceName = timeLine.getConfirmedPlace() != null ? timeLine.getConfirmedPlace().getName() : null;
-        String category = timeLine.getConfirmedPlace() != null ? timeLine.getConfirmedPlace().getTheme() : null;
+    public static TimelineWithVoteIdResponse of(Timeline timeline, Long voteId) {
+        String confirmedPlaceName = timeline.getTripWishPlace() != null ? timeline.getTripWishPlace().getName() : null;
+        String category = timeline.getTripWishPlace() != null ? timeline.getTripWishPlace().getCategory() : null;
         return new TimelineWithVoteIdResponse(
-                timeLine.getId(),
-                timeLine.getDayNumber(),
-                timeLine.getStartTime(),
-                timeLine.getEndTime(),
+                timeline.getId(),
+                timeline.getDayNumber(),
+                timeline.getStartTime(),
+                timeline.getEndTime(),
                 confirmedPlaceName,
                 category,
                 voteId

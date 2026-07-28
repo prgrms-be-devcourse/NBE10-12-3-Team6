@@ -58,7 +58,7 @@ public class TimelineEventService {
     }
 
     //특정 여행 모임의 타임라인이 변경되었음을 구독 중인 사용자들에게 전송
-    private void sendTimeLineUpdatedEvent(Long tripId, Long changedMemberId) {
+    private void sendTimelineUpdatedEvent(Long tripId, Long changedMemberId) {
         //tripId에 해당하는 SSE 연결 목록 조회
         List<SseEmitter> tripEmitters = emitters.get(tripId);
 
@@ -103,7 +103,7 @@ public class TimelineEventService {
     //여행 모임 멤버 여부 검증
     private void validateTripMember(Long tripId, Long memberId) {
         Integer count = jdbcTemplate.queryForObject(
-                "select count(*) from trip_members where trip_id = ? and member_id = ?",
+                "select count(*) from trip_members where trip_group_id = ? and member_id = ?",
                 Integer.class,
                 tripId,
                 memberId
@@ -116,19 +116,19 @@ public class TimelineEventService {
     }
 
     //트랜잭션 커밋 성공 후 타임라인 변경 이벤트를 전송
-    public void sendTimeLineUpdatedEventAfterCommit(Long tripId, Long changedMemberId) {
+    public void sendTimelineUpdatedEventAfterCommit(Long tripId, Long changedMemberId) {
         //현재 트랜잭션 동기화가 활성화되어 있으면 커밋 이후 이벤트 전송 예약
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    sendTimeLineUpdatedEvent(tripId, changedMemberId);
+                    sendTimelineUpdatedEvent(tripId, changedMemberId);
                 }
             });
             return;
         }
         //트랜잭션이 없는 상황이면 즉시 이벤트 전송
-        sendTimeLineUpdatedEvent(tripId, changedMemberId);
+        sendTimelineUpdatedEvent(tripId, changedMemberId);
     }
 
 }

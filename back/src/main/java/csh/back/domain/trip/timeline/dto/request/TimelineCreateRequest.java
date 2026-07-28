@@ -13,7 +13,7 @@ public record TimelineCreateRequest(
         @Schema(description = "여행 일차 번호", example = "1")
         @NotNull
         @Min(1)
-        Integer dayNumber,
+        Long dayNumber,
 
         @Schema(description = "타임라인 시작 시간", example = "2026-07-01T09:00:00")
         @NotNull

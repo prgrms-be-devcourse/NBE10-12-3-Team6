@@ -13,8 +13,8 @@ public interface TimelineRepository extends JpaRepository<Timeline, Long> {
     List<Timeline> findAllByTripGroupId(Long tripId);
 
     //특정 여행 모임의 특정 일차 타임라인 목록을 시작 시간 기준으로 조회
-    @Query("select t from Timeline t left join fetch t.confirmedPlace where t.tripGroup.id = :tripId and t.dayNumber = :dayNumber order by t.startTime asc")
-    List<Timeline> findByTripGroupIdAndDayNumberOrderByStartTimeAsc(Long tripId, int dayNumber);
+    @Query("select t from Timeline t left join fetch t.tripWishPlace where t.tripGroup.id = :tripId and t.dayNumber = :dayNumber order by t.startTime asc")
+    List<Timeline> findByTripGroupIdAndDayNumberOrderByStartTimeAsc(Long tripId, Long dayNumber);
 
     //수정, 삭제하려는 타임라인이 해당 여행 모임에 속하는지 확인하면서 조회
     Optional<Timeline> findByIdAndTripGroupId(Long timelineId, Long tripId);
@@ -28,9 +28,9 @@ public interface TimelineRepository extends JpaRepository<Timeline, Long> {
           and t.startTime < :endTime
           and t.endTime > :startTime
         """)
-    long countOverlappingTimeLine(
+    long countOverlappingTimeline(
             @Param("tripId") Long tripId,
-            @Param("dayNumber") Integer dayNumber,
+            @Param("dayNumber") Long dayNumber,
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime
     );
@@ -45,9 +45,9 @@ public interface TimelineRepository extends JpaRepository<Timeline, Long> {
           and t.startTime < :endTime
           and t.endTime > :startTime
         """)
-    long countOverlappingTimeLineExceptSelf(
+    long countOverlappingTimelineExceptSelf(
             @Param("tripId") Long tripId,
-            @Param("dayNumber") Integer dayNumber,
+            @Param("dayNumber") Long dayNumber,
             @Param("timelineId") Long timelineId,
             @Param("startTime") LocalDateTime startTime,
             @Param("endTime") LocalDateTime endTime
@@ -57,10 +57,10 @@ public interface TimelineRepository extends JpaRepository<Timeline, Long> {
     List<Object[]> countGroupByDayNumberId(Long tripId);
 
     @Query("select t from Timeline t " +
-            "left join fetch t.confirmedPlace " +
+            "left join fetch t.tripWishPlace " +
             "where t.tripGroup.id = :tripId and t.dayNumber = :dayNumber " +
             "order by t.startTime asc")
-    List<Timeline> findByTripAndDateSorted(Long tripId, int dayNumber);
+    List<Timeline> findByTripAndDateSorted(Long tripId, Long dayNumber);
 
     @Query("""
         SELECT t FROM Timeline t
