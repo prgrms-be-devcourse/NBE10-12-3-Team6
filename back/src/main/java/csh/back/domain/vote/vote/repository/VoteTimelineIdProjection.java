@@ -1,6 +1,6 @@
 package csh.back.domain.vote.vote.repository;
 
-public interface VoteTimeLineIdProjection {
+public interface VoteTimelineIdProjection {
     Long getVoteId();
-    Long getTimeLineId();
+    Long getTimelineId();
 }

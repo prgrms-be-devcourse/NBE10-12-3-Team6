@@ -1,13 +1,13 @@
 package csh.back.domain.trip.timeline.controller;
 
-import csh.back.domain.trip.timeline.dto.request.TimeLineAllCreateRequest;
-import csh.back.domain.trip.timeline.dto.request.TimeLineCreateRequest;
-import csh.back.domain.trip.timeline.dto.request.TimeLineUpdateRequest;
-import csh.back.domain.trip.timeline.dto.response.TimeLineCountResponse;
-import csh.back.domain.trip.timeline.dto.response.TimeLineResponse;
-import csh.back.domain.trip.timeline.dto.response.TimeLineWithVoteIdResponse;
-import csh.back.domain.trip.timeline.service.TimeLineEventService;
-import csh.back.domain.trip.timeline.service.TimeLineService;
+import csh.back.domain.trip.timeline.dto.request.TimelineAllCreateRequest;
+import csh.back.domain.trip.timeline.dto.request.TimelineCreateRequest;
+import csh.back.domain.trip.timeline.dto.request.TimelineUpdateRequest;
+import csh.back.domain.trip.timeline.dto.response.TimelineCountResponse;
+import csh.back.domain.trip.timeline.dto.response.TimelineResponse;
+import csh.back.domain.trip.timeline.dto.response.TimelineWithVoteIdResponse;
+import csh.back.domain.trip.timeline.service.TimelineEventService;
+import csh.back.domain.trip.timeline.service.TimelineService;
 import csh.back.global.annotation.ApiV1;
 import csh.back.global.dto.ResponseData;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,19 +31,19 @@ import java.util.List;
 @RequestMapping("/trips/{tripId}/timelines")
 //JSON 응답을 반환하는 REST API 컨트롤러
 @RestController
-public class TimeLineV1Controller {
+public class TimelineV1Controller {
 
     //타임라인 관련 비즈니스 로직을 처리하는 Service
-    private final TimeLineService timeLineService;
-    private final TimeLineEventService timeLineEventService;
+    private final TimelineService timeLineService;
+    private final TimelineEventService timeLineEventService;
 
     @Operation(summary = "타임라인 시간 구간 단건 생성")
     //타임라인 시간 구간 등록
     @PostMapping
-    public ResponseData<TimeLineResponse> createTimeLine(
+    public ResponseData<TimelineResponse> createTimeLine(
             @PathVariable Long tripId,
             Authentication authentication,
-            @Valid @RequestBody TimeLineCreateRequest request) {
+            @Valid @RequestBody TimelineCreateRequest request) {
         //로그인 정보에서 가져옴
         Long memberId = getLoginMemberId(authentication);
         //ResponseData로 감싸서 201 Created 반환
@@ -54,10 +54,10 @@ public class TimeLineV1Controller {
     @Tag(name = "여행 타임라인", description = "일괄 여행 타임라인 시간 구간 API")
     @Operation(summary = "타임라인 시간 구간 일괄 생성")
     @PostMapping("/batch")
-    public ResponseData<List<TimeLineResponse>> createAllTimeLines(
+    public ResponseData<List<TimelineResponse>> createAllTimeLines(
             @PathVariable Long tripId,
             Authentication authentication,
-            @Valid @RequestBody TimeLineAllCreateRequest request) {
+            @Valid @RequestBody TimelineAllCreateRequest request) {
 
         //로그인 정보에서 가져옴
         Long memberId = getLoginMemberId(authentication);
@@ -68,7 +68,7 @@ public class TimeLineV1Controller {
     @Operation(summary = "일차별 타임라인 시간 구간 목록 조회")
     //특정 여행 모임의 특정 일차 타임라인 목록 조회
     @GetMapping
-    public ResponseData<List<TimeLineWithVoteIdResponse>> getTimeLines(
+    public ResponseData<List<TimelineWithVoteIdResponse>> getTimeLines(
             @PathVariable Long tripId,
             Authentication authentication,
             @RequestParam int dayNumber) {
@@ -94,7 +94,7 @@ public class TimeLineV1Controller {
     @Operation(summary = "방 내 전체 타임라인 개수 목록 반환")
     //방 내 전체 타임라인 개수 목록 조회
     @GetMapping("/count")
-    public ResponseData<List<TimeLineCountResponse>> getTimeLinesCount(
+    public ResponseData<List<TimelineCountResponse>> getTimeLinesCount(
             @PathVariable Long tripId,
             Authentication authentication) {
         //로그인 정보에서 가져옴
@@ -106,11 +106,11 @@ public class TimeLineV1Controller {
     @Operation(summary = "타임라인 시간 구간 수정")
     //특정 타임라인 시간 구간 수정
     @PatchMapping("/{timelineId}")
-    public ResponseData<TimeLineResponse> updateTimeLine(
+    public ResponseData<TimelineResponse> updateTimeLine(
             @PathVariable Long tripId,
             @PathVariable Long timelineId,
             Authentication authentication,
-            @Valid @RequestBody TimeLineUpdateRequest request) {
+            @Valid @RequestBody TimelineUpdateRequest request) {
         //로그인 정보에서 가져옴
         Long memberId = getLoginMemberId(authentication);
         return new ResponseData<>(200, timeLineService.updateTimeLine(tripId, timelineId, memberId, request));

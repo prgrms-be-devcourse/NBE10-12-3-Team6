@@ -10,7 +10,7 @@ import java.util.List;
 
 //스웨거 테스트를 위한 스키마
 @Schema(description = "타임라인 시간 구간 일괄 생성 요청 DTO")
-public record TimeLineAllCreateRequest(
+public record TimelineAllCreateRequest(
         @Schema(description = "여행 일차 번호", example = "1")
         @NotNull
         @Min(1)
@@ -18,6 +18,6 @@ public record TimeLineAllCreateRequest(
 
         @Schema(description = "생성할 타임라인 시간 구간 목록")
         @NotEmpty
-        List<@Valid TimeLineCreateRequest> timeLines
+        List<@Valid TimelineCreateRequest> timeLines
 ) {
 }

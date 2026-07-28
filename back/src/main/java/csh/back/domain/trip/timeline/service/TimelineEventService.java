@@ -15,7 +15,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 @RequiredArgsConstructor
 @Service
-public class TimeLineEventService {
+public class TimelineEventService {
     //SSE 요청은 오래 유지되므로 JPA 영속성 컨텍스트를 열지 않고 짧은 JDBC 조회로 멤버 여부만 검증
     private final JdbcTemplate jdbcTemplate;
 

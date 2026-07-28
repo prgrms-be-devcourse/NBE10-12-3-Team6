@@ -5,9 +5,9 @@ import java.util.List;
 
 public record VoteFindListResponse(
         LocalDate date,
-        List<VoteWithTimeLineResponse> timeLines
+        List<VoteWithTimelineResponse> timeLines
 ) {
-        public static VoteFindListResponse of(LocalDate date, List<VoteWithTimeLineResponse> timeLines) {
+        public static VoteFindListResponse of(LocalDate date, List<VoteWithTimelineResponse> timeLines) {
             return new VoteFindListResponse(date, timeLines);
         }
 }
