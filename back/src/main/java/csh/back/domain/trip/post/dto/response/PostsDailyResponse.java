@@ -33,7 +33,7 @@ public record PostsDailyResponse(
             LocalDateTime startTime = timeLineId != null ? post.getTimeline().getStartTime() : null;
             LocalDateTime endTime = timeLineId != null ? post.getTimeline().getEndTime() : null;
             Timeline timeLine = post.getTimeline();
-            String confirmedPlaceName = timeLine != null && timeLine.getConfirmedPlace() != null ? post.getTimeline().getConfirmedPlace().getName() : null;
+            String confirmedPlaceName = timeLine != null && timeLine.getTripWishPlace() != null ? post.getTimeline().getTripWishPlace().getName() : null;
 
             return new PostSummary(
                     post.getId(),

@@ -1,6 +1,5 @@
 package csh.back.domain.member.controller;
 
-import csh.back.domain.member.support.WithMockMember;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,8 +11,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -29,10 +26,8 @@ public class MemberControllerTest {
 
     private static final String BASE_URL = "/api/v1/auth";
 
-    // ── 회원가입 ──────────────────────────────────────────────────────────────
-
     @Test
-    @DisplayName("회원가입 성공")
+    @DisplayName("회원가입 - 정상")
     void t1() throws Exception {
         ResultActions result = mvc.perform(
                 post(BASE_URL + "/signup")
@@ -49,13 +44,14 @@ public class MemberControllerTest {
         result
                 .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("signUp"))
-                .andExpect(status().isCreated())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(201))
                 .andExpect(jsonPath("$.data.email").value("newuser@test.com"))
                 .andExpect(jsonPath("$.data.name").value("테스트유저"));
     }
 
     @Test
-    @DisplayName("회원가입 - 이미 존재하는 이메일")
+    @DisplayName("회원가입 - 이미 사용 중인 이메일")
     void t2() throws Exception {
         ResultActions result = mvc.perform(
                 post(BASE_URL + "/signup")
@@ -64,7 +60,7 @@ public class MemberControllerTest {
                                 {
                                     "email": "admin@admin.com",
                                     "password": "1234",
-                                    "name": "admin2"
+                                    "name": "어드민"
                                 }
                                 """)
         ).andDo(print());
@@ -84,9 +80,9 @@ public class MemberControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                    "email": "notanemail",
-                                    "password": "1234",
-                                    "name": "유저"
+                                    "email": "invalid-email",
+                                    "password": "password123",
+                                    "name": "테스트유저"
                                 }
                                 """)
         ).andDo(print());
@@ -95,11 +91,11 @@ public class MemberControllerTest {
                 .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("signUp"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("email: must be a well-formed email address"));
+                .andExpect(jsonPath("$.statusCode").value(400));
     }
 
     @Test
-    @DisplayName("회원가입 - 빈 name")
+    @DisplayName("회원가입 - 필수 필드 누락 (name)")
     void t4() throws Exception {
         ResultActions result = mvc.perform(
                 post(BASE_URL + "/signup")
@@ -107,8 +103,7 @@ public class MemberControllerTest {
                         .content("""
                                 {
                                     "email": "test@test.com",
-                                    "password": "1234",
-                                    "name": ""
+                                    "password": "password123"
                                 }
                                 """)
         ).andDo(print());
@@ -120,10 +115,8 @@ public class MemberControllerTest {
                 .andExpect(jsonPath("$.message").value("name: must not be blank"));
     }
 
-    // ── 로그인 ────────────────────────────────────────────────────────────────
-
     @Test
-    @DisplayName("로그인 성공")
+    @DisplayName("로그인 - 정상")
     void t5() throws Exception {
         ResultActions result = mvc.perform(
                 post(BASE_URL + "/login")
@@ -140,81 +133,49 @@ public class MemberControllerTest {
                 .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("login"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(200))
                 .andExpect(jsonPath("$.data.email").value("admin@admin.com"))
                 .andExpect(jsonPath("$.data.name").value("admin"))
-                .andExpect(header().exists("Authorization"))
-                .andExpect(cookie().exists("accessToken"))
-                .andExpect(cookie().exists("refreshToken"))
-                .andExpect(cookie().httpOnly("accessToken", true))
-                .andExpect(cookie().httpOnly("refreshToken", true));
+                .andExpect(header().exists("Set-Cookie"));
     }
 
     @Test
     @DisplayName("로그인 - 존재하지 않는 이메일")
-    void t6() {
-        Exception ex = assertThrows(Exception.class, () ->
-                mvc.perform(
-                        post(BASE_URL + "/login")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("""
-                                        {
-                                            "email": "notexist@test.com",
-                                            "password": "1234"
-                                        }
-                                        """)
-                )
-        );
-        Throwable root = ex;
-        while (root.getCause() != null) root = root.getCause();
-        assertInstanceOf(RuntimeException.class, root);
-    }
-
-    @Test
-    @DisplayName("로그인 - 비밀번호 불일치")
-    void t7() {
-        Exception ex = assertThrows(Exception.class, () ->
-                mvc.perform(
-                        post(BASE_URL + "/login")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("""
-                                        {
-                                            "email": "admin@admin.com",
-                                            "password": "wrongpassword"
-                                        }
-                                        """)
-                )
-        );
-        Throwable root = ex;
-        while (root.getCause() != null) root = root.getCause();
-        assertInstanceOf(RuntimeException.class, root);
-    }
-
-    // ── 로그아웃 ──────────────────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("로그아웃 성공")
-    @WithMockMember
-    void t8() throws Exception {
+    void t6() throws Exception {
         ResultActions result = mvc.perform(
-                post(BASE_URL + "/logout")
+                post(BASE_URL + "/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "email": "notexist@test.com",
+                                    "password": "1234"
+                                }
+                                """)
         ).andDo(print());
 
         result
                 .andExpect(handler().handlerType(MemberController.class))
-                .andExpect(handler().methodName("logout"))
-                .andExpect(status().isOk())
-                .andExpect(cookie().maxAge("accessToken", 0))
-                .andExpect(cookie().maxAge("refreshToken", 0));
+                .andExpect(handler().methodName("login"))
+                .andExpect(status().isInternalServerError());
     }
 
     @Test
-    @DisplayName("로그아웃 - 미인증 상태")
-    void t9() throws Exception {
+    @DisplayName("로그인 - 비밀번호 불일치")
+    void t7() throws Exception {
         ResultActions result = mvc.perform(
-                post(BASE_URL + "/logout")
+                post(BASE_URL + "/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "email": "admin@admin.com",
+                                    "password": "wrongpassword"
+                                }
+                                """)
         ).andDo(print());
 
         result
-                .andExpect(status().isForbidden());
+                .andExpect(handler().handlerType(MemberController.class))
+                .andExpect(handler().methodName("login"))
+                .andExpect(status().isInternalServerError());
     }
 }

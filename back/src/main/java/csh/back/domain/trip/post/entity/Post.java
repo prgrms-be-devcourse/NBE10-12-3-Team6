@@ -1,7 +1,7 @@
 package csh.back.domain.trip.post.entity;
 
 import csh.back.domain.trip.member.entity.TripMember;
-import csh.back.domain.trip.timeline.entity.TimeLine;
+import csh.back.domain.trip.timeline.entity.Timeline;
 import csh.back.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -15,39 +15,30 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Post extends BaseEntity {
 
-    //FK
-    //Join TripMember Table
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trip_member_id", nullable = false)
     private TripMember author;
 
-    //FK
-    //Join TripTimeline Table
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trip_timeline_id")
-    private TimeLine timeLine;
+    private Timeline timeline;
 
-    //영상인지 이미지인지 논리판단
-    private Boolean isImg;
-    //불러오는 이미지 URL
+    private String type;
+
     private String contentUrl;
-    //포스트 글 내용
+
     @Column(length = 1000)
     private String content;
+
     @Builder
-    private Post(
-            TripMember author,
-            TimeLine timeLine,
-            Boolean isImg,
-            String content,
-            String contentUrl
-    ) {
+    private Post(TripMember author, Timeline timeline, String type, String contentUrl, String content) {
         this.author = author;
-        this.timeLine = timeLine;
-        this.isImg = isImg;
-        this.content = content;
+        this.timeline = timeline;
+        this.type = type;
         this.contentUrl = contentUrl;
+        this.content = content;
     }
+
     public void update(String content) {
         this.content = content;
     }
