@@ -12,5 +12,5 @@ public interface VoteItemRepository extends JpaRepository<VoteItem, Long> {
     @Query("SELECT vi FROM VoteItem vi JOIN FETCH vi.tripPlace WHERE vi.vote.id = :voteId")
     List<VoteItem> findAllByVoteIdWithTripPlace(Long voteId);
 
-    Optional<VoteItem> findByVoteIdAndTripPlaceId(Long voteId, Long placeId);
+    Optional<VoteItem> findByVoteIdAndTripPlaceId(Long voteId, Long tripPlaceId);
 }

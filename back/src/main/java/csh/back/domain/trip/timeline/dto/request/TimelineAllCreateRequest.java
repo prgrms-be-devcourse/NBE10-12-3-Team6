@@ -1,6 +1,5 @@
 package csh.back.domain.trip.timeline.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -19,7 +18,6 @@ public record TimelineAllCreateRequest(
 
         @Schema(description = "생성할 타임라인 시간 구간 목록")
         @NotEmpty
-        @JsonProperty("timeLines")
         List<@Valid TimelineCreateRequest> timelines
 ) {
 }

@@ -289,7 +289,7 @@ interface VoteDay {
 }
 
 interface DayTimelineItem {
-  timeLineId: number;
+  timelineId: number;
   startTime: string;
   endTime: string;
   confirmedPlaceName?: string | null;
@@ -467,9 +467,9 @@ export default function TripDetailPage() {
     apiFetch(`${API_BASE}/api/v1/trips/${id}/wish-places`)
       .then(r => r.json())
       .then(body => {
-        const wishes: { placeId: number; name: string; address: string; category: string; createdBy: string }[] = body.data ?? [];
+        const wishes: { tripPlaceId: number; name: string; address: string; category: string; createdBy: string }[] = body.data ?? [];
         const candidates = wishes.map(w => ({
-          id: String(w.placeId),
+          id: String(w.tripPlaceId),
           authorId: 0,
           authorName: w.createdBy,
           placeName: w.name,
@@ -573,9 +573,9 @@ export default function TripDetailPage() {
                           <p className="text-xs text-gray-400">확정된 계획이 없습니다.</p>
                         ) : (
                           <div className="flex flex-col gap-2">
-                            {items.map((item, idx) => {
+                            {items.map(item => {
                               return (
-                                <div key={item.timeLineId ?? idx} className="flex items-center gap-3 bg-white rounded-xl px-3 py-2.5">
+                                <div key={item.timelineId} className="flex items-center gap-3 bg-white rounded-xl px-3 py-2.5">
                                   <span className="text-xs text-gray-400 font-bold shrink-0">{item.startTime.slice(11, 16)}~{item.endTime.slice(11, 16)}</span>
                                   {(item.category || item.confirmedPlaceName) && (
                                     <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">{item.category ?? "기타"}</span>

@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TripPlaceRepository extends JpaRepository<TripPlace, Long> {
-    List<TripPlace> findAllByTripGroupId(Long tripId);
+    List<TripPlace> findAllByTripGroupId(Long tripGroupId);
 
     // 확정하려는 후보 장소가 해당 여행 모임에 속하는지 확인하면서 조회
-    Optional<TripPlace> findByIdAndTripGroupId(Long confirmedPlaceId, Long tripId);
+    Optional<TripPlace> findByIdAndTripGroupId(Long confirmedPlaceId, Long tripGroupId);
 }

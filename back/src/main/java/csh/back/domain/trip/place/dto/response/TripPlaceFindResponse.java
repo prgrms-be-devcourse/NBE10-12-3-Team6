@@ -2,7 +2,7 @@ package csh.back.domain.trip.place.dto.response;
 
 import csh.back.domain.trip.place.entity.TripPlace;
 
-public record TripPlaceFindResponse(Long placeId,
+public record TripPlaceFindResponse(Long tripPlaceId,
                                     String name,
                                     String address,
                                     String category,
