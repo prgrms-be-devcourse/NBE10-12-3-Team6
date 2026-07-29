@@ -21,8 +21,8 @@ public record VoteFindWithUpdateCountResponse(
             Vote vote
     ) {
         VoteStatus voteStatus = vote.getStatus();
-        Timeline timeLine = vote.getTimeline() != null ? vote.getTimeline() : null;
-        Long confirmedPlaceId = timeLine.getConfirmedPlace() != null ? timeLine.getConfirmedPlace().getId() : null;
+        Timeline timeline = vote.getTimeline() != null ? vote.getTimeline() : null;
+        Long confirmedPlaceId = timeline.getTripWishPlace() != null ? timeline.getTripWishPlace().getId() : null;
         return new VoteFindWithUpdateCountResponse(voteFindResponses, wishPlaceFindResponses, updateCount, voteStatus.getNickname(), confirmedPlaceId);
     }
 }

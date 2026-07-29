@@ -17,4 +17,4 @@ logging:
 
 app:
   s3:
-    bucket: trip-bucket
+    bucket: triplog-bucket

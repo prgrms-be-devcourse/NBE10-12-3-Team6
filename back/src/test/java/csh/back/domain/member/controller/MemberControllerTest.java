@@ -44,7 +44,7 @@ public class MemberControllerTest {
         result
                 .andExpect(handler().handlerType(MemberController.class))
                 .andExpect(handler().methodName("signUp"))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.statusCode").value(201))
                 .andExpect(jsonPath("$.data.email").value("newuser@test.com"))
                 .andExpect(jsonPath("$.data.name").value("테스트유저"));

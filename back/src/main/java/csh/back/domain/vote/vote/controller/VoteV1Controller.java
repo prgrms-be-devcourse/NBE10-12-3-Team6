@@ -22,7 +22,7 @@ import java.util.List;
 @Tag(name = "투표", description = "여행 모임 투표 관련 API")
 public class VoteV1Controller {
     private final VoteService voteService;
-    private final TimelineService timeLineService;
+    private final TimelineService timelineService;
 
     @Operation(summary = "투표 목록 조회", description = "특정 여행 모임의 투표 목록을 조회")
     @GetMapping
@@ -43,7 +43,7 @@ public class VoteV1Controller {
 
         return new ResponseData<>(
                 201,
-                voteService.wrapperCreateVote(tripGroupId, member.id(), request.timeLineId())
+                voteService.wrapperCreateVote(tripGroupId, member.id(), request.timelineId())
         );
     }
 
@@ -79,7 +79,7 @@ public class VoteV1Controller {
             @AuthenticationPrincipal AuthFilterDto member
     ) {
         //확정 장소 반영 서비스 호출
-        return new ResponseData<>(200, timeLineService.confirmVote(tripGroupId, member.id(), voteId));
+        return new ResponseData<>(200, timelineService.confirmVote(tripGroupId, member.id(), voteId));
     }
 
 }

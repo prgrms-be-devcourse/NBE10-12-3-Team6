@@ -57,4 +57,11 @@ public class GlobalExeptionHandler {
 		return ResponseEntity.status(HttpStatus.CONFLICT)
 				.body(new ErrorResponse(409, "이미 등록된 장소입니다"));
 	}
+
+	@ExceptionHandler(RuntimeException.class)
+	public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException e) {
+		log.error("Unhandled RuntimeException", e);
+		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+				.body(new ErrorResponse(500, e.getMessage()));
+	}
 }

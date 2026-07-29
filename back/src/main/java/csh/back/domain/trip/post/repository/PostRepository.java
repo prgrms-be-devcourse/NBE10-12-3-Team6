@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
-    List<Post> findByTimelineTripGroupId(Long tripId);
+    List<Post> findByTimelineTripGroupId(Long tripGroupId);
 
     List<Post> findByAuthorId(Long authorId);
 
@@ -21,11 +21,11 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("""
         SELECT p FROM Post p
         LEFT JOIN FETCH p.timeline t
-        LEFT JOIN FETCH t.confirmedPlace
+        LEFT JOIN FETCH t.tripWishPlace
         WHERE p.author IN :members
         ORDER BY p.createdAt ASC
         """)
     List<Post> findWithTimelineAndPlaceByAuthorIdIn(List<TripMember> members);
 
-    List<Post> findByAuthorIdAndCreatedAtBetween(Long memberId, LocalDateTime startTime, LocalDateTime endTime);
+    List<Post> findByAuthorIdAndCreatedAtBetween(Long tripMemberId, LocalDateTime startTime, LocalDateTime endTime);
 }

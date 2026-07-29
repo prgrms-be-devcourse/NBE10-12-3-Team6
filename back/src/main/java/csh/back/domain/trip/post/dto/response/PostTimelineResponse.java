@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 public record PostTimelineResponse(
         LocalDateTime startTime,
         LocalDateTime endTime,
-        Long timeLineId,      // ← 추가: 일정 슬롯이면 값, 빈 칸이면 null
+        Long timelineId,      // ← 추가: 일정 슬롯이면 값, 빈 칸이면 null
         String confirmedPlaceName,
         boolean isTaken
 
@@ -15,9 +15,9 @@ public record PostTimelineResponse(
     public static PostTimelineResponse of(
             LocalDateTime startTime,
             LocalDateTime endTime,
-            Long timeLineId,      // ← 추가: 일정 슬롯이면 값, 빈 칸이면 null
+            Long timelineId,      // ← 추가: 일정 슬롯이면 값, 빈 칸이면 null
             String confirmedPlaceName,
             boolean isTaken) {
-        return new PostTimelineResponse(startTime, endTime, timeLineId, confirmedPlaceName, isTaken);
+        return new PostTimelineResponse(startTime, endTime, timelineId, confirmedPlaceName, isTaken);
     }
 }

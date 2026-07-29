@@ -96,7 +96,7 @@ class TripPlaceV1ControllerTest {
 
         for (int i = 0; i < expected.size(); i++) {
             resultActions
-                    .andExpect(jsonPath("$.data[%d].placeId".formatted(i)).value(expected.get(i).placeId()))
+                    .andExpect(jsonPath("$.data[%d].tripPlaceId".formatted(i)).value(expected.get(i).tripPlaceId()))
                     .andExpect(jsonPath("$.data[%d].name".formatted(i)).value(expected.get(i).name()))
                     .andExpect(jsonPath("$.data[%d].category".formatted(i)).value(expected.get(i).category()))
                     .andExpect(jsonPath("$.data[%d].address".formatted(i)).value(expected.get(i).address()))

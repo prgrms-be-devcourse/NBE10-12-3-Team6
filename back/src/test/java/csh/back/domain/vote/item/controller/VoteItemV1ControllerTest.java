@@ -118,7 +118,7 @@ class VoteItemV1ControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
                                         {
-                                            "placeId": %d
+                                            "tripPlaceId": %d
                                         }
                                         """.formatted(place.getId()))
                 )
@@ -143,7 +143,7 @@ class VoteItemV1ControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
                                         {
-                                            "placeId": %d
+                                            "tripPlaceId": %d
                                         }
                                         """.formatted(firstPlace.getId()))
                 )
@@ -156,7 +156,7 @@ class VoteItemV1ControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
                                         {
-                                            "placeId": %d
+                                            "tripPlaceId": %d
                                         }
                                         """.formatted(secondPlace.getId()))
                 )

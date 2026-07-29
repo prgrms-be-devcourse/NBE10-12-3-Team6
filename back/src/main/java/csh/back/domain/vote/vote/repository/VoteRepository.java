@@ -15,10 +15,10 @@ public interface VoteRepository extends JpaRepository<Vote, Long> {
     @Query("SELECT v FROM Vote v JOIN FETCH v.timeline tl WHERE tl.tripGroup.id = :tripGroupId")
     List<Vote> findVotesWithTimelineByTripGroupId(Long tripGroupId);
 
-    @Query("SELECT v.timeline.id AS timelineId, v.id AS voteId FROM Vote v WHERE v.timeline.id IN :timeLineIds")
-    List<VoteTimelineIdProjection> findVoteIdsByTimeLineIds(List<Long> timeLineIds);
+    @Query("SELECT v.timeline.id AS timelineId, v.id AS voteId FROM Vote v WHERE v.timeline.id IN :timelineIds")
+    List<VoteTimelineIdProjection> findVoteIdsByTimelineIds(List<Long> timelineIds);
 
     @Query("SELECT v.timeline FROM Vote v WHERE v.id = :voteId")
-    Optional<Timeline> findTimeLineByVoteId(Long voteId);
+    Optional<Timeline> findTimelineByVoteId(Long voteId);
 
 }
