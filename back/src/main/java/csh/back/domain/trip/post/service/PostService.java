@@ -35,24 +35,24 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final TripMemberRepository tripMemberRepository;
-    private final TimelineRepository timeLineRepository;
+    private final TimelineRepository timelineRepository;
 //    private final PostImageService postImageService;
     private final S3UploadService s3UploadService;
     private final TripMemberValidator tripMemberValidator;
     private final TripGroupService tripGroupService;
 
     @Transactional(readOnly = true)
-    public List<PostsDailyResponse> getPosts(Long tripId, Long memberId) {
-        tripMemberValidator.validMember(tripId, memberId);
+    public List<PostsDailyResponse> getPosts(Long tripGroupId, Long memberId) {
+        tripMemberValidator.validMember(tripGroupId, memberId);
 
-        TripGroup tripGroup = tripGroupService.findTripGroupById(tripId);
+        TripGroup tripGroup = tripGroupService.findTripGroupById(tripGroupId);
         List<TripMember> tripMembers = tripMemberRepository.findByTripGroupId(tripGroup.getId());
 
         // 사진 목록 (timeline + confirmedPlace fetch join 되어 있음)
         List<Post> posts = postRepository.findWithTimelineAndPlaceByAuthorIdIn(tripMembers);
 
         // 여행 전체 timeline 한 번 조회 → 날짜별 맵 (빈 칸 슬롯 계산에 재사용, 쿼리 1번)
-        List<Timeline> allSchedules = timeLineRepository.findByTripGroupIdSorted(tripId);
+        List<Timeline> allSchedules = timelineRepository.findByTripGroupIdSorted(tripGroupId);
         Map<LocalDate, List<Timeline>> scheduleByDate = allSchedules.stream()
                 .collect(Collectors.groupingBy(t -> t.getStartTime().toLocalDate()));
 
@@ -82,12 +82,12 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
-    public PostResponse getPost(Long tripId, Long postId) {
+    public PostResponse getPost(Long tripGroupId, Long postId) {
         //값 검사
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
         //여행별로 포스트를 구분하고 검증하는 IF문 추가
-        if (!post.getTimeline().getTripGroup().getId().equals(tripId)) {
+        if (!post.getTimeline().getTripGroup().getId().equals(tripGroupId)) {
             throw new IllegalArgumentException("해당 여행의 게시글이 아닙니다.");
         }
 
@@ -96,35 +96,35 @@ public class PostService {
 
     // 게시글 수정
     @Transactional
-    public void update(Long tripId, Long postId, UpdatePostRequest request) {
-        Post post = findAuthorizedPost(tripId, postId);
+    public void update(Long tripGroupId, Long postId, UpdatePostRequest request) {
+        Post post = findAuthorizedPost(tripGroupId, postId);
         post.update(request.content());
     }
     // 게시글 삭제
     @Transactional
-    public void delete(Long tripId, Long postId) {
+    public void delete(Long tripGroupId, Long postId) {
 
-        Post post = findAuthorizedPost(tripId, postId);
+        Post post = findAuthorizedPost(tripGroupId, postId);
 
         postRepository.delete(post);
     }
     // 게시글 생성
     @Transactional
     public PostResponse create(
-            Long tripId,
+            Long tripGroupId,
             Long memberId,
-            Long timeLineId,
+            Long timelineId,
             MultipartFile image
     ) {
-        tripMemberValidator.validMember(tripId, memberId);
+        tripMemberValidator.validMember(tripGroupId, memberId);
 
         // 여행 멤버 조회
         TripMember author = tripMemberRepository
-                .findByMemberIdAndTripGroupId(memberId, tripId)
+                .findByMemberIdAndTripGroupId(memberId, tripGroupId)
                 .orElseThrow(() -> new IllegalArgumentException("여행 멤버가 존재하지 않습니다."));
         // 타임라인 조회
-        Timeline timeLine = null;
-        if(timeLineId != null) timeLine = timeLineRepository.findById(timeLineId).orElse(null);
+        Timeline timeline = null;
+        if(timelineId != null) timeline = timelineRepository.findById(timelineId).orElse(null);
 
         // 이미지 저장
         String imageUrl = null;
@@ -140,7 +140,7 @@ public class PostService {
         // 게시글 생성
         Post post = Post.builder()
                 .author(author)
-                .timeline(timeLine)
+                .timeline(timeline)
                 .type(image != null && !image.isEmpty() ? "IMAGE" : "TEXT")
                 .contentUrl(imageUrl)
                 .content(null)
@@ -159,24 +159,24 @@ public class PostService {
      * - 빈 시간이면 정시 격자 규칙으로 계산한 조각 (직전 일정 끝 or 정시 기준)
      * - isTaken: 그 유저가 이 슬롯 시간대에 이미 사진을 올렸는지
      */
-    public PostTimelineResponse getCurrentSlot(Long tripId, Long memberId, int dayNumber) {
+    public PostTimelineResponse getCurrentSlot(Long tripGroupId, Long memberId, int dayNumber) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime dayStart = now.toLocalDate().atStartOfDay();   // 오늘 00:00:00
         LocalDateTime dayEnd = dayStart.plusDays(1);                 // 내일 00:00:00
-        TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripId).orElseThrow(RuntimeException::new);
+        TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripGroupId).orElseThrow(RuntimeException::new);
         // 1. 오늘 그 유저 사진 (하루치 + 유저 한정이라 30장 미만, 메모리 처리 OK)
         //    TODO: 실제 메서드/파라미터 경로 확인 (p.member.id, p.tripGroup.id, createdAt 오늘 범위 등)
         List<Post> todayPosts = postRepository.findByAuthorIdAndCreatedAtBetween(tripMember.getId(), dayStart, dayEnd);
 
         // 2. 오늘 일정 목록 (startTime asc 정렬)
         //    TODO: dayNumber로 조회하는 구조면 today → dayNumber 변환해서 넘길 것
-        List<Timeline> schedules = timeLineRepository.findByTripAndDateSorted(tripId, (long) dayNumber);
+        List<Timeline> schedules = timelineRepository.findByTripAndDateSorted(tripGroupId, (long) dayNumber);
 
         // 3. 현재 시각이 속한 슬롯 범위 계산 + placeName 계산
         LocalDateTime slotStart;
         LocalDateTime slotEnd;
         String confirmedPlaceName = null;
-        Long timeLineId = null;   // 빈 칸이면 null 유지
+        Long timelineId = null;   // 빈 칸이면 null 유지
 
         Optional<Timeline> current = schedules.stream()
                 .filter(s -> !now.isBefore(s.getStartTime()) && now.isBefore(s.getEndTime()))
@@ -184,17 +184,17 @@ public class PostService {
 
         if (current.isPresent()) {
             // 일정 슬롯 → 일정 실제 범위 그대로
-            Timeline timeLine = current.get();
-            slotStart = timeLine.getStartTime();
-            slotEnd = timeLine.getEndTime();
-            timeLineId = timeLine.getId();   // ← 일정 슬롯이면 timeLineId 채움
+            Timeline timeline = current.get();
+            slotStart = timeline.getStartTime();
+            slotEnd = timeline.getEndTime();
+            timelineId = timeline.getId();   // ← 일정 슬롯이면 timelineId 채움
 
             // 장소 확정된 경우만 이름, 미확정이면 null
-            TripPlace place = timeLine.getTripWishPlace();
+            TripPlace place = timeline.getTripWishPlace();
             confirmedPlaceName = (place != null) ? place.getName() : null;
 
         } else {
-            // 빈 칸 슬롯 → 정시 격자 규칙, placeName/timeLineId 는 null 유지
+            // 빈 칸 슬롯 → 정시 격자 규칙, placeName/timelineId 는 null 유지
             slotStart = calcEmptySlotStart(now, schedules);
             slotEnd = calcEmptySlotEnd(slotStart, schedules);
         }
@@ -204,21 +204,21 @@ public class PostService {
                 .anyMatch(p -> !p.getCreatedAt().isBefore(slotStart)
                         && p.getCreatedAt().isBefore(slotEnd));
 
-        return new PostTimelineResponse(slotStart, slotEnd, timeLineId, confirmedPlaceName, isTaken);
+        return new PostTimelineResponse(slotStart, slotEnd, timelineId, confirmedPlaceName, isTaken);
     }
 
     private PostsDailyResponse.PostSummary toSummaryWithSlot(Post post, List<Timeline> daySchedules) {
-        Timeline timeLine = post.getTimeline();
+        Timeline timeline = post.getTimeline();
 
         // 일정 슬롯: timeline 값 그대로
-        if (timeLine != null) {
-            TripPlace tripPlace = timeLine.getTripWishPlace();
+        if (timeline != null) {
+            TripPlace tripPlace = timeline.getTripWishPlace();
             return new PostsDailyResponse.PostSummary(
                     post.getId(),
                     post.getContentUrl(),
-                    timeLine.getId(),
-                    timeLine.getStartTime(),
-                    timeLine.getEndTime(),
+                    timeline.getId(),
+                    timeline.getStartTime(),
+                    timeline.getEndTime(),
                     (tripPlace != null) ? tripPlace.getName() : null,
                     post.getCreatedAt()
             );
@@ -232,7 +232,7 @@ public class PostService {
         return new PostsDailyResponse.PostSummary(
                 post.getId(),
                 post.getContentUrl(),
-                null,          // timeLineId 없음
+                null,          // timelineId 없음
                 slotStart,     // 계산된 슬롯 시작
                 slotEnd,       // 계산된 슬롯 끝
                 null,          // 빈 칸이니 장소 없음
@@ -323,12 +323,12 @@ public class PostService {
         }
     }
 
-    private Post findAuthorizedPost(Long tripId, Long postId) {
+    private Post findAuthorizedPost(Long tripGroupId, Long postId) {
 
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글이 존재하지 않습니다."));
 
-        if (!post.getTimeline().getTripGroup().getId().equals(tripId)) {
+        if (!post.getTimeline().getTripGroup().getId().equals(tripGroupId)) {
             throw new IllegalArgumentException("해당 여행의 게시글이 아닙니다.");
         }
 

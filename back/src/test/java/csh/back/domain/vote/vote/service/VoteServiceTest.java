@@ -226,7 +226,7 @@ class VoteServiceTest {
         VoteTimelineResponse response = voteService.voteConfirm(voteItem.getId(), vote.getId());
 
         assertThat(response.confirmPlaceId()).isEqualTo(place.getId());
-        assertThat(response.timeLine().getId()).isEqualTo(timeline.getId());
+        assertThat(response.timeline().getId()).isEqualTo(timeline.getId());
 
         Vote confirmed = voteRepository.findById(vote.getId()).orElseThrow();
         assertThat(confirmed.getStatus()).isEqualTo(VoteStatus.CONFIRMED);

@@ -278,7 +278,7 @@ type Tab = "trip" | "candidates" | "vote" | "timeline";
 
 interface VoteTimeline {
   voteId: number | null;
-  timeLineId: number;
+  timelineId: number;
   confirmedPlaceName: string;
   startTime: string;
   voteStatus?: string;
@@ -629,11 +629,11 @@ export default function TripDetailPage() {
           };
           const toTimeStr = (iso: string) => iso.slice(11, 16);
 
-          const createVote = async (timeLineId: number) => {
+          const createVote = async (timelineId: number) => {
             await apiFetch(`${API_BASE}/api/v1/trips/${id}/votes`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ timeLineId }),
+              body: JSON.stringify({ timelineId }),
             });
             const r = await apiFetch(`${API_BASE}/api/v1/trips/${id}/votes`);
             const body = await r.json();
@@ -661,13 +661,13 @@ export default function TripDetailPage() {
                         ) : dayEntry.timeLines.map((tl, tlIdx) => {
                           if (tl.voteId === null) {
                             return (
-                              <div key={tl.timeLineId} className="p-4 bg-gray-50 rounded-2xl flex items-center justify-between">
+                              <div key={tl.timelineId} className="p-4 bg-gray-50 rounded-2xl flex items-center justify-between">
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs text-gray-400">{toTimeStr(tl.startTime)} 시작</p>
                                   <p className="text-sm font-semibold mt-0.5 text-gray-400">투표 없음</p>
                                 </div>
                                 <button
-                                  onClick={() => createVote(tl.timeLineId)}
+                                  onClick={() => createVote(tl.timelineId)}
                                   className="text-xs font-bold px-3 py-1.5 rounded-full"
                                   style={{ background: "#eff6ff", color: "#2563eb" }}
                                 >
@@ -679,9 +679,9 @@ export default function TripDetailPage() {
                           return (
                             <Link
                               key={tl.voteId}
-                              href={`/trip/${trip.id}/day/${dayNumber}/block/${tl.voteId}?from=vote&timelineId=${tl.timeLineId}`}
+                              href={`/trip/${trip.id}/day/${dayNumber}/block/${tl.voteId}?from=vote&timelineId=${tl.timelineId}`}
                               onClick={navigateWithPageExit(
-                                `/trip/${trip.id}/day/${dayNumber}/block/${tl.voteId}?from=vote&timelineId=${tl.timeLineId}`,
+                                `/trip/${trip.id}/day/${dayNumber}/block/${tl.voteId}?from=vote&timelineId=${tl.timelineId}`,
                                 () => {
                                   localStorage.setItem(`block-order-${tl.voteId}`, String(tlIdx + 1));
                                   sessionStorage.setItem(`return-tab-${id}`, "vote");

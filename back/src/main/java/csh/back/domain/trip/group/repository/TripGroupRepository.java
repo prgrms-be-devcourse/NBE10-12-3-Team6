@@ -23,6 +23,6 @@ public interface TripGroupRepository extends JpaRepository<TripGroup, Long>, Tri
 
 	//같은 여행 모임의 타임라인 수정 요청을 순차적으로 처리하기 위한 락 조회 메서드
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
-	@Query("select tg from TripGroup tg where tg.id = :tripId")
-	Optional<TripGroup> findByIdWithLock(@Param("tripId") Long tripId);
+	@Query("select tg from TripGroup tg where tg.id = :tripGroupId")
+	Optional<TripGroup> findByIdWithLock(@Param("tripGroupId") Long tripGroupId);
 }

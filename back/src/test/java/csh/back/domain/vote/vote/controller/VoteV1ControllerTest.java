@@ -138,7 +138,7 @@ class VoteV1ControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("""
                                         {
-                                            "timeLineId": %d
+                                            "timelineId": %d
                                         }
                                         """.formatted(timeline.getId()))
                 )

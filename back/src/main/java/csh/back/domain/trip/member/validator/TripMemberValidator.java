@@ -9,8 +9,8 @@ import org.springframework.stereotype.Service;
 public class TripMemberValidator {
     private final TripMemberRepository tripMemberRepository;
 
-    public void validMember(Long tripId, Long memberId) {
-        if(!tripMemberRepository.existsByTripGroupIdAndMemberId(tripId, memberId)) {
+    public void validMember(Long tripGroupId, Long memberId) {
+        if(!tripMemberRepository.existsByTripGroupIdAndMemberId(tripGroupId, memberId)) {
             throw new RuntimeException();
         }
     }
