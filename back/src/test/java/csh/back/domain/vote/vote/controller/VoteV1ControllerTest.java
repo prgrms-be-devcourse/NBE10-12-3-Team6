@@ -104,12 +104,8 @@ class VoteV1ControllerTest {
     }
 
     private Vote createVote(Timeline timeline) {
-        return voteRepository.save(Vote.builder()
-                .tripGroup(tripGroup)
-                .timeline(timeline)
-                .tripMember(ownerTripMember)
-                .expireTime(tripGroup.getStartDate().minusDays(1).atStartOfDay())
-                .build());
+        return voteRepository.save(new Vote(
+                tripGroup, timeline, ownerTripMember, tripGroup.getStartDate().minusDays(1).atStartOfDay()));
     }
 
     @Test
@@ -162,12 +158,10 @@ class VoteV1ControllerTest {
     void findVoteItemAndCount() throws Exception {
         Timeline timeline = createTimeline();
         Vote vote = createVote(timeline);
-        TripPlace place = tripPlaceRepository.save(TripPlace.builder()
-                .tripGroup(tripGroup).name("경포대").category("관광").address("강릉 경포대")
-                .kakaoPlaceId("kakao-vote-ctrl-1").kakaoMapUrl("url").createdBy(ownerTripMember).build());
-        VoteItem voteItem = voteItemRepository.save(VoteItem.builder().vote(vote).tripPlace(place).build());
-        voteUserRepository.save(VoteUser.builder()
-                .vote(vote).voteItem(voteItem).tripMember(ownerTripMember).updateCount(0).build());
+        TripPlace place = tripPlaceRepository.save(new TripPlace(
+                tripGroup, "경포대", "관광", "강릉 경포대", "kakao-vote-ctrl-1", "url", ownerTripMember));
+        VoteItem voteItem = voteItemRepository.save(new VoteItem(vote, place));
+        voteUserRepository.save(new VoteUser(vote, voteItem, ownerTripMember, 0));
 
         mvc.perform(get(BASE_URL + "/trips/" + tripGroup.getId() + "/votes/" + vote.getId() + "/count"))
                 .andDo(print())
@@ -186,12 +180,10 @@ class VoteV1ControllerTest {
     void findVoteUserThisPlace() throws Exception {
         Timeline timeline = createTimeline();
         Vote vote = createVote(timeline);
-        TripPlace place = tripPlaceRepository.save(TripPlace.builder()
-                .tripGroup(tripGroup).name("오죽헌").category("관광").address("강릉 오죽헌")
-                .kakaoPlaceId("kakao-vote-ctrl-2").kakaoMapUrl("url").createdBy(ownerTripMember).build());
-        VoteItem voteItem = voteItemRepository.save(VoteItem.builder().vote(vote).tripPlace(place).build());
-        voteUserRepository.save(VoteUser.builder()
-                .vote(vote).voteItem(voteItem).tripMember(ownerTripMember).updateCount(0).build());
+        TripPlace place = tripPlaceRepository.save(new TripPlace(
+                tripGroup, "오죽헌", "관광", "강릉 오죽헌", "kakao-vote-ctrl-2", "url", ownerTripMember));
+        VoteItem voteItem = voteItemRepository.save(new VoteItem(vote, place));
+        voteUserRepository.save(new VoteUser(vote, voteItem, ownerTripMember, 0));
 
         mvc.perform(get(BASE_URL + "/trips/" + tripGroup.getId() + "/votes/" + vote.getId()
                         + "/places/" + place.getId()))
@@ -208,12 +200,10 @@ class VoteV1ControllerTest {
     void confirmVote() throws Exception {
         Timeline timeline = createTimeline();
         Vote vote = createVote(timeline);
-        TripPlace place = tripPlaceRepository.save(TripPlace.builder()
-                .tripGroup(tripGroup).name("주문진").category("관광").address("강릉 주문진")
-                .kakaoPlaceId("kakao-vote-ctrl-3").kakaoMapUrl("url").createdBy(ownerTripMember).build());
-        VoteItem voteItem = voteItemRepository.save(VoteItem.builder().vote(vote).tripPlace(place).build());
-        voteUserRepository.save(VoteUser.builder()
-                .vote(vote).voteItem(voteItem).tripMember(ownerTripMember).updateCount(0).build());
+        TripPlace place = tripPlaceRepository.save(new TripPlace(
+                tripGroup, "주문진", "관광", "강릉 주문진", "kakao-vote-ctrl-3", "url", ownerTripMember));
+        VoteItem voteItem = voteItemRepository.save(new VoteItem(vote, place));
+        voteUserRepository.save(new VoteUser(vote, voteItem, ownerTripMember, 0));
 
         mvc.perform(patch(BASE_URL + "/trips/" + tripGroup.getId() + "/votes/" + vote.getId() + "/confirm"))
                 .andDo(print())

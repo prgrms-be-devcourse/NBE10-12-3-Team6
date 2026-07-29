@@ -87,24 +87,13 @@ class VoteItemV1ControllerTest {
                 .endTime(LocalDateTime.of(2027, 1, 1, 10, 0))
                 .build());
 
-        vote = voteRepository.save(Vote.builder()
-                .tripGroup(tripGroup)
-                .timeline(timeline)
-                .tripMember(tripMember)
-                .expireTime(tripGroup.getStartDate().minusDays(1).atStartOfDay())
-                .build());
+        vote = voteRepository.save(new Vote(
+                tripGroup, timeline, tripMember, tripGroup.getStartDate().minusDays(1).atStartOfDay()));
     }
 
     private TripPlace createPlace(String kakaoPlaceId) {
-        return tripPlaceRepository.save(TripPlace.builder()
-                .tripGroup(tripGroup)
-                .name("장소-" + kakaoPlaceId)
-                .category("관광")
-                .address("주소")
-                .kakaoPlaceId(kakaoPlaceId)
-                .kakaoMapUrl("url")
-                .createdBy(tripMember)
-                .build());
+        return tripPlaceRepository.save(new TripPlace(
+                tripGroup, "장소-" + kakaoPlaceId, "관광", "주소", kakaoPlaceId, "url", tripMember));
     }
 
     @Test
