@@ -21,7 +21,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("""
         SELECT p FROM Post p
         LEFT JOIN FETCH p.timeline t
-        LEFT JOIN FETCH t.confirmedPlace
+        LEFT JOIN FETCH t.tripWishPlace
         WHERE p.author IN :members
         ORDER BY p.createdAt ASC
         """)
