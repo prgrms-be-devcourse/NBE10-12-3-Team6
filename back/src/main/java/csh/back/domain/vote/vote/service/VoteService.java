@@ -53,7 +53,7 @@ public class VoteService {
         TripGroup tripGroup = tripGroupRepository.findById(tripGroupId).orElseThrow(RuntimeException::new);
 
         Integer totalDays = tripGroup.getNights() + 1;
-        Map<Integer, List<Timeline>> byDay = timeLineRepository.findAllByTripGroupId(tripGroupId).stream()
+        Map<Long, List<Timeline>> byDay = timeLineRepository.findAllByTripGroupId(tripGroupId).stream()
                 .collect(Collectors.groupingBy(Timeline::getDayNumber));
 
         Map<Long, Vote> byTimeLineId = voteRepository.findVotesWithTimelineByTripGroupId(tripGroupId).stream()
@@ -65,7 +65,7 @@ public class VoteService {
         List<VoteFindListResponse> voteFindListResponses = new ArrayList<>();
         for (int day = 1; day <= totalDays; day++) {
             List<VoteWithTimelineResponse> timeLineResponses =
-                    byDay.getOrDefault(day, List.of()).stream()
+                    byDay.getOrDefault((long) day, List.of()).stream()
                             .map(timeLine -> createVoteAndTimeLineResponse(timeLine, byTimeLineId))
                             .toList();
 

@@ -14,7 +14,7 @@ public record VoteWithTimelineResponse(
         String voteStatus
 ) {
     public static VoteWithTimelineResponse of(Timeline timeLine, Vote vote) {
-        TripPlace tripPlace = timeLine.getConfirmedPlace();
+        TripPlace tripPlace = timeLine.getTripWishPlace();
         String confirmedPlaceName = tripPlace == null ? "" : tripPlace.getName();
         return new VoteWithTimelineResponse(
                 vote.getId(),

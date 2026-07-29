@@ -22,7 +22,7 @@ public record VoteFindWithUpdateCountResponse(
     ) {
         VoteStatus voteStatus = vote.getStatus();
         Timeline timeLine = vote.getTimeline() != null ? vote.getTimeline() : null;
-        Long confirmedPlaceId = timeLine.getConfirmedPlace() != null ? timeLine.getConfirmedPlace().getId() : null;
+        Long confirmedPlaceId = timeLine.getTripWishPlace() != null ? timeLine.getTripWishPlace().getId() : null;
         return new VoteFindWithUpdateCountResponse(voteFindResponses, wishPlaceFindResponses, updateCount, voteStatus.getNickname(), confirmedPlaceId);
     }
 }

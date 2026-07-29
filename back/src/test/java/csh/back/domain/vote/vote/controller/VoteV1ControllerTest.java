@@ -174,7 +174,7 @@ class VoteV1ControllerTest {
                 .andExpect(handler().handlerType(VoteV1Controller.class))
                 .andExpect(handler().methodName("findVoteItemAndCount"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.voteResults[0].placeId").value(place.getId()))
+                .andExpect(jsonPath("$.data.voteResults[0].tripPlaceId").value(place.getId()))
                 .andExpect(jsonPath("$.data.voteResults[0].count").value(1))
                 .andExpect(jsonPath("$.data.voteResults[0].isVoted").value(true))
                 .andExpect(jsonPath("$.data.updateCount").value(0));
