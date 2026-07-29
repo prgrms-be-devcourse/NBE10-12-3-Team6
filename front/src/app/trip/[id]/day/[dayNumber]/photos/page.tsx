@@ -8,7 +8,7 @@ import { useStore, TripDay, PhotoRecord, uid } from "../../../../../store";
 import { API_BASE, apiFetch } from "../../../../../lib";
 
 interface TimelineBlock {
-  timeLineId?: number | null;
+  timelineId?: number | null;
   startTime: string;
   endTime: string;
   confirmedPlaceName?: string | null;
@@ -108,7 +108,7 @@ export default function PhotoUploadPage() {
     updateTrip({ ...trip, days: trip.days.map((d, i) => i === dayIdx ? updated : d) });
   };
 
-  const recordKey = currentBlock ? String(currentBlock.timeLineId) : `free-${dayNum}`;
+  const recordKey = currentBlock ? String(currentBlock.timelineId) : `free-${dayNum}`;
   const record = day.records.find(r => r.blockId === recordKey);
   const showUploadButton = !!selectedFile || record?.status === "uploaded";
 
@@ -130,7 +130,7 @@ export default function PhotoUploadPage() {
       form.append("image", selectedFile);
       form.append(
         "request",
-        new Blob([JSON.stringify({ timeLineId: currentBlock?.timeLineId ?? null })], { type: "application/json" })
+        new Blob([JSON.stringify({ timelineId: currentBlock?.timelineId ?? null })], { type: "application/json" })
       );
       const res = await apiFetch(`${API_BASE}/api/v1/trips/${id}/posts`, {
         method: "POST",

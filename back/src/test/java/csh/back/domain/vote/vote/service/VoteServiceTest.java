@@ -202,10 +202,10 @@ class VoteServiceTest {
         assertThat(response.voteResults()).hasSize(2);
 
         response.voteResults().forEach(voteFindResponse -> {
-            if (voteFindResponse.placeId().equals(place1.getId())) {
+            if (voteFindResponse.tripPlaceId().equals(place1.getId())) {
                 assertThat(voteFindResponse.count()).isEqualTo(1L);
                 assertThat(voteFindResponse.isVoted()).isTrue();
-            } else if (voteFindResponse.placeId().equals(place2.getId())) {
+            } else if (voteFindResponse.tripPlaceId().equals(place2.getId())) {
                 assertThat(voteFindResponse.count()).isEqualTo(1L);
                 assertThat(voteFindResponse.isVoted()).isFalse();
             }
@@ -226,7 +226,7 @@ class VoteServiceTest {
         VoteTimelineResponse response = voteService.voteConfirm(voteItem.getId(), vote.getId());
 
         assertThat(response.confirmPlaceId()).isEqualTo(place.getId());
-        assertThat(response.timeLine().getId()).isEqualTo(timeline.getId());
+        assertThat(response.timeline().getId()).isEqualTo(timeline.getId());
 
         Vote confirmed = voteRepository.findById(vote.getId()).orElseThrow();
         assertThat(confirmed.getStatus()).isEqualTo(VoteStatus.CONFIRMED);

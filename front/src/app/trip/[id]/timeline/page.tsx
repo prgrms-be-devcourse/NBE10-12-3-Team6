@@ -7,7 +7,7 @@ import { formatDate, apiFetch, API_BASE } from "../../../lib";
 
 interface Post {
   postId: number;
-  timeLineId: number | null;
+  timelineId: number | null;
   contentUrl: string;
   createdAt?: string;
   startTime?: string;
@@ -21,7 +21,7 @@ interface DateGroup {
 }
 
 type Segment =
-  | { type: "timeline"; timeLineId: number; posts: Post[] }
+  | { type: "timeline"; timelineId: number; posts: Post[] }
   | { type: "free"; slotKey: string; posts: Post[] };
 
 function resolveUrl(contentUrl: string): string {
@@ -35,13 +35,13 @@ function toSegments(posts: Post[]): Segment[] {
   const order: string[] = [];
 
   for (const post of posts) {
-    if (post.timeLineId !== null) {
-      const orderKey = `tl-${post.timeLineId}`;
-      if (!timelineSegs.has(post.timeLineId)) {
-        timelineSegs.set(post.timeLineId, { type: "timeline", timeLineId: post.timeLineId, posts: [post] });
+    if (post.timelineId !== null) {
+      const orderKey = `tl-${post.timelineId}`;
+      if (!timelineSegs.has(post.timelineId)) {
+        timelineSegs.set(post.timelineId, { type: "timeline", timelineId: post.timelineId, posts: [post] });
         order.push(orderKey);
       } else {
-        timelineSegs.get(post.timeLineId)!.posts.push(post);
+        timelineSegs.get(post.timelineId)!.posts.push(post);
       }
     } else {
       const slotKey = post.startTime && post.endTime

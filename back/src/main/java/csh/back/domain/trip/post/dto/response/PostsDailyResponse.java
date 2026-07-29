@@ -22,23 +22,23 @@ public record PostsDailyResponse(
                     nullable = true
             )
             String contentUrl,
-            Long timeLineId,
+            Long timelineId,
             LocalDateTime startTime,
             LocalDateTime endTime,
             String confirmedPlaceName,
             LocalDateTime createdAt
     ) {
         public static PostSummary from(Post post) {
-            Long timeLineId = post.getTimeline() != null ? post.getTimeline().getId() : null;
-            LocalDateTime startTime = timeLineId != null ? post.getTimeline().getStartTime() : null;
-            LocalDateTime endTime = timeLineId != null ? post.getTimeline().getEndTime() : null;
-            Timeline timeLine = post.getTimeline();
-            String confirmedPlaceName = timeLine != null && timeLine.getTripWishPlace() != null ? post.getTimeline().getTripWishPlace().getName() : null;
+            Long timelineId = post.getTimeline() != null ? post.getTimeline().getId() : null;
+            LocalDateTime startTime = timelineId != null ? post.getTimeline().getStartTime() : null;
+            LocalDateTime endTime = timelineId != null ? post.getTimeline().getEndTime() : null;
+            Timeline timeline = post.getTimeline();
+            String confirmedPlaceName = timeline != null && timeline.getTripWishPlace() != null ? post.getTimeline().getTripWishPlace().getName() : null;
 
             return new PostSummary(
                     post.getId(),
                     post.getContentUrl(),
-                    timeLineId,
+                    timelineId,
                     startTime,
                     endTime,
                     confirmedPlaceName,

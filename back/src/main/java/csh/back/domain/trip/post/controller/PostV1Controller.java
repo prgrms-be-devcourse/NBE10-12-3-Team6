@@ -23,7 +23,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @ApiV1
-@RequestMapping("/trips/{tripId}/posts")
+@RequestMapping("/trips/{tripGroupId}/posts")
 @Tag(name = "게시물", description = "게시글 API")
 public class PostV1Controller {
 
@@ -33,63 +33,63 @@ public class PostV1Controller {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "게시글 생성", description = "사진이 포함된 게시글을 생성합니다.")
     public PostResponse create(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @RequestPart CreatePostRequest request,
             @RequestPart(value = "image", required = false)
             MultipartFile image,
             @AuthenticationPrincipal AuthFilterDto member
     ) {
-        return postService.create(tripId, member.id(), request.timeLineId(), image);
+        return postService.create(tripGroupId, member.id(), request.timelineId(), image);
     }
 
     @GetMapping("/{postId}")
     @Operation(summary = "게시글 조회", description = "게시글 단건 조회")
     public PostResponse getPost(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @PathVariable Long postId,
             @AuthenticationPrincipal AuthFilterDto member
     ) {
-        return postService.getPost(tripId, postId);
+        return postService.getPost(tripGroupId, postId);
     }
 
     @GetMapping
     @Operation(summary = "게시글 전체 조회", description = "타임라인별 전체 게시글을 조회합니다.")
     public List<PostsDailyResponse> getPosts(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @AuthenticationPrincipal AuthFilterDto member
     ) {
-        return postService.getPosts(tripId, member.id());
+        return postService.getPosts(tripGroupId, member.id());
     }
 
     @PutMapping("/{postId}")
     @Operation(summary = "게시글 수정", description = "게시글 내용을 수정합니다.")
     public void update(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @PathVariable Long postId,
             @RequestBody UpdatePostRequest request
     ) {
-        postService.update(tripId, postId, request);
+        postService.update(tripGroupId, postId, request);
     }
 
     @DeleteMapping("/{postId}")
     @Operation(summary = "게시글 삭제", description = "게시글을 삭제합니다.")
     public void delete(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @PathVariable Long postId
     ) {
-        postService.delete(tripId, postId);
+        postService.delete(tripGroupId, postId);
     }
 
     @Operation(summary = "사진 촬영 가능 여부 판단")
     //특정 여행 모임의 특정 일차 타임라인 목록 조회
     @GetMapping("/is-taken")
     public ResponseData<PostTimelineResponse> getPostsWithIsTaken(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @RequestParam int dayNumber,
             @AuthenticationPrincipal AuthFilterDto member) {
         return new ResponseData<>(
                 200,
-                postService.getCurrentSlot(tripId, member.id(), dayNumber)
+                postService.getCurrentSlot(tripGroupId, member.id(), dayNumber)
         );
     }
 }
