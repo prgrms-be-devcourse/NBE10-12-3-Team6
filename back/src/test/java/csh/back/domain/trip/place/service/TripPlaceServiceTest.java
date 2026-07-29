@@ -70,16 +70,16 @@ class TripPlaceServiceTest {
         TripPlaceSaveResponse saved = tripPlaceService.savePlace(
                 tripGroup.getId(), "한라산", "관광", "제주 한라산로", "kakao-1", "http://map/1", owner.getId());
 
-        assertThat(saved.name()).isEqualTo("한라산");
-        assertThat(saved.category()).isEqualTo("관광");
-        assertThat(saved.address()).isEqualTo("제주 한라산로");
+        assertThat(saved.getName()).isEqualTo("한라산");
+        assertThat(saved.getCategory()).isEqualTo("관광");
+        assertThat(saved.getAddress()).isEqualTo("제주 한라산로");
 
         List<TripPlaceFindResponse> found = tripPlaceService.findWishPlaces(tripGroup.getId(), owner.getId());
 
         assertThat(found).hasSize(1);
-        assertThat(found.get(0).name()).isEqualTo("한라산");
-        assertThat(found.get(0).category()).isEqualTo("관광");
-        assertThat(found.get(0).createdBy()).isEqualTo(owner.getName());
+        assertThat(found.get(0).getName()).isEqualTo("한라산");
+        assertThat(found.get(0).getCategory()).isEqualTo("관광");
+        assertThat(found.get(0).getCreatedBy()).isEqualTo(owner.getName());
     }
 
     @Test

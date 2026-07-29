@@ -90,24 +90,13 @@ class VoteItemServiceTest {
                 .endTime(LocalDateTime.of(2026, 12, 1, 10, 0))
                 .build());
 
-        vote = voteRepository.save(Vote.builder()
-                .tripGroup(tripGroup)
-                .timeline(timeline)
-                .tripMember(tripMember)
-                .expireTime(tripGroup.getStartDate().minusDays(1).atStartOfDay())
-                .build());
+        vote = voteRepository.save(new Vote(
+                tripGroup, timeline, tripMember, tripGroup.getStartDate().minusDays(1).atStartOfDay()));
     }
 
     private TripPlace createPlace(String kakaoPlaceId) {
-        return tripPlaceRepository.save(TripPlace.builder()
-                .tripGroup(tripGroup)
-                .name("장소-" + kakaoPlaceId)
-                .category("관광")
-                .address("주소")
-                .kakaoPlaceId(kakaoPlaceId)
-                .kakaoMapUrl("url")
-                .createdBy(tripMember)
-                .build());
+        return tripPlaceRepository.save(new TripPlace(
+                tripGroup, "장소-" + kakaoPlaceId, "관광", "주소", kakaoPlaceId, "url", tripMember));
     }
 
     @Test
@@ -118,9 +107,9 @@ class VoteItemServiceTest {
         VoteUserSaveResponseDto response = voteItemService.saveVoteItem(
                 tripGroup.getId(), member.getId(), vote.getId(), place.getId());
 
-        assertThat(response.memberName()).isEqualTo(member.getName());
-        assertThat(response.place()).isEqualTo(place.getName());
-        assertThat(response.updateCount()).isEqualTo(0);
+        assertThat(response.getMemberName()).isEqualTo(member.getName());
+        assertThat(response.getPlace()).isEqualTo(place.getName());
+        assertThat(response.getUpdateCount()).isEqualTo(0);
 
         assertThat(voteItemRepository.findByVoteIdAndTripPlaceId(vote.getId(), place.getId())).isPresent();
     }
@@ -135,8 +124,8 @@ class VoteItemServiceTest {
         VoteUserSaveResponseDto response = voteItemService.saveVoteItem(
                 tripGroup.getId(), member.getId(), vote.getId(), secondPlace.getId());
 
-        assertThat(response.place()).isEqualTo(secondPlace.getName());
-        assertThat(response.updateCount()).isEqualTo(1);
+        assertThat(response.getPlace()).isEqualTo(secondPlace.getName());
+        assertThat(response.getUpdateCount()).isEqualTo(1);
     }
 
     @Test

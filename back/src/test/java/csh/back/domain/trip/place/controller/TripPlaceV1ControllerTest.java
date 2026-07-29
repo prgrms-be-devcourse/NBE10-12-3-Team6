@@ -96,11 +96,11 @@ class TripPlaceV1ControllerTest {
 
         for (int i = 0; i < expected.size(); i++) {
             resultActions
-                    .andExpect(jsonPath("$.data[%d].tripPlaceId".formatted(i)).value(expected.get(i).tripPlaceId()))
-                    .andExpect(jsonPath("$.data[%d].name".formatted(i)).value(expected.get(i).name()))
-                    .andExpect(jsonPath("$.data[%d].category".formatted(i)).value(expected.get(i).category()))
-                    .andExpect(jsonPath("$.data[%d].address".formatted(i)).value(expected.get(i).address()))
-                    .andExpect(jsonPath("$.data[%d].createdBy".formatted(i)).value(expected.get(i).createdBy()));
+                    .andExpect(jsonPath("$.data[%d].tripPlaceId".formatted(i)).value(expected.get(i).getTripPlaceId()))
+                    .andExpect(jsonPath("$.data[%d].name".formatted(i)).value(expected.get(i).getName()))
+                    .andExpect(jsonPath("$.data[%d].category".formatted(i)).value(expected.get(i).getCategory()))
+                    .andExpect(jsonPath("$.data[%d].address".formatted(i)).value(expected.get(i).getAddress()))
+                    .andExpect(jsonPath("$.data[%d].createdBy".formatted(i)).value(expected.get(i).getCreatedBy()));
         }
     }
 

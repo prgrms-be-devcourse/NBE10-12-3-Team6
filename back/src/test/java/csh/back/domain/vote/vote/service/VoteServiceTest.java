@@ -100,15 +100,8 @@ class VoteServiceTest {
     }
 
     private TripPlace createPlace(String kakaoPlaceId) {
-        return tripPlaceRepository.save(TripPlace.builder()
-                .tripGroup(tripGroup)
-                .name("장소-" + kakaoPlaceId)
-                .category("관광")
-                .address("주소")
-                .kakaoPlaceId(kakaoPlaceId)
-                .kakaoMapUrl("url")
-                .createdBy(ownerTripMember)
-                .build());
+        return tripPlaceRepository.save(new TripPlace(
+                tripGroup, "장소-" + kakaoPlaceId, "관광", "주소", kakaoPlaceId, "url", ownerTripMember));
     }
 
     @Test
@@ -117,23 +110,19 @@ class VoteServiceTest {
         Timeline day1Timeline = createTimeline(1L,
                 LocalDateTime.of(2026, 10, 1, 10, 0),
                 LocalDateTime.of(2026, 10, 1, 11, 0));
-        Vote vote = voteRepository.save(Vote.builder()
-                .tripGroup(tripGroup)
-                .timeline(day1Timeline)
-                .tripMember(ownerTripMember)
-                .expireTime(tripGroup.getStartDate().minusDays(1).atStartOfDay())
-                .build());
+        Vote vote = voteRepository.save(new Vote(
+                tripGroup, day1Timeline, ownerTripMember, tripGroup.getStartDate().minusDays(1).atStartOfDay()));
 
         List<VoteFindListResponse> result = voteService.findVoteList(tripGroup.getId(), owner.getId());
 
         assertThat(result).hasSize(2);
-        assertThat(result.get(0).date()).isEqualTo(tripGroup.getStartDate());
-        assertThat(result.get(0).timeLines()).hasSize(1);
-        assertThat(result.get(0).timeLines().get(0).voteId()).isEqualTo(vote.getId());
-        assertThat(result.get(0).timeLines().get(0).voteStatus()).isEqualTo(VoteStatus.PENDING.getNickname());
+        assertThat(result.get(0).getDate()).isEqualTo(tripGroup.getStartDate());
+        assertThat(result.get(0).getTimeLines()).hasSize(1);
+        assertThat(result.get(0).getTimeLines().get(0).getVoteId()).isEqualTo(vote.getId());
+        assertThat(result.get(0).getTimeLines().get(0).getVoteStatus()).isEqualTo(VoteStatus.PENDING.getNickname());
 
-        assertThat(result.get(1).date()).isEqualTo(tripGroup.getStartDate().plusDays(1));
-        assertThat(result.get(1).timeLines()).isEmpty();
+        assertThat(result.get(1).getDate()).isEqualTo(tripGroup.getStartDate().plusDays(1));
+        assertThat(result.get(1).getTimeLines()).isEmpty();
     }
 
     @Test
@@ -145,7 +134,7 @@ class VoteServiceTest {
 
         VoteCreateResponse response = voteService.wrapperCreateVote(tripGroup.getId(), owner.getId(), timeline.getId());
 
-        Vote saved = voteRepository.findById(response.voteId()).orElseThrow();
+        Vote saved = voteRepository.findById(response.getVoteId()).orElseThrow();
         assertThat(saved.getTripGroup().getId()).isEqualTo(tripGroup.getId());
         assertThat(saved.getTimeline().getId()).isEqualTo(timeline.getId());
         assertThat(saved.getExpireTime()).isEqualTo(tripGroup.getStartDate().minusDays(1).atStartOfDay());
@@ -173,38 +162,35 @@ class VoteServiceTest {
     void findVoteItemAndCount() {
         Timeline timeline = createTimeline(1L,
                 LocalDateTime.of(2026, 10, 1, 9, 0), LocalDateTime.of(2026, 10, 1, 10, 0));
-        Vote vote = voteRepository.save(Vote.builder()
-                .tripGroup(tripGroup).timeline(timeline).tripMember(ownerTripMember)
-                .expireTime(tripGroup.getStartDate().minusDays(1).atStartOfDay()).build());
+        Vote vote = voteRepository.save(new Vote(
+                tripGroup, timeline, ownerTripMember, tripGroup.getStartDate().minusDays(1).atStartOfDay()));
 
         TripPlace place1 = createPlace("kakao-count-1");
         TripPlace place2 = createPlace("kakao-count-2");
 
-        VoteItem voteItem1 = voteItemRepository.save(VoteItem.builder().vote(vote).tripPlace(place1).build());
-        VoteItem voteItem2 = voteItemRepository.save(VoteItem.builder().vote(vote).tripPlace(place2).build());
+        VoteItem voteItem1 = voteItemRepository.save(new VoteItem(vote, place1));
+        VoteItem voteItem2 = voteItemRepository.save(new VoteItem(vote, place2));
 
         Member other = memberRepository.save(new Member("vote-other@test.com", "pw", "다른투표자"));
         TripMember otherTripMember = tripMemberRepository.save(TripMember.builder()
                 .member(other).tripGroup(tripGroup).isAdmin(false).build());
 
-        voteUserRepository.save(VoteUser.builder()
-                .vote(vote).voteItem(voteItem1).tripMember(ownerTripMember).updateCount(0).build());
-        voteUserRepository.save(VoteUser.builder()
-                .vote(vote).voteItem(voteItem2).tripMember(otherTripMember).updateCount(0).build());
+        voteUserRepository.save(new VoteUser(vote, voteItem1, ownerTripMember, 0));
+        voteUserRepository.save(new VoteUser(vote, voteItem2, otherTripMember, 0));
 
         VoteFindWithUpdateCountResponse response =
                 voteService.findVoteItemAndCount(tripGroup.getId(), vote.getId(), owner.getId());
 
-        assertThat(response.updateCount()).isEqualTo(0);
-        assertThat(response.voteStatus()).isEqualTo(VoteStatus.PENDING.getNickname());
-        assertThat(response.voteResults()).hasSize(2);
+        assertThat(response.getUpdateCount()).isEqualTo(0);
+        assertThat(response.getVoteStatus()).isEqualTo(VoteStatus.PENDING.getNickname());
+        assertThat(response.getVoteResults()).hasSize(2);
 
-        response.voteResults().forEach(voteFindResponse -> {
-            if (voteFindResponse.tripPlaceId().equals(place1.getId())) {
-                assertThat(voteFindResponse.count()).isEqualTo(1L);
+        response.getVoteResults().forEach(voteFindResponse -> {
+            if (voteFindResponse.getTripPlaceId().equals(place1.getId())) {
+                assertThat(voteFindResponse.getCount()).isEqualTo(1L);
                 assertThat(voteFindResponse.isVoted()).isTrue();
-            } else if (voteFindResponse.tripPlaceId().equals(place2.getId())) {
-                assertThat(voteFindResponse.count()).isEqualTo(1L);
+            } else if (voteFindResponse.getTripPlaceId().equals(place2.getId())) {
+                assertThat(voteFindResponse.getCount()).isEqualTo(1L);
                 assertThat(voteFindResponse.isVoted()).isFalse();
             }
         });
@@ -215,16 +201,15 @@ class VoteServiceTest {
     void voteConfirm() {
         Timeline timeline = createTimeline(1L,
                 LocalDateTime.of(2026, 10, 1, 9, 0), LocalDateTime.of(2026, 10, 1, 10, 0));
-        Vote vote = voteRepository.save(Vote.builder()
-                .tripGroup(tripGroup).timeline(timeline).tripMember(ownerTripMember)
-                .expireTime(tripGroup.getStartDate().minusDays(1).atStartOfDay()).build());
+        Vote vote = voteRepository.save(new Vote(
+                tripGroup, timeline, ownerTripMember, tripGroup.getStartDate().minusDays(1).atStartOfDay()));
         TripPlace place = createPlace("kakao-confirm-1");
-        VoteItem voteItem = voteItemRepository.save(VoteItem.builder().vote(vote).tripPlace(place).build());
+        VoteItem voteItem = voteItemRepository.save(new VoteItem(vote, place));
 
         VoteTimelineResponse response = voteService.voteConfirm(voteItem.getId(), vote.getId());
 
-        assertThat(response.confirmPlaceId()).isEqualTo(place.getId());
-        assertThat(response.timeline().getId()).isEqualTo(timeline.getId());
+        assertThat(response.getConfirmPlaceId()).isEqualTo(place.getId());
+        assertThat(response.getTimeline().getId()).isEqualTo(timeline.getId());
 
         Vote confirmed = voteRepository.findById(vote.getId()).orElseThrow();
         assertThat(confirmed.getStatus()).isEqualTo(VoteStatus.CONFIRMED);
@@ -235,9 +220,8 @@ class VoteServiceTest {
     void expireVote() {
         Timeline timeline = createTimeline(1L,
                 LocalDateTime.of(2026, 10, 1, 9, 0), LocalDateTime.of(2026, 10, 1, 10, 0));
-        Vote vote = voteRepository.save(Vote.builder()
-                .tripGroup(tripGroup).timeline(timeline).tripMember(ownerTripMember)
-                .expireTime(tripGroup.getStartDate().minusDays(1).atStartOfDay()).build());
+        Vote vote = voteRepository.save(new Vote(
+                tripGroup, timeline, ownerTripMember, tripGroup.getStartDate().minusDays(1).atStartOfDay()));
 
         voteService.expireVote(vote.getId());
 
@@ -250,26 +234,23 @@ class VoteServiceTest {
     void findUserVoteThisPlace() {
         Timeline timeline = createTimeline(1L,
                 LocalDateTime.of(2026, 10, 1, 9, 0), LocalDateTime.of(2026, 10, 1, 10, 0));
-        Vote vote = voteRepository.save(Vote.builder()
-                .tripGroup(tripGroup).timeline(timeline).tripMember(ownerTripMember)
-                .expireTime(tripGroup.getStartDate().minusDays(1).atStartOfDay()).build());
+        Vote vote = voteRepository.save(new Vote(
+                tripGroup, timeline, ownerTripMember, tripGroup.getStartDate().minusDays(1).atStartOfDay()));
         TripPlace place = createPlace("kakao-users-1");
-        VoteItem voteItem = voteItemRepository.save(VoteItem.builder().vote(vote).tripPlace(place).build());
+        VoteItem voteItem = voteItemRepository.save(new VoteItem(vote, place));
 
         Member other = memberRepository.save(new Member("vote-user2@test.com", "pw", "투표자2"));
         TripMember otherTripMember = tripMemberRepository.save(TripMember.builder()
                 .member(other).tripGroup(tripGroup).isAdmin(false).build());
 
-        voteUserRepository.save(VoteUser.builder()
-                .vote(vote).voteItem(voteItem).tripMember(ownerTripMember).updateCount(0).build());
-        voteUserRepository.save(VoteUser.builder()
-                .vote(vote).voteItem(voteItem).tripMember(otherTripMember).updateCount(0).build());
+        voteUserRepository.save(new VoteUser(vote, voteItem, ownerTripMember, 0));
+        voteUserRepository.save(new VoteUser(vote, voteItem, otherTripMember, 0));
 
         List<VoteFindUserResponse> responses =
                 voteService.findUserVoteThisPlace(tripGroup.getId(), vote.getId(), place.getId(), owner.getId());
 
         assertThat(responses).hasSize(2);
-        assertThat(responses).extracting(VoteFindUserResponse::name)
+        assertThat(responses).extracting(VoteFindUserResponse::getName)
                 .containsExactlyInAnyOrder(owner.getName(), other.getName());
     }
 }
