@@ -20,7 +20,7 @@ import java.util.List;
 //tripGroups 엔티티
 @Getter
 @Entity
-@Table(name = "tripGroups")
+@Table(name = "trip_groups")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TripGroup extends BaseEntity {
 	//방장

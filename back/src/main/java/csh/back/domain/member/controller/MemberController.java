@@ -2,6 +2,7 @@ package csh.back.domain.member.controller;
 
 import csh.back.domain.member.dto.request.LoginRequestDto;
 import csh.back.domain.member.dto.request.MemberRequestDto;
+import csh.back.domain.member.dto.response.AuthFilterDto;
 import csh.back.domain.member.dto.response.LoginResponseDto;
 import csh.back.domain.member.dto.response.MemberResponseDto;
 import csh.back.domain.member.dto.web.LoginResult;
@@ -25,8 +26,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 
 // 회원 관련 요청을 처리하는 컨트롤러 (회원가입, 로그인, 로그아웃)
 // 인증 방식: 쿠키(v2) + Authorization 헤더(v1) 하이브리드 지원 - 프론트 전환 기간 동안 둘 다 발급
@@ -102,11 +101,11 @@ public class MemberController {
     public ResponseData<Void> logout(HttpServletResponse response) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication == null || authentication.getDetails() == null) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AuthFilterDto principal)) {
             throw new RuntimeException("로그인이 필요합니다.");
         }
 
-        Long memberId = (Long) authentication.getDetails();
+        Long memberId = principal.id();
         memberService.logout(memberId);
 
         response.addHeader(HttpHeaders.SET_COOKIE,
