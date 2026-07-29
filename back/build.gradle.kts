@@ -1,5 +1,10 @@
 plugins {
     java
+    kotlin("jvm") version "2.4.0"
+    kotlin("plugin.spring") version "2.4.0"
+    kotlin("plugin.jpa") version "2.4.0"
+    kotlin("plugin.lombok") version "2.4.0"
+    kotlin("kapt") version "2.4.0"
     id("org.springframework.boot") version "4.0.7"
     id("io.spring.dependency-management") version "1.1.7"
 }
@@ -18,7 +23,14 @@ repositories {
     mavenCentral()
 }
 
+kapt {
+    keepJavacAnnotationProcessors = true
+    includeCompileClasspath = false
+}
+
 dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation("tools.jackson.module:jackson-module-kotlin")
 
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -67,10 +79,9 @@ dependencies {
 
 
     // QFile 생성 및 가져오기
-    annotationProcessor("com.querydsl:querydsl-apt:5.1.0:jakarta")
-    annotationProcessor("com.querydsl:querydsl-jpa:5.1.0:jakarta")
-    annotationProcessor("jakarta.persistence:jakarta.persistence-api")
-    annotationProcessor("jakarta.annotation:jakarta.annotation-api")
+    kapt("com.querydsl:querydsl-apt:5.1.0:jakarta")
+    kapt("jakarta.persistence:jakarta.persistence-api")
+    kapt("jakarta.annotation:jakarta.annotation-api")
 
     //스프링 배치
     implementation ("org.springframework.boot:spring-boot-starter-batch-jdbc")
