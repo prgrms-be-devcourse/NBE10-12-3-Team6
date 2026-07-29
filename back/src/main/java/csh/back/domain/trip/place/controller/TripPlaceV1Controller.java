@@ -30,27 +30,27 @@ public class TripPlaceV1Controller {
     private final TripPlaceService tripPlaceService;
 
     @Operation(summary = "위시 장소 목록 조회")
-    @GetMapping("/{tripId}/wish-places")
+    @GetMapping("/{tripGroupId}/wish-places")
     public ResponseData<List<TripPlaceFindResponse>> findWishPlaces(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @AuthenticationPrincipal AuthFilterDto member) {
         return new ResponseData<>(
                 200,
-                tripPlaceService.findWishPlaces(tripId, member.id())
+                tripPlaceService.findWishPlaces(tripGroupId, member.id())
         );
     }
 
 
     @Operation(summary = "위시 장소 저장")
-    @PostMapping("/{tripId}/wish-places")
+    @PostMapping("/{tripGroupId}/wish-places")
     public ResponseData<TripPlaceSaveResponse> saveWishPlace(
             @RequestBody TripPlaceSaveRequest request,
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @AuthenticationPrincipal AuthFilterDto member) {
         return new ResponseData(
                 200,
                 tripPlaceService.savePlace(
-                        tripId,
+                        tripGroupId,
                         request.name(),
                         request.category(),
                         request.address(),

@@ -467,9 +467,9 @@ export default function TripDetailPage() {
     apiFetch(`${API_BASE}/api/v1/trips/${id}/wish-places`)
       .then(r => r.json())
       .then(body => {
-        const wishes: { placeId: number; name: string; address: string; category: string; createdBy: string }[] = body.data ?? [];
+        const wishes: { tripPlaceId: number; name: string; address: string; category: string; createdBy: string }[] = body.data ?? [];
         const candidates = wishes.map(w => ({
-          id: String(w.placeId),
+          id: String(w.tripPlaceId),
           authorId: 0,
           authorName: w.createdBy,
           placeName: w.name,

@@ -47,16 +47,16 @@ public class VoteService {
     private final int DEFAULT_UPDATE_COUNT = 0;
 
     // 투표 목록 조회해오는거(투표탭에서 사용됨)
-    public List<VoteFindListResponse> findVoteList(Long tripId, Long memberId) {
-        tripMemberValidator.validMember(tripId, memberId);
+    public List<VoteFindListResponse> findVoteList(Long tripGroupId, Long memberId) {
+        tripMemberValidator.validMember(tripGroupId, memberId);
 
-        TripGroup tripGroup = tripGroupRepository.findById(tripId).orElseThrow(RuntimeException::new);
+        TripGroup tripGroup = tripGroupRepository.findById(tripGroupId).orElseThrow(RuntimeException::new);
 
         Integer totalDays = tripGroup.getNights() + 1;
-        Map<Integer, List<Timeline>> byDay = timeLineRepository.findAllByTripGroupId(tripId).stream()
+        Map<Integer, List<Timeline>> byDay = timeLineRepository.findAllByTripGroupId(tripGroupId).stream()
                 .collect(Collectors.groupingBy(Timeline::getDayNumber));
 
-        Map<Long, Vote> byTimeLineId = voteRepository.findVotesWithTimelineByTripGroupId(tripId).stream()
+        Map<Long, Vote> byTimeLineId = voteRepository.findVotesWithTimelineByTripGroupId(tripGroupId).stream()
                 .collect(Collectors.toMap(
                         vote -> vote.getTimeline().getId(),
                         vote -> vote
@@ -78,10 +78,10 @@ public class VoteService {
     }
 
     // 장소 : 몇표를 표현하기 위한 메소드(투표하는 화면 진입 시 사용)
-    public VoteFindWithUpdateCountResponse findVoteItemAndCount(Long tripId, Long voteId, Long memberId) {
-        tripMemberValidator.validMember(tripId, memberId);
+    public VoteFindWithUpdateCountResponse findVoteItemAndCount(Long tripGroupId, Long voteId, Long memberId) {
+        tripMemberValidator.validMember(tripGroupId, memberId);
 
-        TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripId).orElseThrow(RuntimeException::new); // 이게 없으면 에러가 맞지
+        TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripGroupId).orElseThrow(RuntimeException::new); // 이게 없으면 에러가 맞지
         VoteUser voteUser = voteUserRepository.findByVoteIdAndTripMemberId(voteId ,tripMember.getId()).orElse(null); // 이건 없을수있지
 
         //투표된 장소 목록을 조회해 옴
@@ -102,7 +102,7 @@ public class VoteService {
                         vi.equals(voteItem)
                 ))
                 .toList();
-        List<TripPlaceFindResponse> wishPlaceFindResponses = tripPlaceService.findWishPlaces(tripId, memberId);
+        List<TripPlaceFindResponse> wishPlaceFindResponses = tripPlaceService.findWishPlaces(tripGroupId, memberId);
         //장소의 아이디를 키로 하여 위의 맵에서 횟수를 매핑하여 반환
         return VoteFindWithUpdateCountResponse.of(voteFindResponses, wishPlaceFindResponses, updateCount, vote);
     }
@@ -117,26 +117,26 @@ public class VoteService {
     }
 
     // 해당 장소에 투표한 유저가 누구인지 표현하기 위한 메소드(현재 사용안됨)
-    public List<VoteFindUserResponse> findUserVoteThisPlace(Long tripId, Long voteId, Long placeId, Long memberId) {
-        tripMemberValidator.validMember(tripId, memberId);
+    public List<VoteFindUserResponse> findUserVoteThisPlace(Long tripGroupId, Long voteId, Long tripPlaceId, Long memberId) {
+        tripMemberValidator.validMember(tripGroupId, memberId);
 
-        VoteItem voteItem = voteItemRepository.findByVoteIdAndTripPlaceId(voteId, placeId).orElseThrow(RuntimeException::new);
+        VoteItem voteItem = voteItemRepository.findByVoteIdAndTripPlaceId(voteId, tripPlaceId).orElseThrow(RuntimeException::new);
         List<VoteUser> voteUsers = voteUserRepository.findByVoteItemId(voteItem.getId());
         List<VoteFindUserResponse> responses = voteUsers.stream().map(VoteFindUserResponse::from).toList();
         return responses;
     }
 
     @Transactional
-    public VoteCreateResponse wrapperCreateVote(Long tripId, Long memberId, Long timeLineId) {
+    public VoteCreateResponse wrapperCreateVote(Long tripGroupId, Long memberId, Long timeLineId) {
         Timeline timeLine = timeLineRepository.findById(timeLineId).orElseThrow(RuntimeException::new);
-        return createVote(tripId, memberId, timeLine);
+        return createVote(tripGroupId, memberId, timeLine);
     }
 
     @Transactional
-    public VoteCreateResponse createVote(Long tripId, Long memberId, Timeline timeLine) {
-        tripMemberValidator.validMember(tripId, memberId);
-        TripGroup tripGroup = tripGroupRepository.findById(tripId).orElseThrow(RuntimeException::new);
-        TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripId).orElseThrow(RuntimeException::new);
+    public VoteCreateResponse createVote(Long tripGroupId, Long memberId, Timeline timeLine) {
+        tripMemberValidator.validMember(tripGroupId, memberId);
+        TripGroup tripGroup = tripGroupRepository.findById(tripGroupId).orElseThrow(RuntimeException::new);
+        TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripGroupId).orElseThrow(RuntimeException::new);
         LocalDateTime expireTime = tripGroup.getStartDate().minusDays(1).atStartOfDay();
         Vote vote = Vote
                 .builder()
@@ -150,11 +150,11 @@ public class VoteService {
     }
 
     @Transactional
-    public void createVoteBatch(Long tripId, Long memberId, List<Timeline> timeLines) {
-        tripMemberValidator.validMember(tripId, memberId);
-        TripGroup tripGroup = tripGroupRepository.findById(tripId).orElseThrow(RuntimeException::new);
+    public void createVoteBatch(Long tripGroupId, Long memberId, List<Timeline> timeLines) {
+        tripMemberValidator.validMember(tripGroupId, memberId);
+        TripGroup tripGroup = tripGroupRepository.findById(tripGroupId).orElseThrow(RuntimeException::new);
         LocalDateTime expireTime = tripGroup.getStartDate().minusDays(1).atStartOfDay();
-        TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripId).orElseThrow(RuntimeException::new);
+        TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripGroupId).orElseThrow(RuntimeException::new);
 
         List<Vote> votes = timeLines.stream()
                 .map(timeLine -> Vote

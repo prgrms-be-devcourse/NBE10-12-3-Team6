@@ -13,7 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/trips/{tripId}/votes/{voteId}")
+@RequestMapping("/api/v1/trips/{tripGroupId}/votes/{voteId}")
 @RequiredArgsConstructor
 @Tag(name = "투표 참여", description = "투표 항목 선택(투표 참여) 관련 API")
 public class VoteItemV1Controller {
@@ -22,13 +22,13 @@ public class VoteItemV1Controller {
     @Operation(summary = "투표 참여")
     @PostMapping
     public ResponseData<VoteUserSaveResponseDto> saveVote(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @PathVariable Long voteId,
             @RequestBody VoteItemSaveRequestDto request,
             @AuthenticationPrincipal AuthFilterDto member) {
         return new ResponseData<>(
                 201,
-                voteItemService.saveVoteItem(tripId, member.id(), voteId, request.placeId())
+                voteItemService.saveVoteItem(tripGroupId, member.id(), voteId, request.tripPlaceId())
         );
     }
 }

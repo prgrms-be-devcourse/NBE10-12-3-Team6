@@ -12,8 +12,8 @@ import java.util.Optional;
 
 public interface VoteRepository extends JpaRepository<Vote, Long> {
 
-    @Query("SELECT v FROM Vote v JOIN FETCH v.timeline tl WHERE tl.tripGroup.id = :tripId")
-    List<Vote> findVotesWithTimelineByTripGroupId(Long tripId);
+    @Query("SELECT v FROM Vote v JOIN FETCH v.timeline tl WHERE tl.tripGroup.id = :tripGroupId")
+    List<Vote> findVotesWithTimelineByTripGroupId(Long tripGroupId);
 
     @Query("SELECT v.timeline.id AS timelineId, v.id AS voteId FROM Vote v WHERE v.timeline.id IN :timeLineIds")
     List<VoteTimelineIdProjection> findVoteIdsByTimeLineIds(List<Long> timeLineIds);

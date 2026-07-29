@@ -27,11 +27,11 @@ public class TripPlaceService {
     private final TripMemberRepository tripMemberRepository;
     private final TripMemberValidator tripMemberValidator;
 
-    public List<TripPlaceFindResponse> findWishPlaces(Long tripId, Long memberId) {
+    public List<TripPlaceFindResponse> findWishPlaces(Long tripGroupId, Long memberId) {
 
-        tripMemberValidator.validMember(tripId, memberId);
+        tripMemberValidator.validMember(tripGroupId, memberId);
 
-        List<TripPlace> tripPlaces = tripPlaceRepository.findAllByTripGroupId(tripId);
+        List<TripPlace> tripPlaces = tripPlaceRepository.findAllByTripGroupId(tripGroupId);
         return tripPlaces
                 .stream()
                 .map(TripPlaceFindResponse::from)
@@ -39,7 +39,7 @@ public class TripPlaceService {
     }
 
     @Transactional
-    public TripPlaceSaveResponse savePlace(Long tripId,
+    public TripPlaceSaveResponse savePlace(Long tripGroupId,
                                            String name,
                                            String category,
                                            String address,
@@ -47,10 +47,10 @@ public class TripPlaceService {
                                            String kakaoMapUrl,
                                            Long memberId) {
 
-        tripMemberValidator.validMember(tripId, memberId);
+        tripMemberValidator.validMember(tripGroupId, memberId);
 
-        TripGroup tripGroup = tripGroupRepository.findById(tripId).orElseThrow(RuntimeException::new);
-        TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripId).orElseThrow(RuntimeException::new);
+        TripGroup tripGroup = tripGroupRepository.findById(tripGroupId).orElseThrow(RuntimeException::new);
+        TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripGroupId).orElseThrow(RuntimeException::new);
         TripPlace place = TripPlace
                 .builder()
                 .tripGroup(tripGroup)

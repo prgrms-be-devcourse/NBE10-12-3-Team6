@@ -18,7 +18,7 @@ import java.util.List;
 @ApiV1
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/trips/{tripId}/votes")
+@RequestMapping("/trips/{tripGroupId}/votes")
 @Tag(name = "투표", description = "여행 모임 투표 관련 API")
 public class VoteV1Controller {
     private final VoteService voteService;
@@ -27,59 +27,59 @@ public class VoteV1Controller {
     @Operation(summary = "투표 목록 조회", description = "특정 여행 모임의 투표 목록을 조회")
     @GetMapping
     public ResponseData<List<VoteFindListResponse>> findVoteList(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @AuthenticationPrincipal AuthFilterDto member
     ) {
-        return new ResponseData<>(200, voteService.findVoteList(tripId, member.id()));
+        return new ResponseData<>(200, voteService.findVoteList(tripGroupId, member.id()));
     }
 
     @Operation(summary = "투표 생성", description = "투표 생성 실패 오류 시 사용")
     @PostMapping
     public ResponseData<VoteCreateResponse> createVote(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @RequestBody VoteCreateRequest request,
             @AuthenticationPrincipal AuthFilterDto member
     ) {
 
         return new ResponseData<>(
                 201,
-                voteService.wrapperCreateVote(tripId, member.id(), request.timeLineId())
+                voteService.wrapperCreateVote(tripGroupId, member.id(), request.timeLineId())
         );
     }
 
     @Operation(summary = "투표 항목 및 투표 수 조회", description = "특정 투표의 장소별 항목과 투표 수 조회")
     @GetMapping("/{voteId}/count")
     public ResponseData<VoteFindWithUpdateCountResponse> findVoteItemAndCount(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @PathVariable Long voteId,
             @AuthenticationPrincipal AuthFilterDto member
     ) {
         return new ResponseData<>(
                 200,
-                voteService.findVoteItemAndCount(tripId, voteId, member.id())
+                voteService.findVoteItemAndCount(tripGroupId, voteId, member.id())
         );
     }
 
     @Operation(summary = "특정 장소 투표 참여자 조회", description = "특정 장소에 투표한 사용자 목록을 조회")
-    @GetMapping("/{voteId}/places/{placeId}")
+    @GetMapping("/{voteId}/places/{tripPlaceId}")
     public ResponseData<List<VoteFindUserResponse>> findVoteUserThisPlace(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @PathVariable Long voteId,
-            @PathVariable Long placeId,
+            @PathVariable Long tripPlaceId,
             @AuthenticationPrincipal AuthFilterDto member
     ) {
-        return new ResponseData<>(200, voteService.findUserVoteThisPlace(tripId, voteId, placeId, member.id()));
+        return new ResponseData<>(200, voteService.findUserVoteThisPlace(tripGroupId, voteId, tripPlaceId, member.id()));
     }
 
     @Operation(summary = "투표 결과 장소 확정")
     @PatchMapping("/{voteId}/confirm")
     public ResponseData<VoteConfirmResponse> confirmVote(
-            @PathVariable Long tripId,
+            @PathVariable Long tripGroupId,
             @PathVariable Long voteId,
             @AuthenticationPrincipal AuthFilterDto member
     ) {
         //확정 장소 반영 서비스 호출
-        return new ResponseData<>(200, timeLineService.confirmVote(tripId, member.id(), voteId));
+        return new ResponseData<>(200, timeLineService.confirmVote(tripGroupId, member.id(), voteId));
     }
 
 }

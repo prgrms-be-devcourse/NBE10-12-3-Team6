@@ -26,14 +26,14 @@ public class VoteItemService {
     private final TripMemberValidator tripMemberValidator;
 
     @Transactional
-    public VoteUserSaveResponseDto saveVoteItem(Long tripId, Long memberId, Long voteId, Long placeId) {
-        log.info("장소 아이디 값 : {}", placeId.toString());
+    public VoteUserSaveResponseDto saveVoteItem(Long tripGroupId, Long memberId, Long voteId, Long tripPlaceId) {
+        log.info("장소 아이디 값 : {}", tripPlaceId.toString());
         log.info("투표 아이디 값 : {}", voteId.toString());
-        tripMemberValidator.validMember(tripId, memberId);
+        tripMemberValidator.validMember(tripGroupId, memberId);
 
         Vote vote = voteRepository.findById(voteId).orElseThrow(RuntimeException::new);
-        TripPlace tripPlace = tripPlaceRepository.findById(placeId).orElseThrow(RuntimeException::new);
-        VoteItem voteItem = voteItemRepository.findByVoteIdAndTripPlaceId(voteId, placeId).orElse(null);
+        TripPlace tripPlace = tripPlaceRepository.findById(tripPlaceId).orElseThrow(RuntimeException::new);
+        VoteItem voteItem = voteItemRepository.findByVoteIdAndTripPlaceId(voteId, tripPlaceId).orElse(null);
         if (voteItem == null) {
             voteItem = VoteItem
                     .builder()
@@ -41,9 +41,9 @@ public class VoteItemService {
                     .vote(vote)
                     .build();
             VoteItem saved = voteItemRepository.save(voteItem);
-            return voteUserService.saveVoteUser(saved, tripId, memberId);
+            return voteUserService.saveVoteUser(saved, tripGroupId, memberId);
         }
         voteItem.updateTripPlace(tripPlace);
-        return voteUserService.saveVoteUser(voteItem, tripId, memberId);
+        return voteUserService.saveVoteUser(voteItem, tripGroupId, memberId);
     }
 }
