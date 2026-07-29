@@ -14,3 +14,7 @@ spring:
 logging:
   level:
     com.back : DEBUG
+
+app:
+  s3:
+    bucket: trip-bucket
