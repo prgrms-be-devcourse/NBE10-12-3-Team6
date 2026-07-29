@@ -97,7 +97,8 @@ public class PostService {
     // 게시글 수정
     @Transactional
     public void update(Long tripId, Long postId, UpdatePostRequest request) {
-        findAuthorizedPost(tripId, postId);
+        Post post = findAuthorizedPost(tripId, postId);
+        post.update(request.content());
     }
     // 게시글 삭제
     @Transactional
@@ -142,6 +143,7 @@ public class PostService {
                 .timeline(timeLine)
                 .type(image != null && !image.isEmpty() ? "IMAGE" : "TEXT")
                 .contentUrl(imageUrl)
+                .content(null)
                 .build();
 
         Post savedPost = postRepository.save(post);

@@ -27,11 +27,19 @@ public class Post extends BaseEntity {
 
     private String contentUrl;
 
+    @Column(length = 1000)
+    private String content;
+
     @Builder
-    private Post(TripMember author, Timeline timeline, String type, String contentUrl) {
+    private Post(TripMember author, Timeline timeline, String type, String contentUrl, String content) {
         this.author = author;
         this.timeline = timeline;
         this.type = type;
         this.contentUrl = contentUrl;
+        this.content = content;
+    }
+
+    public void update(String content) {
+        this.content = content;
     }
 }

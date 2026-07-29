@@ -20,7 +20,10 @@ public record PostResponse(
                 example = "https://example.com/images/post1.jpg",
                 nullable = true
         )
-        String contentUrl
+        String contentUrl,
+
+        @Schema(description = "게시글 내용", example = "부산 여행 시작!")
+        String content
 
 ) {
     public static PostResponse from(Post post) {
@@ -29,7 +32,8 @@ public record PostResponse(
                 post.getId(),
                 timeLineId,
                 post.getType(),
-                post.getContentUrl()
+                post.getContentUrl(),
+                post.getContent()
         );
     }
 }
