@@ -34,7 +34,7 @@ class MemberController(
     @Operation(summary = "회원가입")
     @PostMapping("/signup")
     fun signUp(@RequestBody @Valid request: MemberRequestDto): ResponseData<MemberResponseDto> =
-        ResponseData(201, memberService.signUp(request.email, request.password, request.name))
+        ResponseData(201, memberService.signUp(request.email!!, request.password!!, request.name!!))
 
     @Operation(summary = "로그인")
     @PostMapping("/login")

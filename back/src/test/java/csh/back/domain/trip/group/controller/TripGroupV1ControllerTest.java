@@ -55,7 +55,7 @@ public class TripGroupV1ControllerTest {
 				.getAuthentication()
 				.getPrincipal();
 
-		List<TripGroupResponse> tripGroups = tripGroupService.getGroups(member.id(), "", "");
+		List<TripGroupResponse> tripGroups = tripGroupService.getGroups(member.getId(), "", "");
 
 		resultActions
 				.andExpect(handler().handlerType(TripGroupV1Controller.class))
@@ -107,7 +107,7 @@ public class TripGroupV1ControllerTest {
 		String body = resultActions.andReturn().getResponse().getContentAsString();
 		Long id = new ObjectMapper().readTree(body).get("data").get("id").asLong();
 
-		TripGroupDetailResponse tripGroup = tripGroupService.getGroupDetail(id, owner.id());
+		TripGroupDetailResponse tripGroup = tripGroupService.getGroupDetail(id, owner.getId());
 
 		resultActions
 				.andExpect(handler().handlerType(TripGroupV1Controller.class))
@@ -188,7 +188,7 @@ public class TripGroupV1ControllerTest {
 				)
 				.andDo(print());
 
-		TripGroupDetailResponse tripGroup = tripGroupService.getGroupDetail(id, owner.id());
+		TripGroupDetailResponse tripGroup = tripGroupService.getGroupDetail(id, owner.getId());
 
 		resultActions
 				.andExpect(handler().handlerType(TripGroupV1Controller.class))
@@ -270,7 +270,7 @@ public class TripGroupV1ControllerTest {
 				)
 				.andDo(print());
 
-		TripGroupDetailResponse tripGroup = tripGroupService.getGroupDetail(id, owner.id());
+		TripGroupDetailResponse tripGroup = tripGroupService.getGroupDetail(id, owner.getId());
 
 		resultActions
 				.andExpect(handler().handlerType(TripGroupV1Controller.class))

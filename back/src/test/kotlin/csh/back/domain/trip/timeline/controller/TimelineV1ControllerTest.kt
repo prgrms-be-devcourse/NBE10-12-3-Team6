@@ -68,7 +68,7 @@ class TimelineV1ControllerTest {
             authentication.principal is AuthFilterDto
         ) {
             val member = authentication.principal as AuthFilterDto
-            authentication.details = member.id()
+            authentication.details = member.id
         }
     }
 

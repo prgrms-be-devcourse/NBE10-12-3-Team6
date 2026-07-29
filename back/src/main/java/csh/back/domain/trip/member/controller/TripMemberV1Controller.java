@@ -27,7 +27,7 @@ public class TripMemberV1Controller {
 			@AuthenticationPrincipal AuthFilterDto member,
 			@PathVariable String joinCode
 	) {
-		tripMemberService.createJoinMember(joinCode, member.id());
+		tripMemberService.createJoinMember(joinCode, member.getId());
 		return new ResponseData<>(200, null);
 	}
 }
