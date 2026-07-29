@@ -36,7 +36,7 @@ public class TripPlaceV1Controller {
             @AuthenticationPrincipal AuthFilterDto member) {
         return new ResponseData<>(
                 200,
-                tripPlaceService.findWishPlaces(tripGroupId, member.id())
+                tripPlaceService.findWishPlaces(tripGroupId, member.getId())
         );
     }
 
@@ -56,7 +56,7 @@ public class TripPlaceV1Controller {
                         request.address(),
                         request.kakaoPlaceId(),
                         request.kakaoMapUrl(),
-                        member.id()
+                        member.getId()
                 )
         );
     }

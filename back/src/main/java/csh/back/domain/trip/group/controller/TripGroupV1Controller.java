@@ -42,7 +42,7 @@ public class TripGroupV1Controller {
 			@AuthenticationPrincipal AuthFilterDto owner
 	) {
 		log.info("owner = {}", owner);
-		return new ResponseData<>(200, tripGroupService.getGroups(owner.id(), keyword, startDate));
+		return new ResponseData<>(200, tripGroupService.getGroups(owner.getId(), keyword, startDate));
 	}
 
 	//Swagger 문서 표시
@@ -53,7 +53,7 @@ public class TripGroupV1Controller {
 			@AuthenticationPrincipal AuthFilterDto owner,
 			@Valid @RequestBody TripGroupRequest request
 	) {
-		return new ResponseData<>(201, tripGroupService.writeGroup(request, owner.id()));
+		return new ResponseData<>(201, tripGroupService.writeGroup(request, owner.getId()));
 	}
 
 	//Swagger 문서 표시
@@ -64,7 +64,7 @@ public class TripGroupV1Controller {
 			@PathVariable Long tripGroupId,
 			@AuthenticationPrincipal AuthFilterDto owner
 	) {
-		return new ResponseData<>(200, tripGroupService.getGroupDetail(tripGroupId, owner.id()));
+		return new ResponseData<>(200, tripGroupService.getGroupDetail(tripGroupId, owner.getId()));
 	}
 
 	//Swagger 문서 표시
@@ -76,6 +76,6 @@ public class TripGroupV1Controller {
 			@AuthenticationPrincipal AuthFilterDto owner,
 			@RequestBody TripGroupModifyRequest request
 			) {
-		return new ResponseData<>(200, tripGroupService.modifyGroupDetail(tripGroupId, owner.id(), request));
+		return new ResponseData<>(200, tripGroupService.modifyGroupDetail(tripGroupId, owner.getId(), request));
 	}
 }

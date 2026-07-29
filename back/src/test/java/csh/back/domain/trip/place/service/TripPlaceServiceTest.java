@@ -45,11 +45,7 @@ class TripPlaceServiceTest {
 
     @BeforeEach
     void setUp() {
-        owner = memberRepository.save(Member.builder()
-                .email("place-owner@test.com")
-                .password("pw")
-                .name("장소테스트유저")
-                .build());
+        owner = memberRepository.save(new Member("place-owner@test.com", "pw", "장소테스트유저"));
 
         tripGroup = tripGroupRepository.save(TripGroup.builder()
                 .owner(owner)
@@ -99,8 +95,7 @@ class TripPlaceServiceTest {
     @Test
     @DisplayName("모임 멤버가 아닌 유저가 위시 장소를 조회하면 예외가 발생한다")
     void findByNonMemberThrows() {
-        Member outsider = memberRepository.save(Member.builder()
-                .email("outsider@test.com").password("pw").name("외부인").build());
+        Member outsider = memberRepository.save(new Member("outsider@test.com", "pw", "외부인"));
 
         assertThatThrownBy(() -> tripPlaceService.findWishPlaces(tripGroup.getId(), outsider.getId()))
                 .isInstanceOf(RuntimeException.class);
@@ -109,8 +104,7 @@ class TripPlaceServiceTest {
     @Test
     @DisplayName("모임 멤버가 아닌 유저가 위시 장소를 저장하면 예외가 발생한다")
     void saveByNonMemberThrows() {
-        Member outsider = memberRepository.save(Member.builder()
-                .email("outsider2@test.com").password("pw").name("외부인2").build());
+        Member outsider = memberRepository.save(new Member("outsider2@test.com", "pw", "외부인2"));
 
         assertThatThrownBy(() ->
                 tripPlaceService.savePlace(tripGroup.getId(), "한라산", "관광", "주소", "kakao-x", "url", outsider.getId())

@@ -28,7 +28,7 @@ public class VoteItemV1Controller {
             @AuthenticationPrincipal AuthFilterDto member) {
         return new ResponseData<>(
                 201,
-                voteItemService.saveVoteItem(tripGroupId, member.id(), voteId, request.tripPlaceId())
+                voteItemService.saveVoteItem(tripGroupId, member.getId(), voteId, request.tripPlaceId())
         );
     }
 }
