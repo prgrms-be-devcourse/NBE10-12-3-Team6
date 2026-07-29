@@ -2,6 +2,7 @@ package csh.back.domain.member.controller
 
 import csh.back.domain.member.dto.request.LoginRequestDto
 import csh.back.domain.member.dto.request.MemberRequestDto
+import csh.back.domain.member.dto.response.AuthFilterDto
 import csh.back.domain.member.dto.response.LoginResponseDto
 import csh.back.domain.member.dto.response.MemberResponseDto
 import csh.back.domain.member.service.MemberService
@@ -73,15 +74,11 @@ class MemberController(
     @PostMapping("/logout")
     fun logout(response: HttpServletResponse): ResponseData<Void?> {
         val authentication = SecurityContextHolder.getContext().authentication
+        val principal = authentication?.principal as? AuthFilterDto
+            ?: throw RuntimeException("로그인이 필요합니다.")
 
-        if (authentication == null || authentication.details == null) {
-            throw RuntimeException("로그인이 필요합니다.")
-        }
+        memberService.logout(principal.id)
 
-        // JwtAuthenticationFilter에서 authentication.details에 memberId(Long)를 저장
-        memberService.logout(authentication.details as Long)
-
-        // 쿠키 만료 처리로 클라이언트 토큰 삭제
         response.addHeader(HttpHeaders.SET_COOKIE,
             ResponseCookie.from(CookieNames.ACCESS_TOKEN, "").path("/").maxAge(0).build().toString())
         response.addHeader(HttpHeaders.SET_COOKIE,
