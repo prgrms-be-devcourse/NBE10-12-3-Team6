@@ -47,6 +47,6 @@ db_dev.lock.db
 
 ### upload ###
 /uploadedimages
-
+/minio-data
 ### doc ###
 doc/

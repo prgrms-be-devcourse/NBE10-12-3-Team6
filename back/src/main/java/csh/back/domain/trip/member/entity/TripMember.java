@@ -15,21 +15,17 @@ import lombok.NoArgsConstructor;
 @Table(name = "trip_members",
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_trip_member",
-                columnNames = {"trip_id", "member_id"}  // vote_id 기준
+                columnNames = {"trip_group_id", "member_id"}
         )
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TripMember extends BaseEntity {
-    //방장
     @ManyToOne(fetch = FetchType.LAZY)
-    //FK
-    //join member Table
     @JoinColumn(name ="member_id", nullable = false)
     private Member member;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    //join tripGroup Table
-    @JoinColumn(name ="trip_id", nullable = false)
+    @JoinColumn(name ="trip_group_id", nullable = false)
     private TripGroup tripGroup;
 
     //방장인지 아닌지

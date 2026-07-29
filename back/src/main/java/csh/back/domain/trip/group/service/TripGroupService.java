@@ -10,7 +10,7 @@ import csh.back.domain.trip.group.entity.TripGroup;
 import csh.back.domain.trip.group.exception.NonMemberException;
 import csh.back.domain.trip.group.exception.NotFoundException;
 import csh.back.domain.trip.group.repository.TripGroupRepository;
-import csh.back.domain.trip.member.dto.response.TripMemeberResponse;
+import csh.back.domain.trip.member.dto.response.TripMemberResponse;
 import csh.back.domain.trip.member.entity.TripMember;
 import csh.back.domain.trip.member.repository.TripMemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -82,9 +82,9 @@ public class TripGroupService {
 			throw new NonMemberException("해당 모임의 멤버가 아닙니다.");
 		}
 
-		List<TripMemeberResponse> members = tripMemberRepository.findByTripGroupId(tripId)
+		List<TripMemberResponse> members = tripMemberRepository.findByTripGroupId(tripId)
 				.stream()
-				.map(tm -> TripMemeberResponse.from(tm))
+				.map(tm -> TripMemberResponse.from(tm))
 				.toList();
 
 		return TripGroupDetailResponse.from(group, members);
