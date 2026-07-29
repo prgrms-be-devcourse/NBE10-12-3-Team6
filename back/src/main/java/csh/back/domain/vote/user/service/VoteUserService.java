@@ -23,9 +23,9 @@ public class VoteUserService {
     private final Integer DEFAULT_UPDATE_COUNT = 0;
 
     @Transactional
-    public VoteUserSaveResponseDto saveVoteUser(VoteItem voteItem, Long tripId, Long memberId) {
+    public VoteUserSaveResponseDto saveVoteUser(VoteItem voteItem, Long tripGroupId, Long memberId) {
 
-        TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripId)
+        TripMember tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripGroupId)
                 .orElseThrow(RuntimeException::new);
         VoteUser voteUser = voteUserRepository.findByVoteIdAndTripMemberId(
                 voteItem.getVote().getId(), tripMember.getId())

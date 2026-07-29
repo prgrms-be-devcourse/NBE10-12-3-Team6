@@ -7,7 +7,7 @@ import { timeText, useAuthGuard, apiFetch, API_BASE } from "../../../../../../li
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface VoteDetail {
-  placeId: number;
+  tripPlaceId: number;
   place: string;
   count: number;
   isVoted: boolean;
@@ -90,9 +90,9 @@ export default function BlockDetailPage() {
         setVoteConfirmed(confirmed);
         if (body.data?.confirmedPlaceId != null) setConfirmedPlaceId(String(body.data.confirmedPlaceId));
         const voted = results.find(v => v.isVoted);
-        if (voted) setMyVotedPlaceId(String(voted.placeId));
-        const wishList = (body.data?.wishPlaceFindResponses ?? []).map((w: { placeId: number; name: string; address: string; category: string; createdBy: string }) => ({
-          id: String(w.placeId),
+        if (voted) setMyVotedPlaceId(String(voted.tripPlaceId));
+        const wishList = (body.data?.wishPlaceFindResponses ?? []).map((w: { tripPlaceId: number; name: string; address: string; category: string; createdBy: string }) => ({
+          id: String(w.tripPlaceId),
           authorId: 0,
           authorName: w.createdBy,
           placeName: w.name,
@@ -135,13 +135,13 @@ export default function BlockDetailPage() {
   };
 
   const voteCount = (candidateId: string): number => {
-    if (fromVote) return voteDetails?.find(v => String(v.placeId) === candidateId)?.count ?? 0;
+    if (fromVote) return voteDetails?.find(v => String(v.tripPlaceId) === candidateId)?.count ?? 0;
     return day?.votedUserIDsByBlockAndCandidate[blockId]?.[candidateId]?.length ?? 0;
   };
 
   const isVoted = (candidateId: string): boolean => {
     if (fromVote) {
-      return (voteDetails?.find(v => String(v.placeId) === candidateId)?.isVoted ?? false) || myVotedPlaceId === candidateId;
+      return (voteDetails?.find(v => String(v.tripPlaceId) === candidateId)?.isVoted ?? false) || myVotedPlaceId === candidateId;
     }
     return day?.votedUserIDsByBlockAndCandidate[blockId]?.[candidateId]?.includes(currentUser.id) ?? false;
   };
@@ -162,7 +162,7 @@ export default function BlockDetailPage() {
           return confirmed;
         });
         const voted = results.find(v => v.isVoted);
-        if (voted) setMyVotedPlaceId(String(voted.placeId));
+        if (voted) setMyVotedPlaceId(String(voted.tripPlaceId));
       });
   };
 
@@ -173,7 +173,7 @@ export default function BlockDetailPage() {
         await apiFetch(`${API_BASE}/api/v1/trips/${id}/votes/${blockId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ placeId: Number(candidateId) }),
+          body: JSON.stringify({ tripPlaceId: Number(candidateId) }),
         });
         setMyVotedPlaceId(candidateId);
         refetchVoteDetails();
