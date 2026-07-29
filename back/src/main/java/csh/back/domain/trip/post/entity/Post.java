@@ -1,7 +1,5 @@
 package csh.back.domain.trip.post.entity;
 
-import csh.back.domain.member.entity.Member;
-import csh.back.domain.trip.group.entity.TripGroup;
 import csh.back.domain.trip.member.entity.TripMember;
 import csh.back.domain.trip.timeline.entity.Timeline;
 import csh.back.global.entity.BaseEntity;
@@ -13,50 +11,27 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(name = "posts")
+@Table(name = "trip_posts")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Post extends BaseEntity {
 
-    //FK
-    //Join TripMember Table
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false)
+    @JoinColumn(name = "trip_member_id", nullable = false)
     private TripMember author;
 
-    //FK
-    //Join TripTimeline Table
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "timeline_id")
+    @JoinColumn(name = "trip_timeline_id")
     private Timeline timeline;
 
-    //영상인지 이미지인지 논리판단
-    private Boolean isImg;
-    //불러오는 이미지 URL
+    private String type;
+
     private String contentUrl;
-    //포스트 글 내용
-    @Column(length = 1000)
-    private String content;
-    //위치값
-    private String location;
 
     @Builder
-    private Post(
-            TripMember author,
-            Timeline timeline,
-            Boolean isImg,
-            String content,
-            String location,
-            String contentUrl
-    ) {
+    private Post(TripMember author, Timeline timeline, String type, String contentUrl) {
         this.author = author;
         this.timeline = timeline;
-        this.isImg = isImg;
-        this.content = content;
-        this.location = location;
+        this.type = type;
         this.contentUrl = contentUrl;
-    }
-    public void update(String content, String location) {
-        this.content = content;
-        this.location = location;
     }
 }

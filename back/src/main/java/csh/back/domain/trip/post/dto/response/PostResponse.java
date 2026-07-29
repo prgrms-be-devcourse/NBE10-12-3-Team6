@@ -12,14 +12,8 @@ public record PostResponse(
         @Schema(description = "타임라인 ID", example = "1")
         Long timelineId,
 
-        @Schema(description = "게시글 내용", example = "부산 여행 시작!")
-        String content,
-
-        @Schema(description = "게시글 위치", example = "부산 광안리")
-        String location,
-
-        @Schema(description = "이미지 여부", example = "true")
-        Boolean isImg,
+        @Schema(description = "게시글 타입", example = "IMAGE")
+        String type,
 
         @Schema(
                 description = "이미지 URL",
@@ -29,15 +23,12 @@ public record PostResponse(
         String contentUrl
 
 ) {
-
     public static PostResponse from(Post post) {
         Long timeLineId = post.getTimeline() != null ? post.getTimeline().getId() : null;
         return new PostResponse(
                 post.getId(),
                 timeLineId,
-                post.getContent(),
-                post.getLocation(),
-                post.getIsImg(),
+                post.getType(),
                 post.getContentUrl()
         );
     }

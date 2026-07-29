@@ -97,13 +97,7 @@ public class PostService {
     // 게시글 수정
     @Transactional
     public void update(Long tripId, Long postId, UpdatePostRequest request) {
-
-        Post post = findAuthorizedPost(tripId, postId);
-
-        post.update(
-                request.content(),
-                request.location()
-        );
+        findAuthorizedPost(tripId, postId);
     }
     // 게시글 삭제
     @Transactional
@@ -146,7 +140,7 @@ public class PostService {
         Post post = Post.builder()
                 .author(author)
                 .timeline(timeLine)
-                .isImg(image != null && !image.isEmpty())
+                .type(image != null && !image.isEmpty() ? "IMAGE" : "TEXT")
                 .contentUrl(imageUrl)
                 .build();
 
@@ -174,7 +168,7 @@ public class PostService {
 
         // 2. 오늘 일정 목록 (startTime asc 정렬)
         //    TODO: dayNumber로 조회하는 구조면 today → dayNumber 변환해서 넘길 것
-        List<Timeline> schedules = timeLineRepository.findByTripAndDateSorted(tripId, dayNumber);
+        List<Timeline> schedules = timeLineRepository.findByTripAndDateSorted(tripId, (long) dayNumber);
 
         // 3. 현재 시각이 속한 슬롯 범위 계산 + placeName 계산
         LocalDateTime slotStart;
@@ -194,7 +188,7 @@ public class PostService {
             timeLineId = timeLine.getId();   // ← 일정 슬롯이면 timeLineId 채움
 
             // 장소 확정된 경우만 이름, 미확정이면 null
-            TripPlace place = timeLine.getConfirmedPlace();
+            TripPlace place = timeLine.getTripWishPlace();
             confirmedPlaceName = (place != null) ? place.getName() : null;
 
         } else {
@@ -216,7 +210,7 @@ public class PostService {
 
         // 일정 슬롯: timeline 값 그대로
         if (timeLine != null) {
-            TripPlace tripPlace = timeLine.getConfirmedPlace();
+            TripPlace tripPlace = timeLine.getTripWishPlace();
             return new PostsDailyResponse.PostSummary(
                     post.getId(),
                     post.getContentUrl(),
