@@ -30,7 +30,7 @@ public class VoteV1Controller {
             @PathVariable Long tripGroupId,
             @AuthenticationPrincipal AuthFilterDto member
     ) {
-        return new ResponseData<>(200, voteService.findVoteList(tripGroupId, member.id()));
+        return new ResponseData<>(200, voteService.findVoteList(tripGroupId, member.getId()));
     }
 
     @Operation(summary = "투표 생성", description = "투표 생성 실패 오류 시 사용")
@@ -43,7 +43,7 @@ public class VoteV1Controller {
 
         return new ResponseData<>(
                 201,
-                voteService.wrapperCreateVote(tripGroupId, member.id(), request.timelineId())
+                voteService.wrapperCreateVote(tripGroupId, member.getId(), request.timelineId())
         );
     }
 
@@ -56,7 +56,7 @@ public class VoteV1Controller {
     ) {
         return new ResponseData<>(
                 200,
-                voteService.findVoteItemAndCount(tripGroupId, voteId, member.id())
+                voteService.findVoteItemAndCount(tripGroupId, voteId, member.getId())
         );
     }
 
@@ -68,7 +68,7 @@ public class VoteV1Controller {
             @PathVariable Long tripPlaceId,
             @AuthenticationPrincipal AuthFilterDto member
     ) {
-        return new ResponseData<>(200, voteService.findUserVoteThisPlace(tripGroupId, voteId, tripPlaceId, member.id()));
+        return new ResponseData<>(200, voteService.findUserVoteThisPlace(tripGroupId, voteId, tripPlaceId, member.getId()));
     }
 
     @Operation(summary = "투표 결과 장소 확정")
@@ -79,7 +79,7 @@ public class VoteV1Controller {
             @AuthenticationPrincipal AuthFilterDto member
     ) {
         //확정 장소 반영 서비스 호출
-        return new ResponseData<>(200, timelineService.confirmVote(tripGroupId, member.id(), voteId));
+        return new ResponseData<>(200, timelineService.confirmVote(tripGroupId, member.getId(), voteId));
     }
 
 }

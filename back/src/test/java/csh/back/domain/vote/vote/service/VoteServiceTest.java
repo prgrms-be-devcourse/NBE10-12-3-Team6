@@ -74,8 +74,7 @@ class VoteServiceTest {
 
     @BeforeEach
     void setUp() {
-        owner = memberRepository.save(Member.builder()
-                .email("vote-owner@test.com").password("pw").name("투표주인장").build());
+        owner = memberRepository.save(new Member("vote-owner@test.com", "pw", "투표주인장"));
 
         tripGroup = tripGroupRepository.save(TripGroup.builder()
                 .owner(owner)
@@ -184,8 +183,7 @@ class VoteServiceTest {
         VoteItem voteItem1 = voteItemRepository.save(VoteItem.builder().vote(vote).tripPlace(place1).build());
         VoteItem voteItem2 = voteItemRepository.save(VoteItem.builder().vote(vote).tripPlace(place2).build());
 
-        Member other = memberRepository.save(Member.builder()
-                .email("vote-other@test.com").password("pw").name("다른투표자").build());
+        Member other = memberRepository.save(new Member("vote-other@test.com", "pw", "다른투표자"));
         TripMember otherTripMember = tripMemberRepository.save(TripMember.builder()
                 .member(other).tripGroup(tripGroup).isAdmin(false).build());
 
@@ -258,8 +256,7 @@ class VoteServiceTest {
         TripPlace place = createPlace("kakao-users-1");
         VoteItem voteItem = voteItemRepository.save(VoteItem.builder().vote(vote).tripPlace(place).build());
 
-        Member other = memberRepository.save(Member.builder()
-                .email("vote-user2@test.com").password("pw").name("투표자2").build());
+        Member other = memberRepository.save(new Member("vote-user2@test.com", "pw", "투표자2"));
         TripMember otherTripMember = tripMemberRepository.save(TripMember.builder()
                 .member(other).tripGroup(tripGroup).isAdmin(false).build());
 

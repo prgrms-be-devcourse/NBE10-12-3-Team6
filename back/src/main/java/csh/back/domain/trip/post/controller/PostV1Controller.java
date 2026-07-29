@@ -39,7 +39,7 @@ public class PostV1Controller {
             MultipartFile image,
             @AuthenticationPrincipal AuthFilterDto member
     ) {
-        return postService.create(tripGroupId, member.id(), request.timelineId(), image);
+        return postService.create(tripGroupId, member.getId(), request.timelineId(), image);
     }
 
     @GetMapping("/{postId}")
@@ -58,7 +58,7 @@ public class PostV1Controller {
             @PathVariable Long tripGroupId,
             @AuthenticationPrincipal AuthFilterDto member
     ) {
-        return postService.getPosts(tripGroupId, member.id());
+        return postService.getPosts(tripGroupId, member.getId());
     }
 
     @PutMapping("/{postId}")
@@ -89,7 +89,7 @@ public class PostV1Controller {
             @AuthenticationPrincipal AuthFilterDto member) {
         return new ResponseData<>(
                 200,
-                postService.getCurrentSlot(tripGroupId, member.id(), dayNumber)
+                postService.getCurrentSlot(tripGroupId, member.getId(), dayNumber)
         );
     }
 }

@@ -44,23 +44,20 @@ public class TestInitData {
 	public void work1() {
 		if (memberRepository.existsByEmail("admin@admin.com")) return;
 
-		Member member1 = memberRepository.save(Member.builder()
-				.email("admin@admin.com")
-				.password(passwordEncoder.encode("1234"))
-				.name("admin")
-				.build());
+		Member member1 = memberRepository.save(new Member(
+				"admin@admin.com",
+				passwordEncoder.encode("1234"),
+				"admin"));
 
-		Member member2 = memberRepository.save(Member.builder()
-				.email("member2@admin.com")
-				.password(passwordEncoder.encode("1234"))
-				.name("member2")
-				.build());
+		Member member2 = memberRepository.save(new Member(
+				"member2@admin.com",
+				passwordEncoder.encode("1234"),
+				"member2"));
 
-		Member member3 = memberRepository.save(Member.builder()
-				.email("member3@admin.com")
-				.password(passwordEncoder.encode("1234"))
-				.name("member3")
-				.build());
+		Member member3 = memberRepository.save(new Member(
+				"member3@admin.com",
+				passwordEncoder.encode("1234"),
+				"member3"));
 	}
 
 	@Transactional

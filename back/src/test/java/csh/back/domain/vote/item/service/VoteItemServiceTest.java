@@ -68,8 +68,7 @@ class VoteItemServiceTest {
 
     @BeforeEach
     void setUp() {
-        member = memberRepository.save(Member.builder()
-                .email("vote-item-member@test.com").password("pw").name("투표항목유저").build());
+        member = memberRepository.save(new Member("vote-item-member@test.com", "pw", "투표항목유저"));
 
         tripGroup = tripGroupRepository.save(TripGroup.builder()
                 .owner(member)
