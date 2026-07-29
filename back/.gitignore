@@ -46,3 +46,6 @@ db_dev.lock.db
 
 ### upload ###
 /uploadedimages
+
+### doc ###
+doc/
