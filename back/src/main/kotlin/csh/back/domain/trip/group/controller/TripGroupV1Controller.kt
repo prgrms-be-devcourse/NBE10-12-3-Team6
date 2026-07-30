@@ -6,6 +6,9 @@ import csh.back.domain.trip.group.dto.request.TripGroupRequest
 import csh.back.domain.trip.group.dto.response.TripGroupDetailResponse
 import csh.back.domain.trip.group.dto.response.TripGroupResponse
 import csh.back.domain.trip.group.service.TripGroupService
+import csh.back.domain.trip.member.dto.request.TripMemberInviteRequest
+import csh.back.domain.trip.member.dto.response.TripMemberResponse
+import csh.back.domain.trip.member.service.TripMemberService
 import csh.back.global.annotation.ApiV1
 import csh.back.global.dto.ResponseData
 import io.swagger.v3.oas.annotations.Operation
@@ -28,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/trips")
 class TripGroupV1Controller(
     private val tripGroupService: TripGroupService,
+    private val tripMemberService: TripMemberService,
 ) {
 
     @Operation(summary = "모임방 목록 조회(로그인한 사용자 기준)")
@@ -66,5 +70,15 @@ class TripGroupV1Controller(
         @RequestBody request: TripGroupModifyRequest,
     ): ResponseData<TripGroupResponse> {
         return ResponseData(200, tripGroupService.modifyGroupDetail(tripGroupId, owner.id, request))
+    }
+
+    @Operation(summary = "지난 메이트를 지정해서 여행방에 초대 (방장만)")
+    @PostMapping("/{tripGroupId}/members/invite")
+    fun inviteMembers(
+        @PathVariable tripGroupId: Long,
+        @AuthenticationPrincipal owner: AuthFilterDto,
+        @Valid @RequestBody request: TripMemberInviteRequest,
+    ): ResponseData<List<TripMemberResponse>> {
+        return ResponseData(200, tripMemberService.inviteMembers(tripGroupId, owner.id, request.memberIds))
     }
 }
