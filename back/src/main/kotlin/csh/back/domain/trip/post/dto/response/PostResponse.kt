@@ -14,16 +14,19 @@ data class PostResponse(
     @field:Schema(description = "이미지 URL", example = "https://example.com/images/post1.jpg", nullable = true)
     val contentUrl: String?,
     @field:Schema(description = "게시글 내용", example = "부산 여행 시작!")
-    val content: String?
+    val content: String?,
+    @field:Schema(description = "게시글의 전체 좋아요 수",example = "3")
+    val likeCount: Long
 ) {
     companion object {
         @JvmStatic
-        fun from(post: Post) = PostResponse(
+        fun from(post: Post, likeCount: Long = 0L) = PostResponse(
             id = post.id,
             timelineId = post.timeline?.id,
             type = post.type,
             contentUrl = post.contentUrl,
-            content = post.content
+            content = post.content,
+            likeCount = likeCount
         )
     }
 }
