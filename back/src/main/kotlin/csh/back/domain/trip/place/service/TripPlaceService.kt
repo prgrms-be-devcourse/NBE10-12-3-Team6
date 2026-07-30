@@ -1,6 +1,9 @@
 package csh.back.domain.trip.place.service
 
 import csh.back.domain.trip.group.repository.TripGroupRepository
+import csh.back.domain.trip.event.dto.TripEvent
+import csh.back.domain.trip.event.enums.TripEventType
+import csh.back.domain.trip.event.service.TripEventService
 import csh.back.domain.trip.member.repository.TripMemberRepository
 import csh.back.domain.trip.member.validator.TripMemberValidator
 import csh.back.domain.trip.place.dto.response.TripPlaceFindResponse
@@ -19,6 +22,7 @@ class TripPlaceService(
     private val tripGroupRepository: TripGroupRepository,
     private val tripMemberRepository: TripMemberRepository,
     private val tripMemberValidator: TripMemberValidator,
+    private val tripEventService: TripEventService,
 ) {
 
     fun findWishPlaces(tripGroupId: Long, memberId: Long): List<TripPlaceFindResponse> {
@@ -53,11 +57,22 @@ class TripPlaceService(
             createdBy = tripMember,
         )
 
-        return try {
-            TripPlaceSaveResponse.from(tripPlaceRepository.saveAndFlush(place))
+        val savedPlace = try {
+            tripPlaceRepository.saveAndFlush(place)
         } catch (e: DataIntegrityViolationException) {
             // 사전 체크를 뚫고 동시성으로 들어온 케이스
             throw DuplicateTripPlaceException(kakaoPlaceId)
         }
+
+        tripEventService.publishAfterCommit(
+            TripEvent(
+                eventType = TripEventType.WISH_PLACE_ADDED,
+                message = "${savedPlace.name}이(가) 후보 장소에 추가되었습니다.",
+                tripGroupId = tripGroupId,
+                actorMemberId = memberId,
+                tripPlaceId = requireNotNull(savedPlace.id),
+            ),
+        )
+        return TripPlaceSaveResponse.from(savedPlace)
     }
 }

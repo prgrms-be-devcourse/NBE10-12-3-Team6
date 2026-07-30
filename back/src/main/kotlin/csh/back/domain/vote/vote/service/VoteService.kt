@@ -1,6 +1,9 @@
 package csh.back.domain.vote.vote.service
 
 import csh.back.domain.trip.group.repository.TripGroupRepository
+import csh.back.domain.trip.event.dto.TripEvent
+import csh.back.domain.trip.event.enums.TripEventType
+import csh.back.domain.trip.event.service.TripEventService
 import csh.back.domain.trip.member.repository.TripMemberRepository
 import csh.back.domain.trip.member.validator.TripMemberValidator
 import csh.back.domain.trip.place.service.TripPlaceService
@@ -33,6 +36,7 @@ class VoteService(
     private val tripMemberValidator: TripMemberValidator,
     private val tripMemberRepository: TripMemberRepository,
     private val tripPlaceService: TripPlaceService,
+    private val tripEventService: TripEventService,
 ) {
 
     fun findVoteList(tripGroupId: Long, memberId: Long): List<VoteFindListResponse> {
@@ -92,7 +96,19 @@ class VoteService(
     @Transactional
     fun wrapperCreateVote(tripGroupId: Long, memberId: Long, timelineId: Long): VoteCreateResponse {
         val timeline = timelineRepository.findById(timelineId).orElseThrow(::RuntimeException)
-        return createVote(tripGroupId, memberId, timeline)
+        val response = createVote(tripGroupId, memberId, timeline)
+        tripEventService.publishAfterCommit(
+            TripEvent(
+                eventType = TripEventType.VOTE_CREATED,
+                message = "${timeline.dayNumber}일차 시간 구간의 투표가 생성되었습니다.",
+                tripGroupId = tripGroupId,
+                actorMemberId = memberId,
+                dayNumber = timeline.dayNumber,
+                timelineId = timelineId,
+                voteId = requireNotNull(response.voteId),
+            ),
+        )
+        return response
     }
 
     @Transactional

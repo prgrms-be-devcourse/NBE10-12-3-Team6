@@ -2,6 +2,9 @@ package csh.back.domain.trip.timeline.service
 
 import csh.back.domain.trip.group.entity.TripGroup
 import csh.back.domain.trip.group.repository.TripGroupRepository
+import csh.back.domain.trip.event.dto.TripEvent
+import csh.back.domain.trip.event.enums.TripEventType
+import csh.back.domain.trip.event.service.TripEventService
 import csh.back.domain.trip.member.repository.TripMemberRepository
 import csh.back.domain.trip.member.validator.TripMemberValidator
 import csh.back.domain.trip.place.entity.TripPlace
@@ -32,7 +35,7 @@ class TimelineService(
     private val tripMemberRepository: TripMemberRepository,
     private val tripPlaceRepository: TripPlaceRepository,
     private val voteService: VoteService,
-    private val timelineEventService: TimelineEventService,
+    private val tripEventService: TripEventService,
     private val tripMemberValidator: TripMemberValidator,
     private val entityManager: EntityManager,
     private val voteRepository: VoteRepository,
@@ -61,7 +64,16 @@ class TimelineService(
         val savedTimeline = timelineRepository.save(timeline)
 
         voteService.createVote(tripGroupId, memberId, savedTimeline)
-        timelineEventService.sendTimelineUpdatedEventAfterCommit(tripGroupId, memberId)
+        tripEventService.publishAfterCommit(
+            TripEvent(
+                eventType = TripEventType.TIMELINE_CREATED,
+                message = "${savedTimeline.dayNumber}일차에 시간 구간이 추가되었습니다.",
+                tripGroupId = tripGroupId,
+                actorMemberId = memberId,
+                dayNumber = savedTimeline.dayNumber,
+                timelineId = requireNotNull(savedTimeline.id),
+            ),
+        )
 
         return TimelineResponse.from(savedTimeline)
     }
@@ -98,7 +110,18 @@ class TimelineService(
         val savedTimelines = timelineRepository.saveAll(timelines)
 
         voteService.createVoteBatch(tripGroupId, memberId, savedTimelines)
-        timelineEventService.sendTimelineUpdatedEventAfterCommit(tripGroupId, memberId)
+        tripEventService.publishAfterCommit(
+            TripEvent(
+                eventType = TripEventType.TIMELINE_BATCH_CREATED,
+                message = "${request.dayNumber}일차 시간 구간이 등록되었습니다.",
+                tripGroupId = tripGroupId,
+                actorMemberId = memberId,
+                dayNumber = request.dayNumber,
+                timelineIds = savedTimelines.map { timeline ->
+                    requireNotNull(timeline.id)
+                },
+            ),
+        )
 
         return savedTimelines.map(TimelineResponse::from)
     }
@@ -165,7 +188,16 @@ class TimelineService(
         )
 
         timeline.updateTimeRange(request.startTime, request.endTime)
-        timelineEventService.sendTimelineUpdatedEventAfterCommit(tripGroupId, memberId)
+        tripEventService.publishAfterCommit(
+            TripEvent(
+                eventType = TripEventType.TIMELINE_TIME_UPDATED,
+                message = "${timeline.dayNumber}일차 시간 구간의 시간이 변경되었습니다.",
+                tripGroupId = tripGroupId,
+                actorMemberId = memberId,
+                dayNumber = timeline.dayNumber,
+                timelineId = timelineId,
+            ),
+        )
 
         return TimelineResponse.from(timeline)
     }
@@ -178,9 +210,19 @@ class TimelineService(
         validateTripAdmin(tripGroupId, memberId)
 
         val timeline = findTimeline(tripGroupId, timelineId)
+        val dayNumber = timeline.dayNumber
         deleteVotesByTimeline(timelineId)
         timelineRepository.delete(timeline)
-        timelineEventService.sendTimelineUpdatedEventAfterCommit(tripGroupId, memberId)
+        tripEventService.publishAfterCommit(
+            TripEvent(
+                eventType = TripEventType.TIMELINE_DELETED,
+                message = "${dayNumber}일차 시간 구간이 삭제되었습니다.",
+                tripGroupId = tripGroupId,
+                actorMemberId = memberId,
+                dayNumber = dayNumber,
+                timelineId = timelineId,
+            ),
+        )
     }
 
     fun confirmVote(
@@ -202,8 +244,20 @@ class TimelineService(
 
         val voteTimelineResponse = voteService.voteConfirm(maxVoteItemId, voteId)
         val confirmPlaceId = voteTimelineResponse.confirmPlaceId
-        confirmPlaceByHost(voteTimelineResponse.timeline, tripGroupId, confirmPlaceId)
-        timelineEventService.sendTimelineUpdatedEventAfterCommit(tripGroupId, memberId)
+        val timeline = voteTimelineResponse.timeline
+        val tripWishPlace = confirmPlaceByHost(timeline, tripGroupId, confirmPlaceId)
+        tripEventService.publishAfterCommit(
+            TripEvent(
+                eventType = TripEventType.TIMELINE_PLACE_CONFIRMED,
+                message = "${timeline.dayNumber}일차 시간 구간에 ${tripWishPlace.name} 장소가 확정되었습니다.",
+                tripGroupId = tripGroupId,
+                actorMemberId = memberId,
+                dayNumber = timeline.dayNumber,
+                timelineId = requireNotNull(timeline.id),
+                voteId = voteId,
+                tripPlaceId = confirmPlaceId,
+            ),
+        )
 
         return VoteConfirmResponse.of(
             VoteStatus.CONFIRMED.nickname,
@@ -217,7 +271,19 @@ class TimelineService(
         val maxCount = countMap.values.maxOrNull()
 
         if (maxCount == null || maxCount == 0L) {
+            val timeline = findTimelineByVoteId(voteId)
             voteService.expireVote(voteId)
+            tripEventService.publishAfterCommit(
+                TripEvent(
+                    eventType = TripEventType.VOTE_EXPIRED,
+                    message = "${timeline.dayNumber}일차 시간 구간의 투표가 종료되었습니다.",
+                    tripGroupId = requireNotNull(timeline.tripGroup.id),
+                    actorMemberId = null,
+                    dayNumber = timeline.dayNumber,
+                    timelineId = requireNotNull(timeline.id),
+                    voteId = voteId,
+                ),
+            )
             return
         }
 
@@ -228,9 +294,22 @@ class TimelineService(
         val winnerVoteItemId = selectWinner(maxKeys)
         val voteTimelineResponse = voteService.voteConfirm(winnerVoteItemId, voteId)
 
-        confirmPlaceBySystem(
-            timeline = voteTimelineResponse.timeline,
+        val timeline = voteTimelineResponse.timeline
+        val tripWishPlace = confirmPlaceBySystem(
+            timeline = timeline,
             tripWishPlaceId = voteTimelineResponse.confirmPlaceId,
+        )
+        tripEventService.publishAfterCommit(
+            TripEvent(
+                eventType = TripEventType.TIMELINE_PLACE_CONFIRMED,
+                message = "${timeline.dayNumber}일차 시간 구간에 ${tripWishPlace.name} 장소가 확정되었습니다.",
+                tripGroupId = requireNotNull(timeline.tripGroup.id),
+                actorMemberId = null,
+                dayNumber = timeline.dayNumber,
+                timelineId = requireNotNull(timeline.id),
+                voteId = voteId,
+                tripPlaceId = voteTimelineResponse.confirmPlaceId,
+            ),
         )
     }
 
@@ -244,35 +323,34 @@ class TimelineService(
     private fun confirmPlaceBySystem(
         timeline: Timeline,
         tripWishPlaceId: Long,
-    ) {
+    ): TripPlace {
         val tripWishPlace = tripPlaceRepository.findById(tripWishPlaceId)
             .orElseThrow {
                 IllegalStateException("확정 장소 없음: $tripWishPlaceId")
             }
         timeline.updateTripWishPlace(tripWishPlace)
+        return tripWishPlace
     }
 
     private fun confirmPlaceByHost(
         timeline: Timeline,
         tripGroupId: Long,
         tripWishPlaceId: Long,
-    ) {
+    ): TripPlace {
         val tripWishPlace = tripPlaceRepository
             .findByIdAndTripGroupId(tripWishPlaceId, tripGroupId)
             .orElseThrow {
                 IllegalArgumentException("확정된 장소가 없습니다.")
             }
         timeline.updateTripWishPlace(tripWishPlace)
+        return tripWishPlace
     }
 
-    @Suppress("unused")
-    private fun resolveTripIdByVoteId(voteId: Long): Long {
-        val timeline = voteRepository.findTimelineByVoteId(voteId)
+    private fun findTimelineByVoteId(voteId: Long): Timeline =
+        voteRepository.findTimelineByVoteId(voteId)
             .orElseThrow {
                 IllegalStateException("Timeline 없음: voteId=$voteId")
             }
-        return requireNotNull(timeline.tripGroup.id)
-    }
 
     private fun deleteVotesByTimeline(timelineId: Long) {
         entityManager.createQuery(

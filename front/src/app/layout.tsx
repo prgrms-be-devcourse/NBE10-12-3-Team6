@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import MobileKeyboardFocusGuard from "./components/MobileKeyboardFocusGuard";
 import { TripLogProvider } from "./store";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f8f9fa" },
     { media: "(prefers-color-scheme: dark)", color: "#0f1014" },
@@ -49,6 +51,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full bg-gray-50 flex justify-center">
         <TripLogProvider>
+          <MobileKeyboardFocusGuard />
           <div className="w-full max-w-md bg-white relative overflow-x-hidden" style={{ minHeight: "100dvh" }}>
             {children}
           </div>

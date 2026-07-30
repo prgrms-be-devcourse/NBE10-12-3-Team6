@@ -1,6 +1,9 @@
 package csh.back.domain.vote.item.service
 
 import csh.back.domain.trip.member.validator.TripMemberValidator
+import csh.back.domain.trip.event.dto.TripEvent
+import csh.back.domain.trip.event.enums.TripEventType
+import csh.back.domain.trip.event.service.TripEventService
 import csh.back.domain.trip.place.repository.TripPlaceRepository
 import csh.back.domain.vote.item.entity.VoteItem
 import csh.back.domain.vote.item.repository.VoteItemRepository
@@ -19,6 +22,7 @@ class VoteItemService(
     private val tripPlaceRepository: TripPlaceRepository,
     private val voteUserService: VoteUserService,
     private val tripMemberValidator: TripMemberValidator,
+    private val tripEventService: TripEventService,
 ) {
 
     @Transactional
@@ -31,12 +35,27 @@ class VoteItemService(
         val tripPlace = tripPlaceRepository.findById(tripPlaceId).orElseThrow(::RuntimeException)
         val voteItem = voteItemRepository.findByVoteIdAndTripPlaceId(voteId, tripPlaceId).orElse(null)
 
-        if (voteItem == null) {
+        val response = if (voteItem == null) {
             val saved = voteItemRepository.save(VoteItem(vote = vote, tripPlace = tripPlace))
-            return voteUserService.saveVoteUser(saved, tripGroupId, memberId)
+            voteUserService.saveVoteUser(saved, tripGroupId, memberId)
+        } else {
+            voteItem.updateTripPlace(tripPlace)
+            voteUserService.saveVoteUser(voteItem, tripGroupId, memberId)
         }
-        voteItem.updateTripPlace(tripPlace)
-        return voteUserService.saveVoteUser(voteItem, tripGroupId, memberId)
+
+        tripEventService.publishAfterCommit(
+            TripEvent(
+                eventType = TripEventType.VOTE_PARTICIPATION_UPDATED,
+                message = "${vote.timeline.dayNumber}일차 시간 구간의 투표 현황이 변경되었습니다.",
+                tripGroupId = tripGroupId,
+                actorMemberId = memberId,
+                dayNumber = vote.timeline.dayNumber,
+                timelineId = requireNotNull(vote.timeline.id),
+                voteId = voteId,
+                tripPlaceId = tripPlaceId,
+            ),
+        )
+        return response
     }
 
     companion object {
