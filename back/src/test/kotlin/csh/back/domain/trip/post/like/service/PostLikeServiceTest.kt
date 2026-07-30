@@ -19,6 +19,7 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.Mockito.doReturn
+import org.mockito.Mockito.lenient
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.junit.jupiter.MockitoExtension
@@ -55,12 +56,12 @@ class PostLikeServiceTest {
         tripMember = org.mockito.Mockito.mock(TripMember::class.java)
         post = org.mockito.Mockito.mock(Post::class.java)
 
-        doReturn(tripMemberId).`when`(tripMember).id
-        doReturn(Optional.of(tripMember))
+        lenient().doReturn(tripMemberId).`when`(tripMember).id
+        lenient().doReturn(Optional.of(tripMember))
             .`when`(tripMemberRepository)
             .findByMemberIdAndTripGroupId(memberId, tripGroupId)
 
-        doReturn(Optional.of(post))
+        lenient().doReturn(Optional.of(post))
             .`when`(postRepository)
             .findById(postId)
 
@@ -201,8 +202,8 @@ class PostLikeServiceTest {
         val timeline = org.mockito.Mockito.mock(Timeline::class.java)
         val tripGroup = org.mockito.Mockito.mock(TripGroup::class.java)
 
-        doReturn(timeline).`when`(post).timeline
-        doReturn(tripGroup).`when`(timeline).tripGroup
-        doReturn(groupId).`when`(tripGroup).id
+        lenient().doReturn(timeline).`when`(post).timeline
+        lenient().doReturn(tripGroup).`when`(timeline).tripGroup
+        lenient().doReturn(groupId).`when`(tripGroup).id
     }
 }

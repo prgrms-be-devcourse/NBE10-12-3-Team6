@@ -6,6 +6,7 @@ import csh.back.domain.trip.post.dto.request.UpdatePostRequest
 import csh.back.domain.trip.post.dto.response.PostResponse
 import csh.back.domain.trip.post.dto.response.PostTimelineResponse
 import csh.back.domain.trip.post.dto.response.PostsDailyResponse
+import csh.back.domain.trip.post.like.service.PostLikeService
 import csh.back.domain.trip.post.service.PostService
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -45,6 +46,9 @@ class PostV1ControllerTest {
 
     @MockitoBean
     lateinit var postService: PostService
+
+    @MockitoBean
+    lateinit var postLikeService: PostLikeService
 
     companion object {
         private const val BASE_URL = "/api/v1/trips/{tripGroupId}/posts"
@@ -218,11 +222,7 @@ class PostV1ControllerTest {
 
         doNothing()
             .`when`(postService)
-            .update(
-                eq(TRIP_GROUP_ID),
-                eq(POST_ID),
-                any(UpdatePostRequest::class.java)
-            )
+            .update(TRIP_GROUP_ID, POST_ID, request)
 
         mvc.perform(
             put("$BASE_URL/{postId}", TRIP_GROUP_ID, POST_ID)
@@ -235,11 +235,7 @@ class PostV1ControllerTest {
             .andExpect(status().isOk)
             .andExpect(content().string(""))
 
-        verify(postService).update(
-            eq(TRIP_GROUP_ID),
-            eq(POST_ID),
-            any(UpdatePostRequest::class.java)
-        )
+        verify(postService).update(TRIP_GROUP_ID, POST_ID, request)
     }
 
     @Test
