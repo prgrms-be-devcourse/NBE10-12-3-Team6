@@ -40,6 +40,10 @@ class TripPlaceService(
     ): TripPlaceSaveResponse {
         tripMemberValidator.validMember(tripGroupId, memberId)
 
+        if (tripPlaceRepository.existsByKakaoPlaceIdAndTripGroupId(kakaoPlaceId, tripGroupId)) {
+            throw DuplicateTripPlaceException(kakaoPlaceId)
+        }
+
         val tripGroup = tripGroupRepository.findById(tripGroupId).orElseThrow(::RuntimeException)
         val tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripGroupId)
             .orElseThrow(::RuntimeException)
