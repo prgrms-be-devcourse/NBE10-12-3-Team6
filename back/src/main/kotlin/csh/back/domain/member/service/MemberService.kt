@@ -6,6 +6,7 @@ import csh.back.domain.member.dto.web.LoginResult
 import csh.back.domain.member.entity.Member
 import csh.back.domain.member.exception.ExistingMemberException
 import csh.back.domain.member.repository.MemberRepository
+import csh.back.domain.presence.service.PresenceService
 import csh.back.global.jwt.JwtUtil
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -17,6 +18,7 @@ class MemberService(
     private val memberRepository: MemberRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtUtil: JwtUtil,
+    private val presenceService: PresenceService,
 ) {
     @Transactional
     fun signUp(email: String, password: String, name: String): MemberResponseDto {
@@ -55,5 +57,8 @@ class MemberService(
             .orElseThrow { RuntimeException("존재하지 않는 회원입니다.") }
 
         member.invalidateRefreshToken()
+
+        // 로그아웃 시 열려있는 SSE 연결을 즉시 종료해 presence를 online 상태로 남기지 않음
+        presenceService.disconnectAll(memberId)
     }
 }
