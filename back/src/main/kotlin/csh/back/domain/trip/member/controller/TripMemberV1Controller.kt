@@ -24,7 +24,7 @@ class TripMemberV1Controller(
     fun createJoinMember(
         authentication: Authentication,
         @PathVariable joinCode: String,
-    ): ResponseData<Void> {
+    ): ResponseData<Void?> {
         val memberId = authentication.details as Long
         tripMemberService.createJoinMember(joinCode, memberId)
         return ResponseData(200, null)

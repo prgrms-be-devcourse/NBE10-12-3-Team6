@@ -15,49 +15,14 @@ import jakarta.persistence.UniqueConstraint
     name = "trip_members",
     uniqueConstraints = [UniqueConstraint(name = "uk_trip_member", columnNames = ["trip_group_id", "member_id"])],
 )
-class TripMember protected constructor() : BaseEntity() {
+class TripMember(
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", nullable = false)
+    val member: Member,
 
-    @field:ManyToOne(fetch = FetchType.LAZY)
-    @field:JoinColumn(name = "member_id", nullable = false)
-    lateinit var member: Member
-        protected set
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "trip_group_id", nullable = false)
+    val tripGroup: TripGroup,
 
-    @field:ManyToOne(fetch = FetchType.LAZY)
-    @field:JoinColumn(name = "trip_group_id", nullable = false)
-    lateinit var tripGroup: TripGroup
-        protected set
-
-    var isAdmin: Boolean = false
-        protected set
-
-    private constructor(
-        member: Member,
-        tripGroup: TripGroup,
-        isAdmin: Boolean,
-    ) : this() {
-        this.member = member
-        this.tripGroup = tripGroup
-        this.isAdmin = isAdmin
-    }
-
-    class Builder {
-        private var member: Member? = null
-        private var tripGroup: TripGroup? = null
-        private var isAdmin: Boolean = false
-
-        fun member(member: Member?) = apply { this.member = member }
-        fun tripGroup(tripGroup: TripGroup?) = apply { this.tripGroup = tripGroup }
-        fun isAdmin(isAdmin: Boolean) = apply { this.isAdmin = isAdmin }
-
-        fun build(): TripMember = TripMember(
-            member = requireNotNull(member),
-            tripGroup = requireNotNull(tripGroup),
-            isAdmin = isAdmin,
-        )
-    }
-
-    companion object {
-        @JvmStatic
-        fun builder(): Builder = Builder()
-    }
-}
+    val isAdmin: Boolean,
+) : BaseEntity()

@@ -36,7 +36,10 @@ class MailService(
                   <!-- 헤더 -->
                   <tr>
                     <td style="background-color:#4A90E2;padding:32px 40px;text-align:center;">
-                      <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.5px;">✈️ Triplog</h1>
+                      <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.5px;">
+                        <img src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f392.svg" alt="" style="width:24px;height:24px;vertical-align:middle;margin-right:6px;">
+                        Triplog
+                      </h1>
                     </td>
                   </tr>
 

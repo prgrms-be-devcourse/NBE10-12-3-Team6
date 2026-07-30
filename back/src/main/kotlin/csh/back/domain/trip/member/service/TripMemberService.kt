@@ -26,11 +26,11 @@ class TripMemberService(
             }
 
             tripMemberRepository.save(
-                TripMember.builder()
-                    .member(member)
-                    .tripGroup(tripGroup)
-                    .isAdmin(false)
-                    .build(),
+                TripMember(
+                    member = member,
+                    tripGroup = tripGroup,
+                    isAdmin = false,
+                ),
             )
         }
     }
