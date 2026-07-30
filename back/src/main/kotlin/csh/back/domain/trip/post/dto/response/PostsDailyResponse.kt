@@ -17,11 +17,13 @@ data class PostsDailyResponse(
         val startTime: LocalDateTime?,
         val endTime: LocalDateTime?,
         val confirmedPlaceName: String?,
-        val createdAt: LocalDateTime?
+        val createdAt: LocalDateTime?,
+        @field:Schema(description = "게시글의 전체 좋아요 수", example = "3")
+    val likeCount: Long
     ) {
         companion object {
             @JvmStatic
-            fun from(post: Post): PostSummary {
+            fun from(post: Post ,likeCount: Long = 0L): PostSummary {
                 val timeline = post.timeline
                 return PostSummary(
                     postId = post.id,
@@ -30,7 +32,8 @@ data class PostsDailyResponse(
                     startTime = timeline?.startTime,
                     endTime = timeline?.endTime,
                     confirmedPlaceName = timeline?.tripWishPlace?.name,
-                    createdAt = post.createdAt
+                    createdAt = post.createdAt,
+                    likeCount = likeCount
                 )
             }
         }
