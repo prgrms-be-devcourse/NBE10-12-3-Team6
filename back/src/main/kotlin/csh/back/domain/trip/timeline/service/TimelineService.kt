@@ -189,6 +189,7 @@ class TimelineService(
         voteId: Long,
     ): VoteConfirmResponse {
         tripMemberValidator.validMember(tripGroupId, memberId)
+        voteService.lockPendingVote(voteId)
 
         val countMap: Map<Long, Long> = voteService.voteCount(voteId)
         val maxCount = countMap.values.maxOrNull()
@@ -213,6 +214,8 @@ class TimelineService(
     }
 
     fun expireAndConfirmBySystem(voteId: Long) {
+        voteService.lockPendingVote(voteId)
+
         val countMap: Map<Long, Long> = voteService.voteCount(voteId)
         val maxCount = countMap.values.maxOrNull()
 
