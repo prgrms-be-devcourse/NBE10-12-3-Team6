@@ -70,18 +70,17 @@ class VoteItemServiceTest {
     void setUp() {
         member = memberRepository.save(new Member("vote-item-member@test.com", "pw", "투표항목유저"));
 
-        tripGroup = tripGroupRepository.save(TripGroup.builder()
-                .owner(member)
-                .name("투표항목여행")
-                .region("전주")
-                .nights(1)
-                .joinCode("VOTE-ITEM-JOIN")
-                .startDate(LocalDate.of(2026, 12, 1))
-                .endDate(LocalDate.of(2026, 12, 2))
-                .build());
+        tripGroup = tripGroupRepository.save(new TripGroup(
+                member,
+                "투표항목여행",
+                "전주",
+                1,
+                "VOTE-ITEM-JOIN",
+                LocalDate.of(2026, 12, 1),
+                LocalDate.of(2026, 12, 2)
+        ));
 
-        tripMember = tripMemberRepository.save(TripMember.builder()
-                .member(member).tripGroup(tripGroup).isAdmin(true).build());
+        tripMember = tripMemberRepository.save(new TripMember(member, tripGroup, true));
 
         Timeline timeline = timelineRepository.save(Timeline.builder()
                 .tripGroup(tripGroup)

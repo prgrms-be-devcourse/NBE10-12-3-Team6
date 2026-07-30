@@ -76,18 +76,17 @@ class VoteServiceTest {
     void setUp() {
         owner = memberRepository.save(new Member("vote-owner@test.com", "pw", "투표주인장"));
 
-        tripGroup = tripGroupRepository.save(TripGroup.builder()
-                .owner(owner)
-                .name("투표테스트여행")
-                .region("서울")
-                .nights(1)
-                .joinCode("VOTE-JOIN-1")
-                .startDate(LocalDate.of(2026, 10, 1))
-                .endDate(LocalDate.of(2026, 10, 2))
-                .build());
+        tripGroup = tripGroupRepository.save(new TripGroup(
+                owner,
+                "투표테스트여행",
+                "서울",
+                1,
+                "VOTE-JOIN-1",
+                LocalDate.of(2026, 10, 1),
+                LocalDate.of(2026, 10, 2)
+        ));
 
-        ownerTripMember = tripMemberRepository.save(TripMember.builder()
-                .member(owner).tripGroup(tripGroup).isAdmin(true).build());
+        ownerTripMember = tripMemberRepository.save(new TripMember(owner, tripGroup, true));
     }
 
     private Timeline createTimeline(long dayNumber, LocalDateTime start, LocalDateTime end) {
@@ -172,8 +171,7 @@ class VoteServiceTest {
         VoteItem voteItem2 = voteItemRepository.save(new VoteItem(vote, place2));
 
         Member other = memberRepository.save(new Member("vote-other@test.com", "pw", "다른투표자"));
-        TripMember otherTripMember = tripMemberRepository.save(TripMember.builder()
-                .member(other).tripGroup(tripGroup).isAdmin(false).build());
+        TripMember otherTripMember = tripMemberRepository.save(new TripMember(other, tripGroup, false));
 
         voteUserRepository.save(new VoteUser(vote, voteItem1, ownerTripMember, 0));
         voteUserRepository.save(new VoteUser(vote, voteItem2, otherTripMember, 0));
@@ -240,8 +238,7 @@ class VoteServiceTest {
         VoteItem voteItem = voteItemRepository.save(new VoteItem(vote, place));
 
         Member other = memberRepository.save(new Member("vote-user2@test.com", "pw", "투표자2"));
-        TripMember otherTripMember = tripMemberRepository.save(TripMember.builder()
-                .member(other).tripGroup(tripGroup).isAdmin(false).build());
+        TripMember otherTripMember = tripMemberRepository.save(new TripMember(other, tripGroup, false));
 
         voteUserRepository.save(new VoteUser(vote, voteItem, ownerTripMember, 0));
         voteUserRepository.save(new VoteUser(vote, voteItem, otherTripMember, 0));
