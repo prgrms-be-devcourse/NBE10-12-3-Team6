@@ -36,7 +36,10 @@ class VoteUserService(
             // 동시성으로 경합에서 진 경우 - 이긴 쪽이 만든 row를 재조회해 정상 흐름으로 이어감
             val winner = voteUserRepository.findByVoteIdAndTripMemberId(voteItem.vote.id!!, tripMember.id!!)
                 .orElseThrow(::RuntimeException)
-            if (winner.updateCount != 2) winner.updateVoteItemAndincreaseUpdateCount(voteItem)
+            // 이긴 쪽이 이미 같은 장소로 저장했다면 자기 자신과의 경합(중복 요청)일 뿐 실제 재투표가 아니므로 카운트를 올리지 않는다
+            if (winner.voteItem.id != voteItem.id && winner.updateCount != 2) {
+                winner.updateVoteItemAndincreaseUpdateCount(voteItem)
+            }
             return VoteUserSaveResponseDto.from(winner)
         }
         if (voteUser.updateCount == 2) throw RuntimeException()
