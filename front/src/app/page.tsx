@@ -59,6 +59,13 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailCodeSent, setEmailCodeSent] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationSecondsLeft, setVerificationSecondsLeft] = useState(0);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [emailAuthError, setEmailAuthError] = useState("");
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: "", visible: false });
   const [loginAnim, setLoginAnim] = useState(false);
   const [welcomeVisible, setWelcomeVisible] = useState(false);
@@ -66,12 +73,90 @@ export default function LoginPage() {
   const [authTransition, setAuthTransition] = useState<AuthTransition>("forward");
   const [landingVisible, setLandingVisible] = useState(false);
 
+  const resetEmailVerification = () => {
+    setEmailCodeSent(false);
+    setEmailVerified(false);
+    setVerificationCode("");
+    setVerificationSecondsLeft(0);
+    setEmailAuthError("");
+  };
+
   const changeMode = (nextMode: Mode, transition: AuthTransition = "forward") => {
     if (nextMode === "landing") setLandingVisible(false);
     setAuthTransition(transition);
     setMode(nextMode);
     setError("");
     setEmail(""); setPassword(""); setPasswordConfirm(""); setName("");
+    resetEmailVerification();
+  };
+
+  useEffect(() => {
+    if (verificationSecondsLeft <= 0) return;
+    const id = setInterval(() => {
+      setVerificationSecondsLeft(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [verificationSecondsLeft]);
+
+  const isValidEmailFormat = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+
+  const formatCountdown = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
+
+  const resendCooldownSeconds = emailCodeSent
+    ? Math.max(0, verificationSecondsLeft - 270)
+    : 0;
+
+  const handleSendEmailCode = async () => {
+    if (!isValidEmailFormat(email) || sendingCode || emailVerified) return;
+    setSendingCode(true);
+    setEmailAuthError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/auth/check_email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message ?? "인증 코드 발송에 실패했어요.");
+      }
+      setEmailCodeSent(true);
+      setVerificationCode("");
+      setVerificationSecondsLeft(300);
+    } catch (e: unknown) {
+      setEmailAuthError(e instanceof Error ? e.message : "인증 코드 발송에 실패했어요.");
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const handleVerifyEmailCode = async () => {
+    if (verificationCode.length !== 6 || verifyingCode || verificationSecondsLeft === 0) return;
+    setVerifyingCode(true);
+    setEmailAuthError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/auth/verify_email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: email.trim(), code: verificationCode }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message ?? "인증에 실패했어요.");
+      }
+      setEmailVerified(true);
+      setVerificationSecondsLeft(0);
+    } catch (e: unknown) {
+      setEmailAuthError(e instanceof Error ? e.message : "인증에 실패했어요.");
+    } finally {
+      setVerifyingCode(false);
+    }
   };
 
   useEffect(() => {
@@ -412,14 +497,89 @@ export default function LoginPage() {
       <div className="flex flex-col gap-5 pt-8">
         <div>
           <label className="text-sm font-semibold mb-1.5 block">이메일</label>
-          <input
-            className="w-full p-3.5 bg-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-300"
-            placeholder="이메일을 입력해주세요"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-          />
+          <div className="flex gap-2">
+            <input
+              className="flex-1 min-w-0 p-3.5 bg-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-70"
+              placeholder="이메일을 입력해주세요"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={e => {
+                setEmail(e.target.value);
+                if (emailCodeSent || emailVerified) resetEmailVerification();
+              }}
+              disabled={emailVerified}
+            />
+            <button
+              type="button"
+              onClick={handleSendEmailCode}
+              disabled={
+                !isValidEmailFormat(email) ||
+                emailVerified ||
+                sendingCode ||
+                resendCooldownSeconds > 0
+              }
+              className="shrink-0 px-4 rounded-xl bg-blue-500 text-white text-sm font-semibold whitespace-nowrap disabled:opacity-40"
+            >
+              {emailVerified
+                ? "인증 완료"
+                : sendingCode
+                  ? "발송 중..."
+                  : emailCodeSent
+                    ? resendCooldownSeconds > 0
+                      ? `재전송 ${resendCooldownSeconds}s`
+                      : "재전송"
+                    : "인증하기"}
+            </button>
+          </div>
+          {emailCodeSent && !emailVerified && (
+            <div className="mt-2">
+              <div className="flex gap-2">
+                <div className="flex-1 relative min-w-0">
+                  <input
+                    className="w-full p-3.5 pr-16 bg-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-300 tracking-widest"
+                    placeholder="인증번호 6자리"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={e => setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    onKeyDown={e => e.key === "Enter" && handleVerifyEmailCode()}
+                  />
+                  <span
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold tabular-nums ${
+                      verificationSecondsLeft <= 30 ? "text-red-500" : "text-gray-500"
+                    }`}
+                  >
+                    {formatCountdown(verificationSecondsLeft)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleVerifyEmailCode}
+                  disabled={verificationCode.length !== 6 || verifyingCode || verificationSecondsLeft === 0}
+                  className="shrink-0 px-4 rounded-xl bg-gray-800 text-white text-sm font-semibold whitespace-nowrap disabled:opacity-40"
+                >
+                  {verifyingCode ? "확인 중..." : "확인"}
+                </button>
+              </div>
+              {verificationSecondsLeft === 0 && !emailAuthError && (
+                <p className="text-xs text-red-500 mt-1.5 font-medium">
+                  인증 시간이 만료되었어요. 재전송을 눌러주세요.
+                </p>
+              )}
+            </div>
+          )}
+          {emailVerified && (
+            <p className="text-xs text-green-600 mt-2 font-medium flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+              이메일 인증이 완료되었어요.
+            </p>
+          )}
+          {emailAuthError && !emailVerified && (
+            <p className="text-xs text-red-500 mt-1.5 font-medium">{emailAuthError}</p>
+          )}
         </div>
         <div>
           <label className="text-sm font-semibold mb-1.5 block">비밀번호</label>
@@ -464,7 +624,7 @@ export default function LoginPage() {
 
         <button
           onClick={handleSignup}
-          disabled={!email.trim() || !password.trim() || !name.trim() || password !== passwordConfirm || loading}
+          disabled={!email.trim() || !emailVerified || !password.trim() || !name.trim() || password !== passwordConfirm || loading}
           className="w-full py-4 rounded-2xl bg-blue-500 text-white font-semibold text-base mt-2 disabled:opacity-40"
         >
           {loading ? "가입 중..." : "가입 완료"}
