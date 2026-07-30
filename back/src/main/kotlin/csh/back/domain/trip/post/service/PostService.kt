@@ -1,5 +1,6 @@
 package csh.back.domain.trip.post.service
 
+import csh.back.domain.member.dto.response.AuthFilterDto
 import csh.back.domain.trip.group.service.TripGroupService
 import csh.back.domain.trip.member.repository.TripMemberRepository
 import csh.back.domain.trip.member.validator.TripMemberValidator
@@ -7,8 +8,8 @@ import csh.back.domain.trip.post.dto.request.UpdatePostRequest
 import csh.back.domain.trip.post.dto.response.PostResponse
 import csh.back.domain.trip.post.dto.response.PostTimelineResponse
 import csh.back.domain.trip.post.dto.response.PostsDailyResponse
-import csh.back.domain.member.dto.response.AuthFilterDto
 import csh.back.domain.trip.post.entity.Post
+import csh.back.domain.trip.post.like.repository.PostLikeRepository
 import csh.back.domain.trip.post.repository.PostRepository
 import csh.back.domain.trip.timeline.entity.Timeline
 import csh.back.domain.trip.timeline.repository.TimelineRepository
@@ -27,44 +28,108 @@ class PostService(
     private val timelineRepository: TimelineRepository,
     private val s3UploadService: S3UploadService,
     private val tripMemberValidator: TripMemberValidator,
-    private val tripGroupService: TripGroupService
+    private val tripGroupService: TripGroupService,
+    private val postLikeRepository: PostLikeRepository
 ) {
-    fun getPosts(tripGroupId: Long, memberId: Long): List<PostsDailyResponse> {
+
+    fun getPosts(
+        tripGroupId: Long,
+        memberId: Long
+    ): List<PostsDailyResponse> {
         tripMemberValidator.validMember(tripGroupId, memberId)
 
-        val tripGroup = tripGroupService.findTripGroupById(tripGroupId)
-        val tripMembers = tripMemberRepository.findByTripGroupId(tripGroup.id!!)
-        val posts = postRepository.findWithTimelineAndPlaceByAuthorIdIn(tripMembers)
-        val schedulesByDate = timelineRepository.findByTripGroupIdSorted(tripGroupId)
-            .groupBy { it.startTime.toLocalDate() }
+        val tripGroup =
+            tripGroupService.findTripGroupById(tripGroupId)
+
+        val tripMembers =
+            tripMemberRepository.findByTripGroupId(
+                tripGroup.id!!
+            )
+
+        val posts =
+            postRepository.findWithTimelineAndPlaceByAuthorIdIn(
+                tripMembers
+            )
+
+        val schedulesByDate =
+            timelineRepository
+                .findByTripGroupIdSorted(tripGroupId)
+                .groupBy {
+                    it.startTime.toLocalDate()
+                }
+
+        val likeCounts =
+            findLikeCounts(posts)
 
         return posts
-            .groupBy { it.createdAt!!.toLocalDate() }
+            .groupBy {
+                it.createdAt!!.toLocalDate()
+            }
             .toSortedMap()
             .map { (date, dailyPosts) ->
-                val daySchedules = schedulesByDate[date].orEmpty()
+                val daySchedules =
+                    schedulesByDate[date].orEmpty()
+
                 PostsDailyResponse(
                     date = date,
-                    posts = dailyPosts.map { toSummaryWithSlot(it, daySchedules) }
+                    posts = dailyPosts.map { post ->
+                        toSummaryWithSlot(
+                            post = post,
+                            daySchedules = daySchedules,
+                            likeCount =
+                                likeCounts[post.id] ?: 0L
+                        )
+                    }
                 )
             }
     }
 
-    fun getPost(tripGroupId: Long, postId: Long): PostResponse {
-        val post = postRepository.findById(postId)
-            .orElseThrow { IllegalArgumentException("게시글이 존재하지 않습니다.") }
+    fun getPost(
+        tripGroupId: Long,
+        postId: Long
+    ): PostResponse {
+        val post =
+            postRepository.findById(postId)
+                .orElseThrow {
+                    IllegalArgumentException(
+                        "게시글이 존재하지 않습니다."
+                    )
+                }
+
         validateTripGroup(post, tripGroupId)
-        return PostResponse.from(post)
+
+        val likeCount =
+            postLikeRepository.countByPostId(postId)
+
+        return PostResponse.from(
+            post = post,
+            likeCount = likeCount
+        )
     }
 
     @Transactional
-    fun update(tripGroupId: Long, postId: Long, request: UpdatePostRequest) {
-        findAuthorizedPost(tripGroupId, postId).update(request.content)
+    fun update(
+        tripGroupId: Long,
+        postId: Long,
+        request: UpdatePostRequest
+    ) {
+        findAuthorizedPost(
+            tripGroupId,
+            postId
+        ).update(request.content)
     }
 
     @Transactional
-    fun delete(tripGroupId: Long, postId: Long) {
-        postRepository.delete(findAuthorizedPost(tripGroupId, postId))
+    fun delete(
+        tripGroupId: Long,
+        postId: Long
+    ) {
+        postRepository.delete(
+            findAuthorizedPost(
+                tripGroupId,
+                postId
+            )
+        )
     }
 
     @Transactional
@@ -74,39 +139,110 @@ class PostService(
         timelineId: Long?,
         image: MultipartFile?
     ): PostResponse {
-        tripMemberValidator.validMember(tripGroupId, memberId)
+        tripMemberValidator.validMember(
+            tripGroupId,
+            memberId
+        )
 
-        val author = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripGroupId)
-            .orElseThrow { IllegalArgumentException("여행 멤버가 존재하지 않습니다.") }
-        val timeline = timelineId?.let { timelineRepository.findById(it).orElse(null) }
-        if (timeline != null && timeline.tripGroup.id != tripGroupId) {
-            throw IllegalArgumentException("해당 여행의 타임라인이 아닙니다.")
+        val author =
+            tripMemberRepository
+                .findByMemberIdAndTripGroupId(
+                    memberId,
+                    tripGroupId
+                )
+                .orElseThrow {
+                    IllegalArgumentException(
+                        "여행 멤버가 존재하지 않습니다."
+                    )
+                }
+
+        val timeline =
+            timelineId?.let {
+                timelineRepository
+                    .findById(it)
+                    .orElse(null)
+            }
+
+        if (
+            timeline != null &&
+            timeline.tripGroup.id != tripGroupId
+        ) {
+            throw IllegalArgumentException(
+                "해당 여행의 타임라인이 아닙니다."
+            )
         }
 
-        val hasImage = image != null && !image.isEmpty
-        val imageUrl = if (hasImage) s3UploadService.uploadImage(image) else null
+        val hasImage =
+            image != null &&
+                    !image.isEmpty
 
-        val savedPost = postRepository.save(
-            Post(
-                author = author,
-                timeline = timeline,
-                type = if (hasImage) "IMAGE" else "TEXT",
-                contentUrl = imageUrl,
-                content = null
+        val imageUrl =
+            if (hasImage) {
+                s3UploadService.uploadImage(image)
+            } else {
+                null
+            }
+
+        val savedPost =
+            postRepository.save(
+                Post(
+                    author = author,
+                    timeline = timeline,
+                    type =
+                        if (hasImage) {
+                            "IMAGE"
+                        } else {
+                            "TEXT"
+                        },
+                    contentUrl = imageUrl,
+                    content = null
+                )
             )
-        )
         return PostResponse.from(savedPost)
     }
 
-    fun getCurrentSlot(tripGroupId: Long, memberId: Long, dayNumber: Int): PostTimelineResponse {
+    fun getCurrentSlot(
+        tripGroupId: Long,
+        memberId: Long,
+        dayNumber: Int
+    ): PostTimelineResponse {
         val now = LocalDateTime.now()
+
         val dayStart = now.toLocalDate().atStartOfDay()
+
         val dayEnd = dayStart.plusDays(1)
-        val tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripGroupId)
-            .orElseThrow { IllegalArgumentException("여행 멤버가 존재하지 않습니다.") }
-        val todayPosts = postRepository.findByAuthorIdAndCreatedAtBetween(tripMember.id!!, dayStart, dayEnd)
-        val schedules = timelineRepository.findByTripAndDateSorted(tripGroupId, dayNumber.toLong())
-        val current = schedules.firstOrNull { !now.isBefore(it.startTime) && now.isBefore(it.endTime) }
+
+        val tripMember =
+            tripMemberRepository
+                .findByMemberIdAndTripGroupId(
+                    memberId,
+                    tripGroupId
+                )
+                .orElseThrow {
+                    IllegalArgumentException(
+                        "여행 멤버가 존재하지 않습니다."
+                    )
+                }
+
+        val todayPosts =
+            postRepository
+                .findByAuthorIdAndCreatedAtBetween(
+                    tripMember.id!!,
+                    dayStart,
+                    dayEnd
+                )
+
+        val schedules =
+            timelineRepository
+                .findByTripAndDateSorted(
+                    tripGroupId,
+                    dayNumber.toLong()
+                )
+        val current =
+            schedules.firstOrNull {
+                !now.isBefore(it.startTime) &&
+                        now.isBefore(it.endTime)
+            }
 
         val slotStart: LocalDateTime
         val slotEnd: LocalDateTime
@@ -117,22 +253,48 @@ class PostService(
             slotStart = current.startTime
             slotEnd = current.endTime
             timelineId = current.id
-            confirmedPlaceName = current.tripWishPlace?.name
+            confirmedPlaceName =
+                current.tripWishPlace?.name
         } else {
-            slotStart = calcEmptySlotStart(now, schedules)
-            slotEnd = calcEmptySlotEnd(slotStart, schedules)
+            slotStart =
+                calcEmptySlotStart(
+                    now,
+                    schedules
+                )
+
+            slotEnd =
+                calcEmptySlotEnd(
+                    slotStart,
+                    schedules
+                )
+
             timelineId = null
             confirmedPlaceName = null
         }
 
-        val isTaken = todayPosts.any {
-            !it.createdAt!!.isBefore(slotStart) && it.createdAt!!.isBefore(slotEnd)
-        }
-        return PostTimelineResponse(slotStart, slotEnd, timelineId, confirmedPlaceName, isTaken)
+        val isTaken =
+            todayPosts.any {
+                !it.createdAt!!.isBefore(slotStart) &&
+                        it.createdAt!!.isBefore(slotEnd)
+            }
+
+        return PostTimelineResponse(
+            slotStart,
+            slotEnd,
+            timelineId,
+            confirmedPlaceName,
+            isTaken
+        )
     }
 
-    private fun toSummaryWithSlot(post: Post, daySchedules: List<Timeline>): PostsDailyResponse.PostSummary {
-        val timeline = post.timeline
+    private fun toSummaryWithSlot(
+        post: Post,
+        daySchedules: List<Timeline>,
+        likeCount: Long
+    ): PostsDailyResponse.PostSummary {
+        val timeline =
+            post.timeline
+
         if (timeline != null) {
             return PostsDailyResponse.PostSummary(
                 postId = post.id,
@@ -140,79 +302,192 @@ class PostService(
                 timelineId = timeline.id,
                 startTime = timeline.startTime,
                 endTime = timeline.endTime,
-                confirmedPlaceName = timeline.tripWishPlace?.name,
-                createdAt = post.createdAt
+                confirmedPlaceName =
+                    timeline.tripWishPlace?.name,
+                createdAt = post.createdAt,
+                likeCount = likeCount
             )
         }
 
-        val captured = post.createdAt!!
-        val slotStart = calcSlotStart(captured, daySchedules)
+        val captured =
+            post.createdAt!!
+
+        val slotStart =
+            calcSlotStart(
+                captured,
+                daySchedules
+            )
+
         return PostsDailyResponse.PostSummary(
             postId = post.id,
             contentUrl = post.contentUrl,
             timelineId = null,
             startTime = slotStart,
-            endTime = calcSlotEnd(slotStart, daySchedules),
+            endTime =
+                calcSlotEnd(
+                    slotStart,
+                    daySchedules
+                ),
             confirmedPlaceName = null,
-            createdAt = captured
+            createdAt = captured,
+            likeCount = likeCount
         )
     }
 
-    private fun calcSlotStart(time: LocalDateTime, schedules: List<Timeline>): LocalDateTime {
-        val hourFloor = time.truncatedTo(ChronoUnit.HOURS)
-        val lastScheduleEnd = schedules.map { it.endTime }
-            .filter { !it.isAfter(time) }
-            .maxOrNull() ?: hourFloor
-        return maxOf(hourFloor, lastScheduleEnd)
+    private fun findLikeCounts(posts: List<Post>): Map<Long, Long> {
+        val postIds =
+            posts.mapNotNull {
+                it.id
+            }
+        if (postIds.isEmpty()) {
+            return emptyMap()
+        }
+        return postLikeRepository
+            .countGroupByPostId(postIds)
+            .associate { row ->
+                val postId =
+                    (row[0] as Number)
+                        .toLong()
+
+                val likeCount =
+                    (row[1] as Number)
+                        .toLong()
+
+                postId to likeCount
+            }
     }
 
-    private fun calcSlotEnd(slotStart: LocalDateTime, schedules: List<Timeline>): LocalDateTime {
-        val end = if (isOnTheHour(slotStart)) slotStart.plusHours(1)
-        else slotStart.truncatedTo(ChronoUnit.HOURS).plusHours(1)
-        val nextScheduleStart = schedules.map { it.startTime }
-            .filter { it.isAfter(slotStart) }
-            .minOrNull() ?: end
-        return minOf(end, nextScheduleStart)
+    private fun calcSlotStart(
+        time: LocalDateTime,
+        schedules: List<Timeline>
+    ): LocalDateTime {
+        val hourFloor =
+            time.truncatedTo(
+                ChronoUnit.HOURS
+            )
+
+        val lastScheduleEnd =
+            schedules
+                .map {
+                    it.endTime
+                }
+                .filter {
+                    !it.isAfter(time)
+                }
+                .maxOrNull()
+                ?: hourFloor
+
+        return maxOf(
+            hourFloor,
+            lastScheduleEnd
+        )
     }
 
-    private fun isOnTheHour(time: LocalDateTime): Boolean =
-        time.minute == 0 && time.second == 0 && time.nano == 0
+    private fun calcSlotEnd(
+        slotStart: LocalDateTime,
+        schedules: List<Timeline>
+    ): LocalDateTime {
+        val end =
+            if (isOnTheHour(slotStart)) {
+                slotStart.plusHours(1)
+            } else {
+                slotStart
+                    .truncatedTo(
+                        ChronoUnit.HOURS
+                    )
+                    .plusHours(1)
+            }
+        val nextScheduleStart =
+            schedules
+                .map {
+                    it.startTime
+                }
+                .filter {
+                    it.isAfter(slotStart)
+                }
+                .minOrNull()
+                ?: end
 
-    private fun calcEmptySlotStart(now: LocalDateTime, schedules: List<Timeline>): LocalDateTime =
-        calcSlotStart(now, schedules)
+        return minOf(
+            end,
+            nextScheduleStart
+        )
+    }
+
+    private fun isOnTheHour(time: LocalDateTime)
+    : Boolean =
+        time.minute == 0 &&
+                time.second == 0 &&
+                time.nano == 0
+
+    private fun calcEmptySlotStart(now: LocalDateTime, schedules: List<Timeline>)
+    : LocalDateTime =
+        calcSlotStart(
+            now,
+            schedules
+        )
 
     private fun calcEmptySlotEnd(slotStart: LocalDateTime, schedules: List<Timeline>): LocalDateTime =
-        calcSlotEnd(slotStart, schedules)
+        calcSlotEnd(
+            slotStart,
+            schedules
+        )
 
     private fun currentMemberId(): Long {
-        val authentication = SecurityContextHolder
-            .getContext()
-            .authentication
-            ?: throw IllegalStateException("로그인이 필요합니다.")
+        val authentication =
+            SecurityContextHolder
+                .getContext()
+                .authentication
+                ?: throw IllegalStateException(
+                    "로그인이 필요합니다."
+                )
 
-        val principal = authentication.principal as? AuthFilterDto
-            ?: throw IllegalStateException("인증된 회원 정보를 찾을 수 없습니다.")
+        val principal =
+            authentication.principal as? AuthFilterDto
+                ?: throw IllegalStateException(
+                    "인증된 회원 정보를 찾을 수 없습니다."
+                )
 
         return principal.id
     }
 
     private fun validateAuthor(post: Post) {
-        if (post.author.member.id != currentMemberId()) {
-            throw IllegalArgumentException("작성자만 수정 및 삭제할 수 있습니다.")
+        if (
+            post.author.member.id !=
+            currentMemberId()
+        ) {
+            throw IllegalArgumentException(
+                "작성자만 수정 및 삭제할 수 있습니다."
+            )
         }
     }
 
     private fun validateTripGroup(post: Post, tripGroupId: Long) {
-        val actualTripGroupId = post.timeline?.tripGroup?.id ?: post.author.tripGroup.id
-        if (actualTripGroupId != tripGroupId) {
-            throw IllegalArgumentException("해당 여행의 게시글이 아닙니다.")
+        val actualTripGroupId =
+            post.timeline?.tripGroup?.id
+                ?: post.author.tripGroup.id
+
+        if (
+            actualTripGroupId !=
+            tripGroupId
+        ) {
+            throw IllegalArgumentException(
+                "해당 여행의 게시글이 아닙니다."
+            )
         }
     }
 
     private fun findAuthorizedPost(tripGroupId: Long, postId: Long): Post {
-        val post = postRepository.findById(postId)
-            .orElseThrow { IllegalArgumentException("게시글이 존재하지 않습니다.") }
+        val post =
+            postRepository.findById(postId)
+                .orElseThrow {
+                    IllegalArgumentException(
+                        "게시글이 존재하지 않습니다."
+                    )
+                }
+
         validateTripGroup(post, tripGroupId)
+
         validateAuthor(post)
         return post
     }

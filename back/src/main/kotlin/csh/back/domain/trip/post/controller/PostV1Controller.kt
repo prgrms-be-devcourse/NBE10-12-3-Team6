@@ -6,6 +6,8 @@ import csh.back.domain.trip.post.dto.request.UpdatePostRequest
 import csh.back.domain.trip.post.dto.response.PostResponse
 import csh.back.domain.trip.post.dto.response.PostTimelineResponse
 import csh.back.domain.trip.post.dto.response.PostsDailyResponse
+import csh.back.domain.trip.post.like.dto.response.PostLikeResponse
+import csh.back.domain.trip.post.like.service.PostLikeService
 import csh.back.domain.trip.post.service.PostService
 import csh.back.global.annotation.ApiV1
 import csh.back.global.dto.ResponseData
@@ -30,7 +32,8 @@ import org.springframework.web.multipart.MultipartFile
 @RequestMapping("/trips/{tripGroupId}/posts")
 @Tag(name = "게시물", description = "게시글 API")
 class PostV1Controller(
-    private val postService: PostService
+    private val postService: PostService,
+    private val postLikeService: PostLikeService
 ) {
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     @Operation(summary = "게시글 생성", description = "사진이 포함된 게시글을 생성합니다.")
@@ -81,4 +84,55 @@ class PostV1Controller(
         200,
         postService.getCurrentSlot(tripGroupId, member.id, dayNumber)
     )
+    @PostMapping("/{postId}/likes")
+    @Operation(summary = "게시글 좋아요")
+    fun likePost(
+        @PathVariable tripGroupId: Long,
+        @PathVariable postId: Long,
+        @AuthenticationPrincipal member: AuthFilterDto
+    ): ResponseData<PostLikeResponse> = ResponseData(
+        200,
+        postLikeService.like(
+            tripGroupId,
+            postId,
+            member.id
+        )
+    )
+    @DeleteMapping("/{postId}/likes")
+    @Operation(summary = "게시글 좋아요 취소")
+    fun unlikePost(
+        @PathVariable tripGroupId: Long,
+        @PathVariable postId: Long,
+        @AuthenticationPrincipal member: AuthFilterDto
+    ): ResponseData<PostLikeResponse> =
+        ResponseData(
+            200,
+            postLikeService.unlike(
+                tripGroupId,
+                postId,
+                member.id
+            )
+        )
+    @GetMapping("/{postId}/likes")
+    @Operation(
+        summary = "게시글 좋아요 상태 조회",
+        description =
+            "현재 사용자의 좋아요 여부와 " +
+                    "전체 좋아요 수를 조회합니다."
+    )
+    fun getPostLikeStatus(
+        @PathVariable tripGroupId: Long,
+        @PathVariable postId: Long,
+        @AuthenticationPrincipal member:
+        AuthFilterDto
+    ): ResponseData<PostLikeResponse> =
+        ResponseData(
+            200,
+            postLikeService.getStatus(
+                tripGroupId,
+                postId,
+                member.id
+            )
+        )
+
 }
