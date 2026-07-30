@@ -80,18 +80,17 @@ class VoteV1ControllerTest {
     void setUp() {
         owner = memberRepository.findById(1L).orElseThrow();
 
-        tripGroup = tripGroupRepository.save(TripGroup.builder()
-                .owner(owner)
-                .name("투표컨트롤러여행")
-                .region("강릉")
-                .nights(1)
-                .joinCode("VOTE-CTRL-JOIN")
-                .startDate(LocalDate.of(2026, 11, 1))
-                .endDate(LocalDate.of(2026, 11, 2))
-                .build());
+        tripGroup = tripGroupRepository.save(new TripGroup(
+                owner,
+                "투표컨트롤러여행",
+                "강릉",
+                1,
+                "VOTE-CTRL-JOIN",
+                LocalDate.of(2026, 11, 1),
+                LocalDate.of(2026, 11, 2)
+        ));
 
-        ownerTripMember = tripMemberRepository.save(TripMember.builder()
-                .member(owner).tripGroup(tripGroup).isAdmin(true).build());
+        ownerTripMember = tripMemberRepository.save(new TripMember(owner, tripGroup, true));
     }
 
     private Timeline createTimeline() {

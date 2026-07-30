@@ -47,21 +47,17 @@ class TripPlaceServiceTest {
     void setUp() {
         owner = memberRepository.save(new Member("place-owner@test.com", "pw", "장소테스트유저"));
 
-        tripGroup = tripGroupRepository.save(TripGroup.builder()
-                .owner(owner)
-                .name("장소테스트여행")
-                .region("제주")
-                .nights(2)
-                .joinCode("PLACE-JOIN-1")
-                .startDate(LocalDate.of(2026, 8, 1))
-                .endDate(LocalDate.of(2026, 8, 3))
-                .build());
+        tripGroup = tripGroupRepository.save(new TripGroup(
+                owner,
+                "장소테스트여행",
+                "제주",
+                2,
+                "PLACE-JOIN-1",
+                LocalDate.of(2026, 8, 1),
+                LocalDate.of(2026, 8, 3)
+        ));
 
-        tripMemberRepository.save(TripMember.builder()
-                .member(owner)
-                .tripGroup(tripGroup)
-                .isAdmin(true)
-                .build());
+        tripMemberRepository.save(new TripMember(owner, tripGroup, true));
     }
 
     @Test

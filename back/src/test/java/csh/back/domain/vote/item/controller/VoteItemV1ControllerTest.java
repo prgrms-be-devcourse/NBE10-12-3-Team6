@@ -67,18 +67,17 @@ class VoteItemV1ControllerTest {
     void setUp() {
         member = memberRepository.findById(1L).orElseThrow();
 
-        tripGroup = tripGroupRepository.save(TripGroup.builder()
-                .owner(member)
-                .name("투표항목컨트롤러여행")
-                .region("여수")
-                .nights(1)
-                .joinCode("VOTE-ITEM-CTRL-JOIN")
-                .startDate(LocalDate.of(2027, 1, 1))
-                .endDate(LocalDate.of(2027, 1, 2))
-                .build());
+        tripGroup = tripGroupRepository.save(new TripGroup(
+                member,
+                "투표항목컨트롤러여행",
+                "여수",
+                1,
+                "VOTE-ITEM-CTRL-JOIN",
+                LocalDate.of(2027, 1, 1),
+                LocalDate.of(2027, 1, 2)
+        ));
 
-        tripMember = tripMemberRepository.save(TripMember.builder()
-                .member(member).tripGroup(tripGroup).isAdmin(true).build());
+        tripMember = tripMemberRepository.save(new TripMember(member, tripGroup, true));
 
         Timeline timeline = timelineRepository.save(Timeline.builder()
                 .tripGroup(tripGroup)

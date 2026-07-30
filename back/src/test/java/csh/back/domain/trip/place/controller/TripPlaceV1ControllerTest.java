@@ -59,21 +59,17 @@ class TripPlaceV1ControllerTest {
     void setUp() {
         owner = memberRepository.findById(1L).orElseThrow();
 
-        tripGroup = tripGroupRepository.save(TripGroup.builder()
-                .owner(owner)
-                .name("장소컨트롤러여행")
-                .region("부산")
-                .nights(1)
-                .joinCode("PLACE-CTRL-JOIN")
-                .startDate(LocalDate.of(2026, 9, 1))
-                .endDate(LocalDate.of(2026, 9, 2))
-                .build());
+        tripGroup = tripGroupRepository.save(new TripGroup(
+                owner,
+                "장소컨트롤러여행",
+                "부산",
+                1,
+                "PLACE-CTRL-JOIN",
+                LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 9, 2)
+        ));
 
-        tripMemberRepository.save(TripMember.builder()
-                .member(owner)
-                .tripGroup(tripGroup)
-                .isAdmin(true)
-                .build());
+        tripMemberRepository.save(new TripMember(owner, tripGroup, true));
     }
 
     @Test
