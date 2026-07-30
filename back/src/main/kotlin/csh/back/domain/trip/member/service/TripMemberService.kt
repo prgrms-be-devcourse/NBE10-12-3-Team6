@@ -1,6 +1,9 @@
 package csh.back.domain.trip.member.service
 
 import csh.back.domain.member.repository.MemberRepository
+import csh.back.domain.trip.event.dto.TripEvent
+import csh.back.domain.trip.event.enums.TripEventType
+import csh.back.domain.trip.event.service.TripEventService
 import csh.back.domain.trip.group.exception.NotFoundException
 import csh.back.domain.trip.group.repository.TripGroupRepository
 import csh.back.domain.trip.member.entity.TripMember
@@ -14,6 +17,7 @@ class TripMemberService(
     private val tripGroupRepository: TripGroupRepository,
     private val tripMemberRepository: TripMemberRepository,
     private val memberRepository: MemberRepository,
+    private val tripEventService: TripEventService,
 ) {
 
     fun createJoinMember(joinCode: String, memberId: Long) {
@@ -30,6 +34,14 @@ class TripMemberService(
                     member = member,
                     tripGroup = tripGroup,
                     isAdmin = false,
+                ),
+            )
+            tripEventService.publishAfterCommit(
+                TripEvent(
+                    eventType = TripEventType.TRIP_MEMBER_JOINED,
+                    message = "${member.name}님이 여행방에 참여했습니다.",
+                    tripGroupId = requireNotNull(tripGroup.id),
+                    actorMemberId = memberId,
                 ),
             )
         }

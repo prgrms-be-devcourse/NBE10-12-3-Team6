@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useStore, uid } from "../../../store";
 import { formatDate, apiFetch, API_BASE } from "../../../lib";
+import TripEventHeaderNotice from "../TripEventHeaderNotice";
 
 interface Post {
   postId: number;
@@ -139,7 +140,9 @@ export default function TimelinePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="font-semibold text-base flex-1 text-center">여행 타임라인</h1>
+          <TripEventHeaderNotice className="h-10 flex-1">
+            <h1 className="font-semibold text-base text-center">여행 타임라인</h1>
+          </TripEventHeaderNotice>
           <div className="w-8" />
         </div>
 

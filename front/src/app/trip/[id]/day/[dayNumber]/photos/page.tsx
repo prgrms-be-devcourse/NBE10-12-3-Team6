@@ -6,6 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
 import { useStore, TripDay, PhotoRecord, uid } from "../../../../../store";
 import { API_BASE, apiFetch } from "../../../../../lib";
+import TripEventHeaderNotice from "../../../TripEventHeaderNotice";
 
 interface TimelineBlock {
   timelineId?: number | null;
@@ -218,7 +219,9 @@ export default function PhotoUploadPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 20v-5.25h4.5V20" />
           </svg>
         </Link>
-        <h1 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-semibold text-base whitespace-nowrap">{dayNum}일차 사진 기록</h1>
+        <TripEventHeaderNotice className="trip-secondary-event-header absolute left-1/2 top-1/2 h-10 -translate-x-1/2 -translate-y-1/2">
+          <h1 className="font-semibold text-base whitespace-nowrap">{dayNum}일차 사진 기록</h1>
+        </TripEventHeaderNotice>
         {isDuringTrip ? (
           <Link
             href={`/trip/${id}/timeline?from=timeline`}
