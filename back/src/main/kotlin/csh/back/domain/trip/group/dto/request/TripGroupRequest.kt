@@ -20,7 +20,9 @@ data class TripGroupRequest(
     val startDate: String,
 
     @field:Schema(description = "이용 일수", example = "2")
-    @field:NotNull
+    @field:NotNull(message = "nights: must not be null")
     @field:Min(0)
-    val nights: Int,
-)
+    val nights: Int? = null,
+) {
+    fun nightsOrThrow(): Int = requireNotNull(nights) { "nights must not be null" }
+}

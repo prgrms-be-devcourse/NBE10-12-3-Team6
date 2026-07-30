@@ -50,6 +50,8 @@ class SecurityConfig(
                     "/h2-console/**",
                     "/api/v1/auth/signup",
                     "/api/v1/auth/login",
+                    "/api/v1/auth/check_email",
+                    "/api/v1/auth/verify_email",
                     "/uploadedimages/**",
                     "/actuator/prometheus"
                 ).permitAll()

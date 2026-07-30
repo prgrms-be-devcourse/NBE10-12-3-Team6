@@ -4,6 +4,15 @@ spring:
     username: sa
     password:
     driver-class-name: org.h2.Driver
+  mail:
+    host: localhost
+    port: 25
+    username: test
+    password: test
+  data:
+    redis:
+      host: localhost
+      port: 6379
 
 app:
   s3:

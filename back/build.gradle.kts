@@ -68,6 +68,12 @@ dependencies {
     // AWS S3 연동을 위한 의존성
     implementation("org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE")
 
+    // Mail
+    implementation("org.springframework.boot:spring-boot-starter-mail")
+
+    // Redis
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
     testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
