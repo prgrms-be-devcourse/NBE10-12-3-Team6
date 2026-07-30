@@ -39,6 +39,7 @@ class MemberService(
         return MemberResponseDto.from(member)
     }
 
+    // RefreshToken row를 INSERT하므로 쓰기 트랜잭션 필요 (클래스 레벨 readOnly 오버라이드)
     @Transactional
     fun login(email: String, password: String, userAgent: String?): LoginResult {
         val member: Member = memberRepository.findByEmail(email)

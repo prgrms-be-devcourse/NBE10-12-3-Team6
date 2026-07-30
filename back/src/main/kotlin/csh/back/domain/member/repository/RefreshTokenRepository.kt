@@ -13,9 +13,11 @@ interface RefreshTokenRepository : JpaRepository<RefreshToken, Long> {
     @Query("SELECT rt FROM RefreshToken rt JOIN FETCH rt.member WHERE rt.token = :token")
     fun findByTokenWithMember(token: String): Optional<RefreshToken>
 
+    // derived delete는 SimpleJpaRepository의 @Transactional을 상속받지 않아 명시 필요
     @Transactional
     fun deleteByToken(token: String)
 
+    // 전체 기기 로그아웃용 — 현재 미사용, 향후 "모든 기기 로그아웃" API에서 호출
     @Transactional
     fun deleteAllByMember(member: Member)
 }

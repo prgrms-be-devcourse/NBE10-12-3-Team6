@@ -84,6 +84,7 @@ class JwtAuthenticationFilter(
             null,
             listOf(SimpleGrantedAuthority("ROLE_USER"))
         )
+        // details에 memberId를 저장해 컨트롤러에서 DB 재조회 없이 꺼내쓸 수 있게 함
         authentication.details = memberId
         SecurityContextHolder.getContext().authentication = authentication
     }
