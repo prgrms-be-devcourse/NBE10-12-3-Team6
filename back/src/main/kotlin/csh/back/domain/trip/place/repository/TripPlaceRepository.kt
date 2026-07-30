@@ -9,4 +9,6 @@ interface TripPlaceRepository : JpaRepository<TripPlace, Long> {
 
     // 확정하려는 후보 장소가 해당 여행 모임에 속하는지 확인하면서 조회
     fun findByIdAndTripGroupId(confirmedPlaceId: Long, tripGroupId: Long): Optional<TripPlace>
+
+    fun existsByKakaoPlaceIdAndTripGroupId(kakaoPlaceId: String, tripGroupId: Long): Boolean
 }
