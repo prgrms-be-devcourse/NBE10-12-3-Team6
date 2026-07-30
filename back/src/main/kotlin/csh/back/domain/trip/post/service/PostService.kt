@@ -33,13 +33,13 @@ class PostService(
         tripMemberValidator.validMember(tripGroupId, memberId)
 
         val tripGroup = tripGroupService.findTripGroupById(tripGroupId)
-        val tripMembers = tripMemberRepository.findByTripGroupId(tripGroup.id)
+        val tripMembers = tripMemberRepository.findByTripGroupId(tripGroup.id!!)
         val posts = postRepository.findWithTimelineAndPlaceByAuthorIdIn(tripMembers)
         val schedulesByDate = timelineRepository.findByTripGroupIdSorted(tripGroupId)
             .groupBy { it.startTime.toLocalDate() }
 
         return posts
-            .groupBy { it.createdAt.toLocalDate() }
+            .groupBy { it.createdAt!!.toLocalDate() }
             .toSortedMap()
             .map { (date, dailyPosts) ->
                 val daySchedules = schedulesByDate[date].orEmpty()
@@ -104,7 +104,7 @@ class PostService(
         val dayEnd = dayStart.plusDays(1)
         val tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripGroupId)
             .orElseThrow { IllegalArgumentException("여행 멤버가 존재하지 않습니다.") }
-        val todayPosts = postRepository.findByAuthorIdAndCreatedAtBetween(tripMember.id, dayStart, dayEnd)
+        val todayPosts = postRepository.findByAuthorIdAndCreatedAtBetween(tripMember.id!!, dayStart, dayEnd)
         val schedules = timelineRepository.findByTripAndDateSorted(tripGroupId, dayNumber.toLong())
         val current = schedules.firstOrNull { !now.isBefore(it.startTime) && now.isBefore(it.endTime) }
 
@@ -126,7 +126,7 @@ class PostService(
         }
 
         val isTaken = todayPosts.any {
-            !it.createdAt.isBefore(slotStart) && it.createdAt.isBefore(slotEnd)
+            !it.createdAt!!.isBefore(slotStart) && it.createdAt!!.isBefore(slotEnd)
         }
         return PostTimelineResponse(slotStart, slotEnd, timelineId, confirmedPlaceName, isTaken)
     }
@@ -145,7 +145,7 @@ class PostService(
             )
         }
 
-        val captured = post.createdAt
+        val captured = post.createdAt!!
         val slotStart = calcSlotStart(captured, daySchedules)
         return PostsDailyResponse.PostSummary(
             postId = post.id,
