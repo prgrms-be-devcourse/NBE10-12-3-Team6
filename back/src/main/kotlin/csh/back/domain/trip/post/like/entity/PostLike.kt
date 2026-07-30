@@ -19,13 +19,6 @@ import jakarta.persistence.UniqueConstraint
             name = "uk_post_like_post_member",
             columnNames = ["post_id", "trip_member_id"]
         )
-    ],
-    indexes = [
-        Index(name = "idx_post_like_post_id", columnList = "post_id"),
-        Index(
-            name = "idx_post_like_trip_member_id",
-            columnList = "trip_member_id"
-        )
     ]
 )
 class PostLike protected constructor() : BaseEntity() {

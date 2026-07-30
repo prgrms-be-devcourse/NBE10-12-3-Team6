@@ -82,7 +82,8 @@ class PostV1ControllerTest {
             timelineId = TIMELINE_ID,
             type = "IMAGE",
             contentUrl = "https://example.com/test-image.jpg",
-            content = "부산 여행 시작!"
+            content = "부산 여행 시작!",
+            likeCount = 0L
         )
 
         `when`(
@@ -109,6 +110,7 @@ class PostV1ControllerTest {
             .andExpect(jsonPath("$.type").value("IMAGE"))
             .andExpect(jsonPath("$.contentUrl").value("https://example.com/test-image.jpg"))
             .andExpect(jsonPath("$.content").value("부산 여행 시작!"))
+            .andExpect(jsonPath("$.likeCount").value(0))
 
         verify(postService).create(
             eq(TRIP_GROUP_ID),
@@ -127,7 +129,8 @@ class PostV1ControllerTest {
             timelineId = TIMELINE_ID,
             type = "IMAGE",
             contentUrl = "https://example.com/test-image.jpg",
-            content = "부산 여행"
+            content = "부산 여행",
+            likeCount = 3L
         )
 
         `when`(
@@ -146,6 +149,7 @@ class PostV1ControllerTest {
             .andExpect(jsonPath("$.type").value("IMAGE"))
             .andExpect(jsonPath("$.contentUrl").value("https://example.com/test-image.jpg"))
             .andExpect(jsonPath("$.content").value("부산 여행"))
+            .andExpect(jsonPath("$.likeCount").value(3))
 
         verify(postService).getPost(TRIP_GROUP_ID, POST_ID)
     }
@@ -170,7 +174,8 @@ class PostV1ControllerTest {
                         startTime = startTime,
                         endTime = endTime,
                         confirmedPlaceName = "광안리",
-                        createdAt = createdAt
+                        createdAt = createdAt,
+                        likeCount = 5L
                     )
                 )
             )
@@ -198,6 +203,7 @@ class PostV1ControllerTest {
             .andExpect(jsonPath("$[0].posts[0].endTime").value("2026-07-30T11:00:00"))
             .andExpect(jsonPath("$[0].posts[0].confirmedPlaceName").value("광안리"))
             .andExpect(jsonPath("$[0].posts[0].createdAt").value("2026-07-30T10:20:00"))
+            .andExpect(jsonPath("$[0].posts[0].likeCount").value(5))
 
         verify(postService).getPosts(TRIP_GROUP_ID, MEMBER_ID)
     }
