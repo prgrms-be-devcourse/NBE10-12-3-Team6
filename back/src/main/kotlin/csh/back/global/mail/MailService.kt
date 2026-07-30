@@ -1,25 +1,44 @@
 package csh.back.global.mail
 
 import jakarta.mail.internet.MimeMessage
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.mail.javamail.MimeMessageHelper
+import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
 
 @Service
 class MailService(
     private val mailSender: JavaMailSender,
+    @Value("\${spring.mail.username}") private val fromAddress: String,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
+    companion object {
+        private const val FROM_DISPLAY_NAME = "Triplog"
+    }
+
+    // @Async: mailExecutor 풀에서 실행, 호출 스레드는 즉시 반환
+    @Async("mailExecutor")
     fun sendHtmlEmail(to: String, subject: String, contentHtml: String) {
         val message: MimeMessage = mailSender.createMimeMessage()
         // false: 멀티파트 아님, UTF-8: 한글 깨짐 방지
         val helper = MimeMessageHelper(message, false, "UTF-8")
 
+        // 수신자 메일함에 "Triplog <계정>" 로 표시
+        helper.setFrom(fromAddress, FROM_DISPLAY_NAME)
         helper.setTo(to)
         helper.setSubject(subject)
         // true: HTML 형식으로 전송
         helper.setText(wrapWithLayout(contentHtml), true)
 
-        mailSender.send(message)
+        try {
+            mailSender.send(message)
+        } catch (e: Exception) {
+            // @Async void 메서드는 예외가 유실되므로 여기서 명시적으로 로깅
+            log.error("mail send failed to={}", to, e)
+        }
     }
 
     // 공용 레이아웃(헤더/푸터/테두리)으로 본문 콘텐츠 감싸기

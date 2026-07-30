@@ -519,7 +519,7 @@ export default function LoginPage() {
                 sendingCode ||
                 resendCooldownSeconds > 0
               }
-              className="shrink-0 px-4 rounded-xl bg-blue-500 text-white text-sm font-semibold whitespace-nowrap disabled:opacity-40"
+              className="shrink-0 w-24 rounded-xl bg-blue-500 text-white text-sm font-semibold whitespace-nowrap disabled:opacity-40"
             >
               {emailVerified
                 ? "인증 완료"
@@ -557,7 +557,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={handleVerifyEmailCode}
                   disabled={verificationCode.length !== 6 || verifyingCode || verificationSecondsLeft === 0}
-                  className="shrink-0 px-4 rounded-xl bg-gray-800 text-white text-sm font-semibold whitespace-nowrap disabled:opacity-40"
+                  className="shrink-0 w-24 rounded-xl bg-gray-800 text-white text-sm font-semibold whitespace-nowrap disabled:opacity-40"
                 >
                   {verifyingCode ? "확인 중..." : "확인"}
                 </button>
