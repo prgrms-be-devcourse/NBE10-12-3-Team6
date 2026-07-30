@@ -1,6 +1,6 @@
 package csh.back.global.config;
 
-import csh.back.domain.member.repository.MemberRepository;
+import csh.back.domain.member.repository.RefreshTokenRepository;
 import csh.back.global.jwt.JwtAuthenticationFilter;
 import csh.back.global.jwt.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
-    private final MemberRepository memberRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Value("${cors.allowed-origins}")
     private List<String> allowedOrigins;
@@ -64,7 +64,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 // Spring의 기본 로그인 필터 앞에 JWT 필터를 끼워 넣음
-                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, memberRepository), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, refreshTokenRepository), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
