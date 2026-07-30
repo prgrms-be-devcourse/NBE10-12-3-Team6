@@ -31,29 +31,30 @@ class TripGroupService(
             .map { TripGroupResponse.from(it) }
 
     fun writeGroup(request: TripGroupRequest, ownerId: Long): TripGroupResponse {
+        val nights = request.nightsOrThrow()
         val startDate = LocalDate.parse(request.startDate)
-        val endDate = startDate.plusDays(request.nights.toLong())
+        val endDate = startDate.plusDays(nights.toLong())
 
         val owner = memberRepository.findById(ownerId)
             .orElseThrow { NotFoundException("존재하지 않는 유저") }
 
-        val group = TripGroup.builder()
-            .owner(owner)
-            .name(request.name)
-            .region(request.region)
-            .nights(request.nights)
-            .joinCode(createJoinCode())
-            .startDate(startDate)
-            .endDate(endDate)
-            .build()
+        val group = TripGroup(
+            owner = owner,
+            name = request.name,
+            region = request.region,
+            nights = nights,
+            joinCode = createJoinCode(),
+            startDate = startDate,
+            endDate = endDate,
+        )
         val savedGroup = tripGroupRepository.save(group)
 
         tripMemberRepository.save(
-            TripMember.builder()
-                .tripGroup(savedGroup)
-                .member(owner)
-                .isAdmin(true)
-                .build(),
+            TripMember(
+                member = owner,
+                tripGroup = savedGroup,
+                isAdmin = true,
+            ),
         )
 
         return TripGroupResponse.from(savedGroup)

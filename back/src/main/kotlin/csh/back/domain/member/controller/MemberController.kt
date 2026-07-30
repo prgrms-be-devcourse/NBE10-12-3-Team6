@@ -1,9 +1,12 @@
 package csh.back.domain.member.controller
 
+import csh.back.domain.member.dto.request.CheckEmailDtp
 import csh.back.domain.member.dto.request.LoginRequestDto
 import csh.back.domain.member.dto.request.MemberRequestDto
+import csh.back.domain.member.dto.request.VerifyEmailDto
 import csh.back.domain.member.dto.response.LoginResponseDto
 import csh.back.domain.member.dto.response.MemberResponseDto
+import csh.back.domain.member.service.EmailVerificationService
 import csh.back.domain.member.service.MemberService
 import csh.back.domain.trip.member.service.TripMemberService
 import csh.back.global.annotation.ApiV1
@@ -30,6 +33,7 @@ import java.time.Duration
 class MemberController(
     private val memberService: MemberService,
     private val tripMemberService: TripMemberService,
+    private val emailVerificationService: EmailVerificationService,
 ) {
     @Operation(summary = "회원가입")
     @PostMapping("/signup")
@@ -86,6 +90,24 @@ class MemberController(
         response.addHeader(HttpHeaders.SET_COOKIE,
             ResponseCookie.from(CookieNames.REFRESH_TOKEN, "").path("/").maxAge(0).build().toString())
 
+        return ResponseData(200, null)
+    }
+
+    @Operation(summary = "이메일 중복 확인 및 인증 코드 발송")
+    @PostMapping("/check_email")
+    fun checkEmail(
+        @RequestBody @Valid request: CheckEmailDtp,
+    ): ResponseData<Void?> {
+        emailVerificationService.sendVerificationCode(request.email)
+        return ResponseData(200, null)
+    }
+
+    @Operation(summary = "이메일 인증 코드 검증")
+    @PostMapping("/verify_email")
+    fun verifyEmail(
+        @RequestBody @Valid request: VerifyEmailDto,
+    ): ResponseData<Void?> {
+        emailVerificationService.verifyCode(request.email, request.code)
         return ResponseData(200, null)
     }
 }
