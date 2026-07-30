@@ -15,13 +15,13 @@ import csh.back.domain.vote.user.dto.response.VoteUserSaveResponseDto;
 import csh.back.domain.vote.user.repository.VoteUserRepository;
 import csh.back.domain.vote.vote.entity.Vote;
 import csh.back.domain.vote.vote.repository.VoteRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -29,9 +29,10 @@ import java.time.LocalDateTime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+// REQUIRES_NEW로 별도 물리 트랜잭션을 여는 VoteItemInsertExecutor는 클래스 레벨 @Transactional로 감싼
+// 테스트에서 setUp 데이터가 커밋되지 않아 FK 위반이 나므로, 실제 커밋 후 @AfterEach로 정리하는 방식을 쓴다.
 @ActiveProfiles("test")
 @SpringBootTest
-@Transactional
 class VoteItemServiceTest {
 
     @Autowired
@@ -64,6 +65,7 @@ class VoteItemServiceTest {
     private Member member;
     private TripGroup tripGroup;
     private TripMember tripMember;
+    private Timeline timeline;
     private Vote vote;
 
     @BeforeEach
@@ -83,7 +85,7 @@ class VoteItemServiceTest {
         tripMember = tripMemberRepository.save(TripMember.builder()
                 .member(member).tripGroup(tripGroup).isAdmin(true).build());
 
-        Timeline timeline = timelineRepository.save(Timeline.builder()
+        timeline = timelineRepository.save(Timeline.builder()
                 .tripGroup(tripGroup)
                 .dayNumber(1L)
                 .startTime(LocalDateTime.of(2026, 12, 1, 9, 0))
@@ -92,6 +94,23 @@ class VoteItemServiceTest {
 
         vote = voteRepository.save(new Vote(
                 tripGroup, timeline, tripMember, tripGroup.getStartDate().minusDays(1).atStartOfDay()));
+    }
+
+    // deleteAll()은 TestInitData가 앱 기동 시 한 번만 커밋해두는 공유 시드(Member/TripGroup 1~3)까지
+    // 지워버려 다른 테스트 클래스를 깨뜨리므로, 이 테스트가 직접 만든 행만 참조로 골라 지운다.
+    @AfterEach
+    void tearDown() {
+        voteItemRepository.findAllByVoteIdWithTripPlace(vote.getId())
+                .forEach(voteItem -> {
+                    voteUserRepository.deleteAll(voteUserRepository.findByVoteItemId(voteItem.getId()));
+                    voteItemRepository.delete(voteItem);
+                });
+        voteRepository.delete(vote);
+        tripPlaceRepository.deleteAll(tripPlaceRepository.findAllByTripGroupId(tripGroup.getId()));
+        timelineRepository.delete(timeline);
+        tripMemberRepository.delete(tripMember);
+        tripGroupRepository.delete(tripGroup);
+        memberRepository.delete(member);
     }
 
     private TripPlace createPlace(String kakaoPlaceId) {
