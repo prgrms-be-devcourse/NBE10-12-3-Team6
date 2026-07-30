@@ -1,6 +1,9 @@
 package csh.back.domain.trip.group.service
 
 import csh.back.domain.member.repository.MemberRepository
+import csh.back.domain.trip.event.dto.TripEvent
+import csh.back.domain.trip.event.enums.TripEventType
+import csh.back.domain.trip.event.service.TripEventService
 import csh.back.domain.trip.group.dto.request.TripGroupModifyRequest
 import csh.back.domain.trip.group.dto.request.TripGroupRequest
 import csh.back.domain.trip.group.dto.response.TripGroupDetailResponse
@@ -23,6 +26,7 @@ class TripGroupService(
     private val tripGroupRepository: TripGroupRepository,
     private val tripMemberRepository: TripMemberRepository,
     private val memberRepository: MemberRepository,
+    private val tripEventService: TripEventService,
 ) {
 
     @Transactional(readOnly = true)
@@ -84,6 +88,14 @@ class TripGroupService(
         }
 
         group.modify(request)
+        tripEventService.publishAfterCommit(
+            TripEvent(
+                eventType = TripEventType.TRIP_GROUP_UPDATED,
+                message = "여행방 정보가 변경되었습니다.",
+                tripGroupId = tripId,
+                actorMemberId = ownerId,
+            ),
+        )
         return TripGroupResponse.from(group)
     }
 

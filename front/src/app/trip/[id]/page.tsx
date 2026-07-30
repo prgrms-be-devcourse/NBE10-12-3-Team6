@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useEffect, type MouseEvent } from "react";
+import { useCallback, useState, useEffect, type MouseEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { ArrowClockwise } from "@phosphor-icons/react";
 import { useStore, Trip, TripDay, PlanCandidate, uid } from "../../store";
 import { Avatar, formatDate, apiFetch, useAuthGuard, API_BASE } from "../../lib";
 import { useTripOwnerStore } from "../../stores/tripOwnerStore";
 import AnimatedBottomSheet from "../../components/AnimatedBottomSheet";
+import TripChatRoomButton from "./TripChatRoomButton";
+import TripEventHeaderNotice from "./TripEventHeaderNotice";
+import { useTripEvent } from "./TripEventProvider";
 
 // ── InviteModal ───────────────────────────────────────────────────────────────
 
@@ -296,11 +300,63 @@ interface DayTimelineItem {
   category?: string | null;
 }
 
+const VOTE_SYNC_EVENT_TYPES = new Set([
+  "TIMELINE_CREATED",
+  "TIMELINE_BATCH_CREATED",
+  "TIMELINE_TIME_UPDATED",
+  "TIMELINE_DELETED",
+  "VOTE_CREATED",
+  "VOTE_PARTICIPATION_UPDATED",
+  "TIMELINE_PLACE_CONFIRMED",
+  "VOTE_EXPIRED",
+]);
+
+const TRIP_OVERVIEW_SYNC_EVENT_TYPES = new Set([
+  "TRIP_MEMBER_JOINED",
+]);
+
+const CANDIDATE_SYNC_EVENT_TYPES = new Set([
+  "WISH_PLACE_ADDED",
+]);
+
+function HeaderSyncButton({
+  pending,
+  loading,
+  onClick,
+  pendingLabel,
+  positionClass = "right-4",
+}: {
+  pending: boolean;
+  loading: boolean;
+  onClick: () => void;
+  pendingLabel: string;
+  positionClass?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!pending || loading}
+      aria-label={pending ? pendingLabel : "동기화할 변경 사항 없음"}
+      title={pending ? pendingLabel : "동기화할 변경 사항 없음"}
+      className={`timeline-sync-icon-button absolute ${positionClass} top-10 z-10 w-10 h-10 rounded-full flex items-center justify-center ${
+        pending ? "is-pending" : "is-idle"
+      }`}
+    >
+      <ArrowClockwise
+        size={19}
+        weight="bold"
+      />
+    </button>
+  );
+}
+
 export default function TripDetailPage() {
   useAuthGuard();
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const { trips, updateTrip, upsertTrip } = useStore();
+  const { latestEvent } = useTripEvent();
   const setOwnerId = useTripOwnerStore((state) => state.setOwnerId);
   const [showInvite, setShowInvite] = useState(false);
   const [tab, setTab] = useState<Tab>("trip");
@@ -349,8 +405,35 @@ export default function TripDetailPage() {
   };
 
   const [voteData, setVoteData] = useState<VoteDay[] | null>(null);
+  const [tripSyncPending, setTripSyncPending] = useState(false);
+  const [candidateSyncPending, setCandidateSyncPending] = useState(false);
+  const [voteSyncPending, setVoteSyncPending] = useState(false);
+  const [tripSyncLoading, setTripSyncLoading] = useState(false);
+  const [candidateSyncLoading, setCandidateSyncLoading] = useState(false);
+  const [voteSyncLoading, setVoteSyncLoading] = useState(false);
   const [allDayTimelines, setAllDayTimelines] = useState<Record<number, DayTimelineItem[]>>({});
   const trip = trips.find(t => t.id === id);
+
+  const fetchVoteData = useCallback(async () => {
+    const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/votes`);
+    if (!response.ok) throw new Error("투표 목록을 불러오지 못했습니다.");
+    const body = await response.json();
+    setVoteData(body.data ?? []);
+  }, [id]);
+
+  const syncVoteData = async () => {
+    if (!voteSyncPending || voteSyncLoading) return;
+
+    setVoteSyncLoading(true);
+    try {
+      await fetchVoteData();
+      setVoteSyncPending(false);
+    } catch (error) {
+      console.error("[투표 목록 동기화 실패]", error);
+    } finally {
+      setVoteSyncLoading(false);
+    }
+  };
 
   const tripStatus = (() => {
     if (!trip) return "before";
@@ -360,85 +443,95 @@ export default function TripDetailPage() {
     return today < startDate ? "before" : today > endDate ? "after" : "during";
   })();
 
-  useEffect(() => {
+  const fetchTripOverview = useCallback(async () => {
     if (!id) return;
 
-    Promise.all([
+    const [tripBody, countBody] = await Promise.all([
       apiFetch(`${API_BASE}/api/v1/trips/${id}`).then(r => r.json()),
       apiFetch(`${API_BASE}/api/v1/trips/${id}/timelines/count`).then(r => r.json()),
-    ]).then(([tripBody, countBody]) => {
-      const tripData = tripBody.data;
+    ]);
+    const tripData = tripBody.data;
 
-      if (!tripData) return;
-      const inviteCode = tripData.joinCode ?? "";
-      const counts: { day: number; count: number }[] = countBody.data ?? [];
+    if (!tripData) return;
+    const inviteCode = tripData.joinCode ?? "";
+    const counts: { day: number; count: number }[] = countBody.data ?? [];
 
-      const COLORS = ["blue", "orange", "green", "purple", "pink", "teal", "indigo", "cyan"];
-      const members: { id: number; name: string; color: string; isAdmin?: boolean }[] =
-        (tripData.members ?? []).map((m: { memberId: number; name: string; admin: boolean }, i: number) => ({
-          id: m.memberId,
-          name: m.name,
-          color: COLORS[i % COLORS.length],
-          isAdmin: m.admin,
-        }));
+    const COLORS = ["blue", "orange", "green", "purple", "pink", "teal", "indigo", "cyan"];
+    const members: { id: number; name: string; color: string; isAdmin?: boolean }[] =
+      (tripData.members ?? []).map((m: { memberId: number; name: string; admin: boolean }, i: number) => ({
+        id: m.memberId,
+        name: m.name,
+        color: COLORS[i % COLORS.length],
+        isAdmin: m.admin,
+      }));
 
-      const baseDays = trip?.days ?? Array.from(
-        { length: (tripData.nights ?? 0) + 1 },
-        (_, i) => {
-          const d = new Date(tripData.startDate + "T00:00:00");
-          d.setDate(d.getDate() + i);
-          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          return { id: `day-${i + 1}`, dayNumber: i + 1, date: dateStr, blocks: [{ id: uid(), order: 1, theme: "meal" as const, startMinute: 9 * 60, endMinute: 10 * 60 }], isPlanCompleted: false, isPlanSkipped: false, selectedCandidateByBlock: {}, votedUserIDsByBlockAndCandidate: {}, records: [] };
-        }
-      );
+    const baseDays = trip?.days ?? Array.from(
+      { length: (tripData.nights ?? 0) + 1 },
+      (_, i) => {
+        const d = new Date(tripData.startDate + "T00:00:00");
+        d.setDate(d.getDate() + i);
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        return { id: `day-${i + 1}`, dayNumber: i + 1, date: dateStr, blocks: [{ id: uid(), order: 1, theme: "meal" as const, startMinute: 9 * 60, endMinute: 10 * 60 }], isPlanCompleted: false, isPlanSkipped: false, selectedCandidateByBlock: {}, votedUserIDsByBlockAndCandidate: {}, records: [] };
+      }
+    );
 
-      const updatedDays = baseDays.map(day => {
-        const entry = counts.find(c => c.day === day.dayNumber);
-        if (!entry || entry.count === 0) return day;
-        const blocks = Array.from({ length: entry.count }, (_, i) => ({
-          id: `${day.dayNumber}-${i}`,
-          order: i + 1,
-          theme: "etc" as const,
-          startMinute: 0,
-          endMinute: 0,
-        }));
-        return { ...day, blocks, isPlanCompleted: true };
-      });
+    const updatedDays = baseDays.map(day => {
+      const entry = counts.find(c => c.day === day.dayNumber);
+      if (!entry || entry.count === 0) return day;
+      const blocks = Array.from({ length: entry.count }, (_, i) => ({
+        id: `${day.dayNumber}-${i}`,
+        order: i + 1,
+        theme: "etc" as const,
+        startMinute: 0,
+        endMinute: 0,
+      }));
+      return { ...day, blocks, isPlanCompleted: true };
+    });
 
-
-      if (tripData.ownerId) setOwnerId(tripData.ownerId);
-      upsertTrip({
-        ...(trip ?? {
-          id: String(tripData.id),
-          name: tripData.name,
-          region: tripData.region,
-          startDate: tripData.startDate,
-          nights: tripData.nights,
-          candidates: [],
-          inviteJoinIndex: 0,
-        }),
-        inviteCode,
-        members,
-        days: updatedDays,
-      });
-    }).catch(() => {});
-  }, [id]);
-
+    if (tripData.ownerId) setOwnerId(tripData.ownerId);
+    upsertTrip({
+      ...(trip ?? {
+        id: String(tripData.id),
+        name: tripData.name,
+        region: tripData.region,
+        startDate: tripData.startDate,
+        nights: tripData.nights,
+        candidates: [],
+        inviteJoinIndex: 0,
+      }),
+      name: tripData.name,
+      region: tripData.region,
+      startDate: tripData.startDate,
+      nights: tripData.nights,
+      inviteCode,
+      members,
+      days: updatedDays,
+    });
+  }, [id, trip, setOwnerId, upsertTrip]);
 
   useEffect(() => {
+    fetchTripOverview()
+      .then(() => setTripSyncPending(false))
+      .catch(() => {});
+  }, [id]);
+
+  const fetchAllDayTimelineData = useCallback(async () => {
     if (!trip || tripStatus === "before" || trip.days.length === 0) return;
-    Promise.all(
+    const results = await Promise.all(
       trip.days.map(day =>
         apiFetch(`${API_BASE}/api/v1/trips/${id}/timelines?dayNumber=${day.dayNumber}`)
           .then(r => r.json())
           .then(body => ({ dayNumber: day.dayNumber, items: (body.data ?? []) as DayTimelineItem[] }))
           .catch(() => ({ dayNumber: day.dayNumber, items: [] }))
       )
-    ).then(results => {
-      const map: Record<number, DayTimelineItem[]> = {};
-      results.forEach(({ dayNumber, items }) => { map[dayNumber] = items; });
-      setAllDayTimelines(map);
-    });
+    );
+    const map: Record<number, DayTimelineItem[]> = {};
+    results.forEach(({ dayNumber, items }) => { map[dayNumber] = items; });
+    setAllDayTimelines(map);
+  }, [id, trip, tripStatus]);
+
+  useEffect(() => {
+    fetchAllDayTimelineData().catch(() => {});
   }, [trip?.id, tripStatus]);
 
   useEffect(() => {
@@ -456,30 +549,79 @@ export default function TripDetailPage() {
   useEffect(() => {
     if (tab !== "vote" || !id) return;
     setVoteData(null);
-    apiFetch(`${API_BASE}/api/v1/trips/${id}/votes`)
-      .then(r => r.json())
-      .then(body => setVoteData(body.data ?? []))
+    fetchVoteData()
+      .then(() => setVoteSyncPending(false))
       .catch(() => setVoteData([]));
-  }, [tab, id]);
+  }, [tab, id, fetchVoteData]);
+
+  const fetchCandidates = useCallback(async () => {
+    if (!id || !trip) return;
+    const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/wish-places`);
+    if (!response.ok) throw new Error("후보 장소를 불러오지 못했습니다.");
+    const body = await response.json();
+    const wishes: { tripPlaceId: number; name: string; address: string; category: string; createdBy: string }[] = body.data ?? [];
+    const candidates = wishes.map(w => ({
+      id: String(w.tripPlaceId),
+      authorId: 0,
+      authorName: w.createdBy,
+      placeName: w.name,
+      address: w.address,
+      category: w.category,
+    }));
+    updateTrip({ ...trip, candidates });
+  }, [id, trip, updateTrip]);
 
   useEffect(() => {
-    if (tab !== "candidates" || !id || !trip) return;
-    apiFetch(`${API_BASE}/api/v1/trips/${id}/wish-places`)
-      .then(r => r.json())
-      .then(body => {
-        const wishes: { tripPlaceId: number; name: string; address: string; category: string; createdBy: string }[] = body.data ?? [];
-        const candidates = wishes.map(w => ({
-          id: String(w.tripPlaceId),
-          authorId: 0,
-          authorName: w.createdBy,
-          placeName: w.name,
-          address: w.address,
-          category: w.category,
-        }));
-        updateTrip({ ...trip, candidates });
-      })
+    if (tab !== "candidates") return;
+    fetchCandidates()
+      .then(() => setCandidateSyncPending(false))
       .catch(() => {});
   }, [tab, id, trip?.id]);
+
+  useEffect(() => {
+    if (!latestEvent) return;
+
+    const pendingTimer = window.setTimeout(() => {
+      if (TRIP_OVERVIEW_SYNC_EVENT_TYPES.has(latestEvent.eventType)) {
+        setTripSyncPending(true);
+      }
+      if (CANDIDATE_SYNC_EVENT_TYPES.has(latestEvent.eventType)) {
+        setCandidateSyncPending(true);
+      }
+      if (VOTE_SYNC_EVENT_TYPES.has(latestEvent.eventType)) {
+        setVoteSyncPending(true);
+      }
+    }, 0);
+    return () => window.clearTimeout(pendingTimer);
+  }, [latestEvent]);
+
+  const syncTripOverview = async () => {
+    if (!tripSyncPending || tripSyncLoading) return;
+
+    setTripSyncLoading(true);
+    try {
+      await fetchTripOverview();
+      setTripSyncPending(false);
+    } catch (error) {
+      console.error("[여행방 정보 동기화 실패]", error);
+    } finally {
+      setTripSyncLoading(false);
+    }
+  };
+
+  const syncCandidates = async () => {
+    if (!candidateSyncPending || candidateSyncLoading) return;
+
+    setCandidateSyncLoading(true);
+    try {
+      await fetchCandidates();
+      setCandidateSyncPending(false);
+    } catch (error) {
+      console.error("[후보 장소 동기화 실패]", error);
+    } finally {
+      setCandidateSyncLoading(false);
+    }
+  };
 
   if (!trip) {
     return (
@@ -504,20 +646,62 @@ export default function TripDetailPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 20v-5.25h4.5V20" />
           </svg>
         </button>
-        <div className="absolute left-1/2 top-11 w-40 -translate-x-1/2 text-center sm:w-56">
-          <p className="truncate font-semibold text-base">{trip.name}</p>
-          <p className="text-xs text-gray-400">{trip.region} · {trip.nights}박 {trip.nights + 1}일</p>
-        </div>
+        <TripEventHeaderNotice
+          className={`trip-detail-event-header absolute inset-x-0 top-10 h-10 ${
+            tab === "trip"
+              ? "has-triple-actions"
+              : tab === "candidates" || tab === "vote"
+                ? "has-double-actions"
+                : ""
+          }`}
+        >
+          <div className="min-w-0 text-center">
+            <p className="truncate font-semibold text-base">{trip.name}</p>
+            <p className="truncate text-xs text-gray-400">{trip.region} · {trip.nights}박 {trip.nights + 1}일</p>
+          </div>
+        </TripEventHeaderNotice>
         {tab === "trip" ? (
-          <button
-            onClick={() => setShowInvite(true)}
-            aria-label="초대 링크"
-            className="trip-header-icon-button absolute right-4 top-10 z-10 w-10 h-10 rounded-full flex items-center justify-center"
-          >
-            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-          </button>
+          <>
+            <HeaderSyncButton
+              pending={tripSyncPending}
+              loading={tripSyncLoading}
+              onClick={syncTripOverview}
+              pendingLabel="새로 참여한 여행 멤버 동기화"
+              positionClass="right-28"
+            />
+            <TripChatRoomButton className="absolute right-16 top-10 z-10" />
+            <button
+              onClick={() => setShowInvite(true)}
+              aria-label="초대 링크"
+              className="trip-header-icon-button absolute right-4 top-10 z-10 w-10 h-10 rounded-full flex items-center justify-center"
+            >
+              <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+            </button>
+          </>
+        ) : tab === "candidates" ? (
+          <>
+            <HeaderSyncButton
+              pending={candidateSyncPending}
+              loading={candidateSyncLoading}
+              onClick={syncCandidates}
+              pendingLabel="변경된 후보 장소 동기화"
+              positionClass="right-16"
+            />
+            <TripChatRoomButton className="absolute right-4 top-10 z-10" />
+          </>
+        ) : tab === "vote" ? (
+          <>
+            <HeaderSyncButton
+              pending={voteSyncPending}
+              loading={voteSyncLoading}
+              onClick={syncVoteData}
+              pendingLabel="변경된 투표 목록 동기화"
+              positionClass="right-16"
+            />
+            <TripChatRoomButton className="absolute right-4 top-10 z-10" />
+          </>
         ) : tab === "timeline" && tripStatus === "during" ? (
           <Link
             href={`/trip/${id}/timeline?from=timeline`}
