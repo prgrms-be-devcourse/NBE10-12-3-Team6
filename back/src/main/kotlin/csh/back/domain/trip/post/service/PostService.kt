@@ -1,13 +1,13 @@
 package csh.back.domain.trip.post.service
 
 import csh.back.domain.trip.group.service.TripGroupService
-import csh.back.domain.trip.member.entity.TripMember
 import csh.back.domain.trip.member.repository.TripMemberRepository
 import csh.back.domain.trip.member.validator.TripMemberValidator
 import csh.back.domain.trip.post.dto.request.UpdatePostRequest
 import csh.back.domain.trip.post.dto.response.PostResponse
 import csh.back.domain.trip.post.dto.response.PostTimelineResponse
 import csh.back.domain.trip.post.dto.response.PostsDailyResponse
+import csh.back.domain.member.dto.response.AuthFilterDto
 import csh.back.domain.trip.post.entity.Post
 import csh.back.domain.trip.post.repository.PostRepository
 import csh.back.domain.trip.timeline.entity.Timeline
@@ -185,8 +185,15 @@ class PostService(
         calcSlotEnd(slotStart, schedules)
 
     private fun currentMemberId(): Long {
-        val authentication = SecurityContextHolder.getContext().authentication
-        return authentication.details as Long
+        val authentication = SecurityContextHolder
+            .getContext()
+            .authentication
+            ?: throw IllegalStateException("로그인이 필요합니다.")
+
+        val principal = authentication.principal as? AuthFilterDto
+            ?: throw IllegalStateException("인증된 회원 정보를 찾을 수 없습니다.")
+
+        return principal.id
     }
 
     private fun validateAuthor(post: Post) {

@@ -39,7 +39,7 @@ class PostV1Controller(
         @RequestPart request: CreatePostRequest,
         @RequestPart(value = "image", required = false) image: MultipartFile?,
         @AuthenticationPrincipal member: AuthFilterDto
-    ): PostResponse = postService.create(tripGroupId, member.id(), request.timelineId, image)
+    ): PostResponse = postService.create(tripGroupId, member.id, request.timelineId, image)
 
     @GetMapping("/{postId}")
     @Operation(summary = "게시글 조회", description = "게시글 단건 조회")
@@ -54,7 +54,7 @@ class PostV1Controller(
     fun getPosts(
         @PathVariable tripGroupId: Long,
         @AuthenticationPrincipal member: AuthFilterDto
-    ): List<PostsDailyResponse> = postService.getPosts(tripGroupId, member.id())
+    ): List<PostsDailyResponse> = postService.getPosts(tripGroupId, member.id)
 
     @PutMapping("/{postId}")
     @Operation(summary = "게시글 수정", description = "게시글 내용을 수정합니다.")
@@ -79,6 +79,6 @@ class PostV1Controller(
         @AuthenticationPrincipal member: AuthFilterDto
     ): ResponseData<PostTimelineResponse> = ResponseData(
         200,
-        postService.getCurrentSlot(tripGroupId, member.id(), dayNumber)
+        postService.getCurrentSlot(tripGroupId, member.id, dayNumber)
     )
 }
