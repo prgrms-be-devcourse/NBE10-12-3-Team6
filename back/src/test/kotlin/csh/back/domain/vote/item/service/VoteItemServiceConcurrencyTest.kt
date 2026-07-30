@@ -63,22 +63,22 @@ class VoteItemServiceConcurrencyTest {
         memberB = memberRepository.save(Member("vote-item-concurrency-b-${System.nanoTime()}@test.com", "pw", "동시성유저B"))
 
         tripGroup = tripGroupRepository.save(
-            TripGroup.builder()
-                .owner(memberA)
-                .name("동시성테스트여행")
-                .region("부산")
-                .nights(1)
-                .joinCode("VOTE-ITEM-CONCURRENCY-${System.nanoTime()}")
-                .startDate(LocalDate.of(2026, 12, 1))
-                .endDate(LocalDate.of(2026, 12, 2))
-                .build(),
+            TripGroup(
+                owner = memberA,
+                name = "동시성테스트여행",
+                region = "부산",
+                nights = 1,
+                joinCode = "VOTE-ITEM-CONCURRENCY-${System.nanoTime()}",
+                startDate = LocalDate.of(2026, 12, 1),
+                endDate = LocalDate.of(2026, 12, 2),
+            ),
         )
 
         tripMemberA = tripMemberRepository.save(
-            TripMember.builder().member(memberA).tripGroup(tripGroup).isAdmin(true).build(),
+            TripMember(member = memberA, tripGroup = tripGroup, isAdmin = true),
         )
         tripMemberB = tripMemberRepository.save(
-            TripMember.builder().member(memberB).tripGroup(tripGroup).isAdmin(false).build(),
+            TripMember(member = memberB, tripGroup = tripGroup, isAdmin = false),
         )
 
         val timeline: Timeline = timelineRepository.save(

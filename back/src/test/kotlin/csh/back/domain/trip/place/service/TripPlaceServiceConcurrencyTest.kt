@@ -45,19 +45,19 @@ class TripPlaceServiceConcurrencyTest {
         memberB = memberRepository.save(Member("trip-place-concurrency-b-${System.nanoTime()}@test.com", "pw", "동시성유저B"))
 
         tripGroup = tripGroupRepository.save(
-            TripGroup.builder()
-                .owner(memberA)
-                .name("동시성테스트여행")
-                .region("부산")
-                .nights(1)
-                .joinCode("TRIP-PLACE-CONCURRENCY-${System.nanoTime()}")
-                .startDate(LocalDate.of(2026, 12, 1))
-                .endDate(LocalDate.of(2026, 12, 2))
-                .build(),
+            TripGroup(
+                owner = memberA,
+                name = "동시성테스트여행",
+                region = "부산",
+                nights = 1,
+                joinCode = "TRIP-PLACE-CONCURRENCY-${System.nanoTime()}",
+                startDate = LocalDate.of(2026, 12, 1),
+                endDate = LocalDate.of(2026, 12, 2),
+            ),
         )
 
-        tripMemberRepository.save(TripMember.builder().member(memberA).tripGroup(tripGroup).isAdmin(true).build())
-        tripMemberRepository.save(TripMember.builder().member(memberB).tripGroup(tripGroup).isAdmin(false).build())
+        tripMemberRepository.save(TripMember(member = memberA, tripGroup = tripGroup, isAdmin = true))
+        tripMemberRepository.save(TripMember(member = memberB, tripGroup = tripGroup, isAdmin = false))
 
         kakaoPlaceId = "kakao-trip-place-concurrency-${System.nanoTime()}"
     }
