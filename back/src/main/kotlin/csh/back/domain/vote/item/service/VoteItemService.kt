@@ -5,13 +5,12 @@ import csh.back.domain.trip.event.dto.TripEvent
 import csh.back.domain.trip.event.enums.TripEventType
 import csh.back.domain.trip.event.service.TripEventService
 import csh.back.domain.trip.place.repository.TripPlaceRepository
-import csh.back.domain.vote.item.entity.VoteItem
 import csh.back.domain.vote.item.repository.VoteItemRepository
 import csh.back.domain.vote.user.dto.response.VoteUserSaveResponseDto
 import csh.back.domain.vote.user.service.VoteUserService
 import csh.back.domain.vote.vote.repository.VoteRepository
+import jakarta.persistence.PersistenceException
 import org.slf4j.LoggerFactory
-import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -24,6 +23,7 @@ class VoteItemService(
     private val voteUserService: VoteUserService,
     private val tripMemberValidator: TripMemberValidator,
     private val tripEventService: TripEventService,
+    private val voteItemInsertExecutor: VoteItemInsertExecutor,
 ) {
 
     @Transactional
@@ -37,10 +37,14 @@ class VoteItemService(
         val voteItem = voteItemRepository.findByVoteIdAndTripPlaceId(voteId, tripPlaceId).orElse(null)
 
         val response = if (voteItem == null) {
-            try {
-                val saved = voteItemRepository.saveAndFlush(VoteItem(vote = vote, tripPlace = tripPlace))
+            val saved = try {
+                voteItemInsertExecutor.tryInsert(vote, tripPlace)
+            } catch (e: PersistenceException) {
+                null
+            }
+            if (saved != null) {
                 voteUserService.saveVoteUser(saved, tripGroupId, memberId)
-            } catch (e: DataIntegrityViolationException) {
+            } else {
                 // 동시성으로 경합에서 진 경우 - 이긴 쪽이 만든 row를 재조회해 정상 흐름으로 이어감
                 val winner = voteItemRepository.findByVoteIdAndTripPlaceId(voteId, tripPlaceId)
                     .orElseThrow(::RuntimeException)
