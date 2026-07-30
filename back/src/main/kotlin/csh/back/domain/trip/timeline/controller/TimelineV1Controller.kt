@@ -135,7 +135,7 @@ class TimelineV1Controller(
         @PathVariable("tripGroupId") tripGroupId: Long,
         @PathVariable("timelineId") timelineId: Long,
         authentication: Authentication,
-    ): ResponseData<Void> {
+    ): ResponseData<Void?> {
         val memberId = getLoginMemberId(authentication)
         timelineService.deleteTimeline(tripGroupId, timelineId, memberId)
 
