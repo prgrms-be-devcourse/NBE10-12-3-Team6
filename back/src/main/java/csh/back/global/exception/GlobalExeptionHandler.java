@@ -1,10 +1,12 @@
 package csh.back.global.exception;
 
+import csh.back.domain.member.exception.EmailVerificationException;
 import csh.back.domain.member.exception.ExistingMemberException;
 import csh.back.domain.trip.group.exception.NonMemberException;
 import csh.back.domain.trip.group.exception.NotFoundException;
 import csh.back.domain.trip.place.exception.DuplicateTripPlaceException;
 import csh.back.global.dto.ErrorResponse;
+import csh.back.global.mail.exception.MailCooldownException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -56,6 +58,18 @@ public class GlobalExeptionHandler {
 		log.warn("Duplicate trip place Id: {}", e.getMessage());
 		return ResponseEntity.status(HttpStatus.CONFLICT)
 				.body(new ErrorResponse(409, "이미 등록된 장소입니다"));
+	}
+
+	@ExceptionHandler(EmailVerificationException.class)
+	public ResponseEntity<ErrorResponse> handleEmailVerification(EmailVerificationException e) {
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+				.body(new ErrorResponse(400, e.getMessage()));
+	}
+
+	@ExceptionHandler(MailCooldownException.class)
+	public ResponseEntity<ErrorResponse> handleMailCooldown(MailCooldownException e) {
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+				.body(new ErrorResponse(429, e.getMessage()));
 	}
 
 	@ExceptionHandler(RuntimeException.class)

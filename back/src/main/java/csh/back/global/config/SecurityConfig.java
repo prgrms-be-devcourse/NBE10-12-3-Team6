@@ -57,7 +57,9 @@ public class SecurityConfig {
                                 "/api/v1/auth/signup",
                                 "/api/v1/auth/login",
                                 "/uploadedimages/**",
-                                "/actuator/prometheus"
+                                "/actuator/prometheus",
+                                "/api/v1/auth/check_email",
+                                "/api/v1/auth/verify_email"
                         ).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // 그 외 모든 요청은 JWT 필터를 거치되 인증 강제하지 않음
