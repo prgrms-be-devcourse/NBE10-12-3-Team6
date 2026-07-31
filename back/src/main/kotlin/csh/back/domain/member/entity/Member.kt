@@ -3,9 +3,15 @@ package csh.back.domain.member.entity
 import csh.back.global.entity.BaseEntity
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 
 @Entity
-@Table(name = "members")
+@Table(
+    name = "members",
+    // provider+providerId 조합으로 소셜 회원을 식별하므로 DB 레벨 중복 방지
+    // LOCAL 회원은 providerId=null → MySQL/H2는 null을 unique 제약에서 서로 다른 값으로 취급해 복수 허용
+    uniqueConstraints = [UniqueConstraint(columnNames = ["provider", "provider_id"])]
+)
 // @JvmOverloads: provider/providerId에 기본값이 있어 Kotlin끼리는 생략 가능하지만,
 // Java는 기본값을 인식 못해 3인자 생성자가 없어 컴파일 에러 발생 → Java 테스트 코드 호환용
 class Member @JvmOverloads constructor(
