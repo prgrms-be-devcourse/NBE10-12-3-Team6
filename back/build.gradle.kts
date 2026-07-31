@@ -82,7 +82,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testAnnotationProcessor("org.projectlombok:lombok")
 
-
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
 
     // QFile 생성 및 가져오기
     kapt("com.querydsl:querydsl-apt:5.1.0:jakarta")

@@ -4,28 +4,60 @@ import csh.back.domain.trip.member.entity.TripMember
 import csh.back.domain.trip.post.entity.Post
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import java.time.LocalDateTime
 
 interface PostRepository : JpaRepository<Post, Long> {
-    fun findByTimelineTripGroupId(tripGroupId: Long): List<Post>
-    fun findByAuthorId(authorId: Long): List<Post>
-    fun findByAuthorIdInOrderByCreatedAtAsc(authorIds: List<Long>): List<Post>
-    fun findAllByAuthorId(authorId: Long): List<Post>
+
+    fun findByTimelineTripGroupId(
+        tripGroupId: Long
+    ): List<Post>
+
+    fun findByAuthorId(
+        authorId: Long
+    ): List<Post>
+
+    fun findByAuthorIdInOrderByCreatedAtAsc(
+        authorIds: List<Long>
+    ): List<Post>
+
+    fun findAllByAuthorId(
+        authorId: Long
+    ): List<Post>
 
     @Query(
         """
-        SELECT p FROM Post p
+        SELECT p
+        FROM Post p
         LEFT JOIN FETCH p.timeline t
         LEFT JOIN FETCH t.tripWishPlace
         WHERE p.author IN :members
         ORDER BY p.createdAt ASC
         """
     )
-    fun findWithTimelineAndPlaceByAuthorIdIn(members: List<TripMember>): List<Post>
+    fun findWithTimelineAndPlaceByAuthorIdIn(
+        members: List<TripMember>
+    ): List<Post>
 
     fun findByAuthorIdAndCreatedAtBetween(
         tripMemberId: Long,
         startTime: LocalDateTime,
         endTime: LocalDateTime
+    ): List<Post>
+    //리마인더용 쿼리
+    @Query(
+        """
+        SELECT DISTINCT p
+        FROM Post p
+        JOIN FETCH p.author a
+        JOIN FETCH a.member
+        JOIN FETCH a.tripGroup
+        WHERE p.createdAt <= :reminderCutoff
+        ORDER BY p.createdAt ASC
+        """
+    )
+    fun findOneYearReminderTargets(
+        @Param("reminderCutoff")
+        reminderCutoff: LocalDateTime
     ): List<Post>
 }
