@@ -3,6 +3,7 @@ package csh.back.global.config
 import csh.back.domain.member.repository.MemberRepository
 import csh.back.global.jwt.JwtAuthenticationFilter
 import csh.back.global.jwt.JwtUtil
+import csh.back.global.oauth2.KakaoOAuth2SuccessHandler
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -22,7 +23,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableWebSecurity
 class SecurityConfig(
     private val jwtUtil: JwtUtil,
-    private val memberRepository: MemberRepository
+    private val memberRepository: MemberRepository,
+    private val kakaoOAuth2SuccessHandler: KakaoOAuth2SuccessHandler,
 ) {
 
     @Value("\${cors.allowed-origins}")
@@ -34,8 +36,10 @@ class SecurityConfig(
             .cors { cors -> cors.configurationSource(corsConfigurationSource()) }
             .csrf { csrf -> csrf.disable() }
             // JWT를 사용하므로 서버에 세션을 생성하지 않음
+            // OAuth2 인가 요청 중 state 파라미터를 세션에 저장해야 하므로 IF_REQUIRED 사용
+            // JWT 필터는 매 요청마다 쿠키에서 토큰을 읽으므로 세션 생성 여부와 무관하게 동작
             .sessionManagement { session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             }
             .headers { headers ->
                 headers.frameOptions { frame -> frame.sameOrigin() }
@@ -53,11 +57,15 @@ class SecurityConfig(
                     "/api/v1/auth/check_email",
                     "/api/v1/auth/verify_email",
                     "/uploadedimages/**",
-                    "/actuator/prometheus"
+                    "/actuator/prometheus",
+                    "/oauth2/authorization/**",
                 ).permitAll()
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     // 그 외 모든 요청은 JWT 필터를 거치되 인증 강제하지 않음
                     .anyRequest().authenticated()
+            }
+            .oauth2Login { oauth2 ->
+                oauth2.successHandler(kakaoOAuth2SuccessHandler)
             }
             // Spring의 기본 로그인 필터 앞에 JWT 필터를 끼워 넣음
             .addFilterBefore(JwtAuthenticationFilter(jwtUtil, memberRepository), UsernamePasswordAuthenticationFilter::class.java)

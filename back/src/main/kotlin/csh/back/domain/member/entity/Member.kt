@@ -12,6 +12,8 @@ class Member(
     val email: String,
     val password: String,
     val name: String,
+    val provider: String = "LOCAL",
+    val providerId: String? = null,
 ) : BaseEntity() {
 
     // null 대신 UUID로 초기화해 unique 제약 조건을 유지하면서 로그아웃 시 무효화 처리

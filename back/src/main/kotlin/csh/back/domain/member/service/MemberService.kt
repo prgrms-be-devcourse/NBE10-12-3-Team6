@@ -10,6 +10,7 @@ import csh.back.global.jwt.JwtUtil
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @Service
 @Transactional(readOnly = true)
@@ -47,6 +48,22 @@ class MemberService(
         // id!!: JPA save 후 항상 id가 할당되므로 non-null 보장
         val accessToken = jwtUtil.generateAccessToken(member.id!!, member.email)
         return LoginResult(LoginResponseDto.from(member), accessToken, member.refreshToken)
+    }
+
+    @Transactional
+    fun findOrCreateKakaoMember(kakaoId: String, nickname: String): Member {
+        return memberRepository.findByProviderAndProviderId("KAKAO", kakaoId)
+            .orElseGet {
+                memberRepository.save(
+                    Member(
+                        email = "kakao_${kakaoId}@triplog.local",
+                        password = passwordEncoder.encode(UUID.randomUUID().toString())!!,
+                        name = nickname,
+                        provider = "KAKAO",
+                        providerId = kakaoId,
+                    )
+                )
+            }
     }
 
     @Transactional
