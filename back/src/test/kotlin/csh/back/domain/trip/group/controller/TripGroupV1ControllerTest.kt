@@ -17,10 +17,13 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers.print
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+import org.springframework.transaction.annotation.Transactional
 
 @ActiveProfiles("test")
 @SpringBootTest
 @AutoConfigureMockMvc
+// invite 등 쓰기 API가 공유 H2 DB에 데이터를 남겨 다른 테스트(예: TripMemberV1ControllerTest)를 오염시키므로 각 테스트를 롤백
+@Transactional
 class TripGroupV1ControllerTest {
 
     @Autowired
@@ -299,5 +302,99 @@ class TripGroupV1ControllerTest {
             .andExpect(handler().methodName("modifyGroupName"))
             .andExpect(status().isForbidden)
             .andExpect(jsonPath("$.message").value("해당 모임의 소유자가 아닙니다."))
+    }
+
+    // ========== 지난 메이트 초대 (invite) ==========
+    // TestInitData:
+    //   - tg1 (owner=admin): [admin, member3]
+    //   - tg2 (owner=member2): [member2, member3]
+    //   - tg3 (owner=admin): [admin]
+
+    @Test
+    @DisplayName("초대 - 방장(admin)이 member2를 tg3에 초대 → 200, 1건 추가")
+    @WithMockLoginUser
+    fun t11() {
+        mvc.perform(
+            post("$BASE_URL/trips/3/members/invite")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{ "memberIds": [2] }""")
+        )
+            .andDo(print())
+            .andExpect(handler().handlerType(TripGroupV1Controller::class.java))
+            .andExpect(handler().methodName("inviteMembers"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].memberId").value(2))
+            .andExpect(jsonPath("$.data[0].name").value("member2"))
+            .andExpect(jsonPath("$.data[0].admin").value(false))
+    }
+
+    @Test
+    @DisplayName("초대 - 방장 아닌 member3이 tg1에 초대 시도 → 403")
+    @WithMockLoginUser(id = 3L, email = "member3@admin.com")
+    fun t12() {
+        mvc.perform(
+            post("$BASE_URL/trips/1/members/invite")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{ "memberIds": [2] }""")
+        )
+            .andDo(print())
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.message").value("해당 모임의 소유자가 아닙니다."))
+    }
+
+    @Test
+    @DisplayName("초대 - 이미 멤버인 member3을 tg1에 초대 → 200, 빈 배열 (스킵)")
+    @WithMockLoginUser
+    fun t13() {
+        mvc.perform(
+            post("$BASE_URL/trips/1/members/invite")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{ "memberIds": [3] }""")
+        )
+            .andDo(print())
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.length()").value(0))
+    }
+
+    @Test
+    @DisplayName("초대 - 존재하지 않는 memberId 스킵 → 200, 빈 배열")
+    @WithMockLoginUser
+    fun t14() {
+        mvc.perform(
+            post("$BASE_URL/trips/3/members/invite")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{ "memberIds": [9999] }""")
+        )
+            .andDo(print())
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.length()").value(0))
+    }
+
+    @Test
+    @DisplayName("초대 - 존재하지 않는 여행방 → 404")
+    @WithMockLoginUser
+    fun t15() {
+        mvc.perform(
+            post("$BASE_URL/trips/9999/members/invite")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{ "memberIds": [2] }""")
+        )
+            .andDo(print())
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.message").value("존재하지 않는 모임입니다."))
+    }
+
+    @Test
+    @DisplayName("초대 - memberIds가 빈 배열이면 검증 실패 → 400")
+    @WithMockLoginUser
+    fun t16() {
+        mvc.perform(
+            post("$BASE_URL/trips/3/members/invite")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{ "memberIds": [] }""")
+        )
+            .andDo(print())
+            .andExpect(status().isBadRequest)
     }
 }
