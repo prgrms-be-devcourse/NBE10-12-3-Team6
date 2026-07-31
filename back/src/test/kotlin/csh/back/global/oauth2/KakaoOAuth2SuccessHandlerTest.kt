@@ -2,6 +2,7 @@ package csh.back.global.oauth2
 
 import csh.back.domain.member.repository.MemberRepository
 import csh.back.domain.member.repository.RefreshTokenRepository
+import csh.back.global.jwt.CookieNames
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
@@ -53,8 +54,10 @@ class KakaoOAuth2SuccessHandlerTest {
             null
         )
 
-    private fun mockRequest() = MockHttpServletRequest().apply {
+    private fun mockRequest(deviceId: String = "test-device-uuid") = MockHttpServletRequest().apply {
         addHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 TestBrowser")
+        // DeviceIdFilter 없이 핸들러를 직접 호출하므로 attribute를 수동으로 설정
+        setAttribute(CookieNames.DEVICE_ID, deviceId)
     }
 
     @Test

@@ -1,6 +1,7 @@
 package csh.back.global.config
 
 import csh.back.domain.member.repository.RefreshTokenRepository
+import csh.back.global.filter.DeviceIdFilter
 import csh.back.global.jwt.JwtAuthenticationFilter
 import csh.back.global.jwt.JwtUtil
 import csh.back.global.oauth2.KakaoOAuth2SuccessHandler
@@ -64,8 +65,10 @@ class SecurityConfig(
             .oauth2Login { oauth2 ->
                 oauth2.successHandler(kakaoOAuth2SuccessHandler)
             }
-            // Spring의 기본 로그인 필터 앞에 JWT 필터를 끼워 넣음
+            // JwtAuthenticationFilter: Spring 기본 로그인 필터 앞에 위치
+            // DeviceIdFilter: JwtAuthenticationFilter보다 먼저 실행되어 device_id를 request attribute에 주입
             .addFilterBefore(JwtAuthenticationFilter(jwtUtil, refreshTokenRepository), UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterBefore(DeviceIdFilter(), JwtAuthenticationFilter::class.java)
 
         return http.build()
     }
