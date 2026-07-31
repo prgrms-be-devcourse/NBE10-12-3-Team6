@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: 저장소 체크아웃
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Gemini 코드 리뷰 실행
         uses: sshnaidm/gemini-code-review-action@v2
