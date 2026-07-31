@@ -309,6 +309,7 @@ interface TripGroupSettingsPayload {
   tripGroupId: number;
   days: DayFreeTimeSetting[];
   editable: boolean;
+  isAnonymousVote: boolean;
 }
 
 function DayFreeTimeRangeControl({
@@ -617,11 +618,27 @@ export default function TripDetailPage() {
     setShowVoteDefaultMenu(true);
   };
 
-  const toggleAnonymousVoteDefault = () => {
-    setIsAnonymousVoteDefault(current => !current);
+  const toggleAnonymousVoteDefault = async () => {
+    const previous = isAnonymousVoteDefault;
+    const next = !previous;
+    setIsAnonymousVoteDefault(next);
 
-    // 백엔드 연결 지점:
-    // 여행방 설정의 isAnonymousVote 값을 그대로 저장하고 조회 응답으로 초기화합니다.
+    try {
+      const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isAnonymousVote: next }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.message ?? "익명 투표 설정을 저장하지 못했습니다.");
+      }
+      const settings = body.data as TripGroupSettingsPayload;
+      setIsAnonymousVoteDefault(settings.isAnonymousVote);
+    } catch (error) {
+      console.error("[익명 투표 설정 변경 실패]", error);
+      setIsAnonymousVoteDefault(previous);
+    }
   };
 
   const fetchVoteData = useCallback(async () => {
@@ -746,6 +763,7 @@ export default function TripDetailPage() {
           ),
         );
         setFreeTimeSettingsEditable(settings.editable);
+        setIsAnonymousVoteDefault(settings.isAnonymousVote);
       })
       .catch(error => {
         if (!controller.signal.aborted) {
