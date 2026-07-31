@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useState, useEffect, type MouseEvent } from "react";
+import { useCallback, useState, useEffect, useRef, type MouseEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowClockwise } from "@phosphor-icons/react";
+import { ArrowClockwise, Clock, CrownSimple } from "@phosphor-icons/react";
 import { useStore, Trip, TripDay, PlanCandidate, uid } from "../../store";
-import { Avatar, formatDate, apiFetch, useAuthGuard, API_BASE } from "../../lib";
+import { Avatar, durationText, formatDate, apiFetch, useAuthGuard, API_BASE } from "../../lib";
 import { useTripOwnerStore } from "../../stores/tripOwnerStore";
 import AnimatedBottomSheet from "../../components/AnimatedBottomSheet";
 import TripChatRoomButton from "./TripChatRoomButton";
@@ -300,6 +300,168 @@ interface DayTimelineItem {
   category?: string | null;
 }
 
+interface DayFreeTimeSetting {
+  dayNumber: number;
+  freeTimeMinutes: number;
+}
+
+interface TripGroupSettingsPayload {
+  tripGroupId: number;
+  days: DayFreeTimeSetting[];
+  editable: boolean;
+}
+
+function DayFreeTimeRangeControl({
+  dayNumber,
+  minutes,
+  saving,
+  error,
+  onChange,
+}: {
+  dayNumber: number;
+  minutes: number;
+  saving: boolean;
+  error?: string;
+  onChange: (change: number) => void;
+}) {
+  return (
+    <div className="day-free-time-control border-t border-gray-100 pt-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold">자유시간 범위</p>
+          <p className="mt-0.5 text-[11px] text-gray-400">
+            방장만 설정 · 여행 시작일부터 변경 불가
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onChange(-30)}
+            disabled={minutes <= 30 || saving}
+            className="settings-step-button flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-base font-bold disabled:cursor-not-allowed disabled:opacity-35"
+            aria-label={`${dayNumber}일차 자유시간 범위 30분 줄이기`}
+          >
+            −
+          </button>
+          <output className="w-20 text-center text-xs font-bold text-blue-600">
+            {saving ? "저장 중" : durationText(minutes)}
+          </output>
+          <button
+            type="button"
+            onClick={() => onChange(30)}
+            disabled={minutes >= 180 || saving}
+            className="settings-step-button flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-base font-bold disabled:cursor-not-allowed disabled:opacity-35"
+            aria-label={`${dayNumber}일차 자유시간 범위 30분 늘리기`}
+          >
+            +
+          </button>
+        </div>
+      </div>
+      {error && <p className="mt-2 text-[11px] font-semibold text-red-500">{error}</p>}
+    </div>
+  );
+}
+
+function BulkFreeTimeRangeSheet({
+  initialMinutes,
+  onApply,
+  onClose,
+}: {
+  initialMinutes: number;
+  onApply: (freeTimeMinutes: number) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [minutes, setMinutes] = useState(initialMinutes);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const changeMinutes = (change: number) => {
+    setMinutes(current => Math.min(180, Math.max(30, current + change)));
+    setError("");
+  };
+
+  const applyToAllDays = async (close: () => void) => {
+    if (saving) return;
+
+    setSaving(true);
+    setError("");
+    try {
+      await onApply(minutes);
+      close();
+    } catch (applyError) {
+      setError(
+        applyError instanceof Error
+          ? applyError.message
+          : "자유시간 범위를 일괄 적용하지 못했습니다.",
+      );
+      setSaving(false);
+    }
+  };
+
+  return (
+    <AnimatedBottomSheet
+      onClose={onClose}
+      className="flex flex-col px-5 pb-6 pt-5"
+    >
+      {(close) => (
+        <>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold">자유시간 범위 일괄 설정</h2>
+              <p className="mt-1 text-xs text-gray-400">모든 일차에 동일한 범위를 적용합니다.</p>
+            </div>
+            <button
+              type="button"
+              onClick={close}
+              disabled={saving}
+              className="font-medium text-blue-500 disabled:opacity-40"
+            >
+              닫기
+            </button>
+          </div>
+
+          <div className="mt-6 flex items-center justify-center gap-5 rounded-2xl bg-gray-50 px-4 py-5">
+            <button
+              type="button"
+              onClick={() => changeMinutes(-30)}
+              disabled={minutes <= 30 || saving}
+              className="settings-step-button flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-xl font-bold disabled:cursor-not-allowed disabled:opacity-35"
+              aria-label="전체 자유시간 범위 30분 줄이기"
+            >
+              −
+            </button>
+            <output className="w-24 text-center text-base font-bold text-blue-600">
+              {durationText(minutes)}
+            </output>
+            <button
+              type="button"
+              onClick={() => changeMinutes(30)}
+              disabled={minutes >= 180 || saving}
+              className="settings-step-button flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-xl font-bold disabled:cursor-not-allowed disabled:opacity-35"
+              aria-label="전체 자유시간 범위 30분 늘리기"
+            >
+              +
+            </button>
+          </div>
+
+          {error && (
+            <p className="mt-3 text-center text-xs font-semibold text-red-500">{error}</p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => applyToAllDays(close)}
+            disabled={saving}
+            className="mt-5 w-full rounded-2xl bg-blue-500 py-4 font-semibold text-white disabled:opacity-50"
+          >
+            {saving ? "적용 중..." : "모두 적용"}
+          </button>
+        </>
+      )}
+    </AnimatedBottomSheet>
+  );
+}
+
 const VOTE_SYNC_EVENT_TYPES = new Set([
   "TIMELINE_CREATED",
   "TIMELINE_BATCH_CREATED",
@@ -355,7 +517,7 @@ export default function TripDetailPage() {
   useAuthGuard();
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const { trips, updateTrip, upsertTrip } = useStore();
+  const { trips, updateTrip, upsertTrip, currentUser } = useStore();
   const { latestEvent } = useTripEvent();
   const setOwnerId = useTripOwnerStore((state) => state.setOwnerId);
   const [showInvite, setShowInvite] = useState(false);
@@ -412,7 +574,55 @@ export default function TripDetailPage() {
   const [candidateSyncLoading, setCandidateSyncLoading] = useState(false);
   const [voteSyncLoading, setVoteSyncLoading] = useState(false);
   const [allDayTimelines, setAllDayTimelines] = useState<Record<number, DayTimelineItem[]>>({});
+  const [freeTimeMinutesByDay, setFreeTimeMinutesByDay] = useState<Record<number, number>>({});
+  const [freeTimeSettingsEditable, setFreeTimeSettingsEditable] = useState(false);
+  const [savingFreeTimeDay, setSavingFreeTimeDay] = useState<number | null>(null);
+  const [freeTimeErrorByDay, setFreeTimeErrorByDay] = useState<Record<number, string>>({});
+  const [showBulkFreeTimeSheet, setShowBulkFreeTimeSheet] = useState(false);
+  const [bulkFreeTimeInitialMinutes, setBulkFreeTimeInitialMinutes] = useState(60);
+  const [showVoteDefaultMenu, setShowVoteDefaultMenu] = useState(false);
+  const [voteDefaultMenuClosing, setVoteDefaultMenuClosing] = useState(false);
+  const [isAnonymousVoteDefault, setIsAnonymousVoteDefault] = useState(true);
+  const voteDefaultMenuCloseTimerRef = useRef<number | null>(null);
   const trip = trips.find(t => t.id === id);
+
+  useEffect(() => {
+    return () => {
+      if (voteDefaultMenuCloseTimerRef.current != null) {
+        window.clearTimeout(voteDefaultMenuCloseTimerRef.current);
+      }
+    };
+  }, []);
+
+  const closeVoteDefaultMenu = () => {
+    if (!showVoteDefaultMenu || voteDefaultMenuClosing) return;
+
+    setVoteDefaultMenuClosing(true);
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    voteDefaultMenuCloseTimerRef.current = window.setTimeout(() => {
+      setShowVoteDefaultMenu(false);
+      setVoteDefaultMenuClosing(false);
+      voteDefaultMenuCloseTimerRef.current = null;
+    }, prefersReducedMotion ? 0 : 200);
+  };
+
+  const toggleVoteDefaultMenu = () => {
+    if (voteDefaultMenuClosing) return;
+    if (showVoteDefaultMenu) {
+      closeVoteDefaultMenu();
+      return;
+    }
+
+    setVoteDefaultMenuClosing(false);
+    setShowVoteDefaultMenu(true);
+  };
+
+  const toggleAnonymousVoteDefault = () => {
+    setIsAnonymousVoteDefault(current => !current);
+
+    // 백엔드 연결 지점:
+    // 여행방 설정의 isAnonymousVote 값을 그대로 저장하고 조회 응답으로 초기화합니다.
+  };
 
   const fetchVoteData = useCallback(async () => {
     const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/votes`);
@@ -514,6 +724,125 @@ export default function TripDetailPage() {
       .then(() => setTripSyncPending(false))
       .catch(() => {});
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const controller = new AbortController();
+    apiFetch(`${API_BASE}/api/v1/trips/${id}/settings`, {
+      signal: controller.signal,
+    })
+      .then(async response => {
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body?.message ?? "자유시간 설정을 불러오지 못했습니다.");
+        }
+        return body.data as TripGroupSettingsPayload;
+      })
+      .then(settings => {
+        setFreeTimeMinutesByDay(
+          Object.fromEntries(
+            settings.days.map(day => [day.dayNumber, day.freeTimeMinutes]),
+          ),
+        );
+        setFreeTimeSettingsEditable(settings.editable);
+      })
+      .catch(error => {
+        if (!controller.signal.aborted) {
+          console.error("[자유시간 설정 조회 실패]", error);
+        }
+      });
+
+    return () => controller.abort();
+  }, [id]);
+
+  const changeDayFreeTimeMinutes = async (
+    dayNumber: number,
+    change: number,
+  ) => {
+    if (!freeTimeSettingsEditable || savingFreeTimeDay != null) return;
+
+    const currentMinutes = freeTimeMinutesByDay[dayNumber] ?? 60;
+    const nextMinutes = Math.min(180, Math.max(30, currentMinutes + change));
+    if (nextMinutes === currentMinutes) return;
+
+    setSavingFreeTimeDay(dayNumber);
+    setFreeTimeErrorByDay(current => ({
+      ...current,
+      [dayNumber]: "",
+    }));
+
+    try {
+      const response = await apiFetch(
+        `${API_BASE}/api/v1/trips/${id}/settings/free-time/${dayNumber}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ freeTimeMinutes: nextMinutes }),
+        },
+      );
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.message ?? "자유시간 범위를 저장하지 못했습니다.");
+      }
+
+      const settings = body.data as TripGroupSettingsPayload;
+      setFreeTimeMinutesByDay(
+        Object.fromEntries(
+          settings.days.map(day => [day.dayNumber, day.freeTimeMinutes]),
+        ),
+      );
+    } catch (error) {
+      setFreeTimeErrorByDay(current => ({
+        ...current,
+        [dayNumber]: error instanceof Error
+          ? error.message
+          : "자유시간 범위를 저장하지 못했습니다.",
+      }));
+    } finally {
+      setSavingFreeTimeDay(null);
+    }
+  };
+
+  const openBulkFreeTimeSheet = () => {
+    if (!trip || !freeTimeSettingsEditable || tripStatus !== "before") return;
+
+    const daySettings = trip.days
+      .map(day => freeTimeMinutesByDay[day.dayNumber])
+      .filter((minutes): minutes is number => minutes != null);
+    const firstMinutes = daySettings[0] ?? 60;
+    const allDaysUseSameMinutes = daySettings.every(minutes => minutes === firstMinutes);
+
+    setBulkFreeTimeInitialMinutes(allDaysUseSameMinutes ? firstMinutes : 60);
+    setShowBulkFreeTimeSheet(true);
+  };
+
+  const applyFreeTimeMinutesToAllDays = async (freeTimeMinutes: number) => {
+    if (!freeTimeSettingsEditable || tripStatus !== "before") {
+      throw new Error("여행 시작 전 방장만 일괄 설정할 수 있습니다.");
+    }
+
+    const response = await apiFetch(
+      `${API_BASE}/api/v1/trips/${id}/settings/free-time`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ freeTimeMinutes }),
+      },
+    );
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(body?.message ?? "자유시간 범위를 일괄 적용하지 못했습니다.");
+    }
+
+    const settings = body.data as TripGroupSettingsPayload;
+    setFreeTimeMinutesByDay(
+      Object.fromEntries(
+        settings.days.map(day => [day.dayNumber, day.freeTimeMinutes]),
+      ),
+    );
+    setFreeTimeErrorByDay({});
+  };
 
   const fetchAllDayTimelineData = useCallback(async () => {
     if (!trip || tripStatus === "before" || trip.days.length === 0) return;
@@ -740,7 +1069,21 @@ export default function TripDetailPage() {
 
             {/* Day list */}
             <div className="flex min-h-0 flex-1 flex-col gap-3">
-              <p className="font-semibold">일차별 계획</p>
+              <div className="flex items-center justify-between">
+                <p className="font-semibold">일차별 계획</p>
+                {freeTimeSettingsEditable && tripStatus === "before" && (
+                  <button
+                    type="button"
+                    onClick={openBulkFreeTimeSheet}
+                    disabled={savingFreeTimeDay != null}
+                    aria-label="자유시간 범위 일괄 설정"
+                    title="자유시간 범위 일괄 설정"
+                    className="trip-header-icon-button flex h-9 w-9 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                  <Clock size={19} weight="bold" />
+                  </button>
+                )}
+              </div>
               <div className="trip-day-list-scroll flex flex-col gap-3">
                 {trip.days.map(day => {
                   if (tripStatus !== "before") {
@@ -774,12 +1117,12 @@ export default function TripDetailPage() {
                     );
                   }
                   return (
-                    <Link
-                      key={day.id}
-                      href={`/trip/${trip.id}/day/${day.dayNumber}`}
-                      onClick={navigateWithPageExit(`/trip/${trip.id}/day/${day.dayNumber}`)}
-                    >
-                      <div className="p-4 bg-gray-50 rounded-2xl">
+                    <div key={day.id} className="overflow-hidden rounded-2xl bg-gray-50">
+                      <Link
+                        href={`/trip/${trip.id}/day/${day.dayNumber}`}
+                        onClick={navigateWithPageExit(`/trip/${trip.id}/day/${day.dayNumber}`)}
+                        className="block p-4"
+                      >
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <p className="font-semibold">{day.dayNumber}일차</p>
@@ -792,8 +1135,19 @@ export default function TripDetailPage() {
                             <span className="text-blue-500">{day.blocks.length}개 시간 구간</span>
                           </div>
                         )}
-                      </div>
-                    </Link>
+                      </Link>
+                      {freeTimeSettingsEditable && freeTimeMinutesByDay[day.dayNumber] != null && (
+                        <div className="px-4 pb-4">
+                          <DayFreeTimeRangeControl
+                            dayNumber={day.dayNumber}
+                            minutes={freeTimeMinutesByDay[day.dayNumber]}
+                            saving={savingFreeTimeDay === day.dayNumber}
+                            error={freeTimeErrorByDay[day.dayNumber]}
+                            onChange={change => changeDayFreeTimeMinutes(day.dayNumber, change)}
+                          />
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -824,9 +1178,69 @@ export default function TripDetailPage() {
             setVoteData(body.data ?? []);
           };
 
+          const isHost = trip.members.some(
+            member => Number(member.id) === Number(currentUser.id) && member.isAdmin,
+          );
+
           return (
             <div className="vote-section-panel flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-              <p className="font-semibold">일차별 투표</p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-semibold">일차별 투표</p>
+                {isHost && (
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={toggleVoteDefaultMenu}
+                      aria-expanded={showVoteDefaultMenu && !voteDefaultMenuClosing}
+                      aria-haspopup="true"
+                      aria-label="방장 투표 설정 열기"
+                      title="방장 투표 설정"
+                      className={`host-badge ${showVoteDefaultMenu ? "is-open" : ""} flex h-10 w-10 items-center justify-center rounded-full border`}
+                    >
+                      <CrownSimple size={19} weight="bold" />
+                    </button>
+                    {showVoteDefaultMenu && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={closeVoteDefaultMenu} />
+                        <div className={`host-menu ${voteDefaultMenuClosing ? "is-closing" : ""} absolute right-0 top-12 z-50 w-52 rounded-2xl border p-2 shadow-xl`}>
+                          <div
+                            className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5"
+                            style={{
+                              backgroundColor: "var(--surface-muted)",
+                              borderColor: "var(--border)",
+                            }}
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">익명 투표</p>
+                              <p className="mt-0.5 text-[11px] text-gray-400">투표 기본값</p>
+                            </div>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={isAnonymousVoteDefault}
+                              aria-label="익명 투표 기본값 사용"
+                              onClick={toggleAnonymousVoteDefault}
+                              className="relative h-6 w-10 shrink-0 rounded-full transition-colors"
+                              style={{
+                                backgroundColor: isAnonymousVoteDefault ? "#3b82f6" : "#64748b",
+                              }}
+                            >
+                              <span
+                                className="absolute left-0 top-[3px] h-[18px] w-[18px] rounded-full transition-transform"
+                                style={{
+                                  backgroundColor: "#ffffff",
+                                  transform: `translateX(${isAnonymousVoteDefault ? 19 : 3}px)`,
+                                  boxShadow: "0 1px 3px rgba(15, 23, 42, 0.25)",
+                                }}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
               {voteData === null ? (
                 <div className="p-4 bg-gray-50 rounded-2xl">
                   <p className="text-sm text-gray-400">불러오는 중...</p>
@@ -986,6 +1400,13 @@ export default function TripDetailPage() {
 
       {showInvite && (
         <InviteSheet trip={trip} onClose={() => setShowInvite(false)} />
+      )}
+      {showBulkFreeTimeSheet && (
+        <BulkFreeTimeRangeSheet
+          initialMinutes={bulkFreeTimeInitialMinutes}
+          onApply={applyFreeTimeMinutesToAllDays}
+          onClose={() => setShowBulkFreeTimeSheet(false)}
+        />
       )}
     </div>
   );

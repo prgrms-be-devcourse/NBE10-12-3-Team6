@@ -3,11 +3,13 @@ package csh.back.domain.trip.timeline.entity
 import csh.back.domain.trip.group.entity.TripGroup
 import csh.back.domain.trip.place.entity.TripPlace
 import csh.back.global.entity.BaseEntity
+import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import org.hibernate.annotations.ColumnDefault
 import java.time.LocalDateTime
 
 @Entity
@@ -33,11 +35,17 @@ class Timeline protected constructor() : BaseEntity() {
     lateinit var endTime: LocalDateTime
         protected set
 
+    @field:ColumnDefault("false")
+    @field:Column(nullable = false)
+    var isFreeTime: Boolean = false
+        protected set
+
     private constructor(
         tripGroup: TripGroup?,
         dayNumber: Long?,
         startTime: LocalDateTime?,
         endTime: LocalDateTime?,
+        isFreeTime: Boolean,
     ) : this() {
         validateTimeline(tripGroup, dayNumber, startTime, endTime)
 
@@ -45,6 +53,7 @@ class Timeline protected constructor() : BaseEntity() {
         this.dayNumber = requireNotNull(dayNumber)
         this.startTime = requireNotNull(startTime)
         this.endTime = requireNotNull(endTime)
+        this.isFreeTime = isFreeTime
     }
 
     fun updateTimeRange(startTime: LocalDateTime?, endTime: LocalDateTime?) {
@@ -113,6 +122,7 @@ class Timeline protected constructor() : BaseEntity() {
             dayNumber = dayNumber,
             startTime = startTime,
             endTime = endTime,
+            isFreeTime = false,
         )
     }
 
@@ -130,6 +140,21 @@ class Timeline protected constructor() : BaseEntity() {
             dayNumber = dayNumber,
             startTime = startTime,
             endTime = endTime,
+            isFreeTime = false,
+        )
+
+        @JvmStatic
+        fun createFreeTime(
+            tripGroup: TripGroup,
+            dayNumber: Long,
+            startTime: LocalDateTime,
+            endTime: LocalDateTime,
+        ): Timeline = Timeline(
+            tripGroup = tripGroup,
+            dayNumber = dayNumber,
+            startTime = startTime,
+            endTime = endTime,
+            isFreeTime = true,
         )
 
         @JvmStatic

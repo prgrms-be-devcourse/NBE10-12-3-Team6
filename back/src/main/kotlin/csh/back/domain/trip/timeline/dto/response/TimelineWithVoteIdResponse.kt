@@ -11,6 +11,7 @@ data class TimelineWithVoteIdResponse(
     val confirmedPlaceName: String?,
     val category: String?,
     val voteId: Long?,
+    val isFreeTime: Boolean,
 ) {
     companion object {
         @JvmStatic
@@ -22,10 +23,13 @@ data class TimelineWithVoteIdResponse(
                 dayNumber = timeline.dayNumber,
                 startTime = timeline.startTime,
                 endTime = timeline.endTime,
-                confirmedPlaceName = tripWishPlace?.name,
+                confirmedPlaceName = if (timeline.isFreeTime) FREE_TIME_NAME else tripWishPlace?.name,
                 category = tripWishPlace?.category,
-                voteId = voteId,
+                voteId = if (timeline.isFreeTime) null else voteId,
+                isFreeTime = timeline.isFreeTime,
             )
         }
+
+        private const val FREE_TIME_NAME = "자유시간"
     }
 }

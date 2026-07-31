@@ -34,12 +34,32 @@ export default function RootLayout({
 
   const themeScript = `
     (() => {
-      const applyTheme = () => {
-        const theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-        document.documentElement.dataset.theme = theme;
+      const themeStorageKey = "triplog-theme-preference";
+      const colorSchemeMedia = window.matchMedia("(prefers-color-scheme: dark)");
+
+      const getThemePreference = () => {
+        try {
+          const savedPreference = localStorage.getItem(themeStorageKey);
+          return savedPreference === "light" || savedPreference === "dark"
+            ? savedPreference
+            : "system";
+        } catch {
+          return "system";
+        }
       };
+
+      const applyTheme = () => {
+        const preference = getThemePreference();
+        const theme = preference === "system"
+          ? colorSchemeMedia.matches ? "dark" : "light"
+          : preference;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.themePreference = preference;
+      };
+
       applyTheme();
-      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+      colorSchemeMedia.addEventListener("change", applyTheme);
+      window.addEventListener("triplog-theme-change", applyTheme);
     })();
   `;
 

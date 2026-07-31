@@ -39,6 +39,7 @@ class TimelineService(
     private val tripMemberValidator: TripMemberValidator,
     private val entityManager: EntityManager,
     private val voteRepository: VoteRepository,
+    private val timelineFreeTimeService: TimelineFreeTimeService,
 ) {
 
     fun createTimeline(
@@ -126,7 +127,6 @@ class TimelineService(
         return savedTimelines.map(TimelineResponse::from)
     }
 
-    @Transactional(readOnly = true)
     fun getTimelines(
         tripGroupId: Long,
         memberId: Long,
@@ -137,6 +137,7 @@ class TimelineService(
             "일차는 $MINIMUM_DAY 이상이어야 합니다."
         }
 
+        timelineFreeTimeService.createForToday(tripGroupId)
         val timelines = timelineRepository
             .findByTripGroupIdAndDayNumberOrderByStartTimeAsc(tripGroupId, dayNumber)
         val timelineIds = timelines.map { timeline ->
@@ -152,12 +153,12 @@ class TimelineService(
         }
     }
 
-    @Transactional(readOnly = true)
     fun getTimelineCounts(
         tripGroupId: Long,
         memberId: Long,
     ): List<TimelineCountResponse> {
         validateTripMember(tripGroupId, memberId)
+        timelineFreeTimeService.createForToday(tripGroupId)
 
         return timelineRepository.countGroupByDayNumberId(tripGroupId)
             .map { row ->

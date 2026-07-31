@@ -3,6 +3,7 @@ package csh.back.domain.trip.event.enums
 enum class TripEventType {
     TRIP_GROUP_UPDATED,
     TRIP_MEMBER_JOINED,
+    FREE_TIME_RANGE_UPDATED,
     WISH_PLACE_ADDED,
     TIMELINE_CREATED,
     TIMELINE_BATCH_CREATED,

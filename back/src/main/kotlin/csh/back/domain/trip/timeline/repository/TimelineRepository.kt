@@ -4,6 +4,7 @@ import csh.back.domain.trip.timeline.entity.Timeline
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.Optional
 
@@ -27,6 +28,28 @@ interface TimelineRepository : JpaRepository<Timeline, Long> {
     ): List<Timeline>
 
     fun findByIdAndTripGroupId(timelineId: Long, tripGroupId: Long): Optional<Timeline>
+
+    fun existsByTripGroupIdAndDayNumberAndIsFreeTimeTrue(
+        tripGroupId: Long,
+        dayNumber: Long,
+    ): Boolean
+
+    fun findAllByTripGroupIdAndDayNumberAndIsFreeTimeFalseOrderByStartTimeAsc(
+        tripGroupId: Long,
+        dayNumber: Long,
+    ): List<Timeline>
+
+    @Query(
+        """
+        select tg.id
+        from TripGroup tg
+        where tg.startDate <= :travelDate
+          and tg.endDate >= :travelDate
+        """,
+    )
+    fun findActiveTripGroupIds(
+        @Param("travelDate") travelDate: LocalDate,
+    ): List<Long>
 
     @Query(
         """
