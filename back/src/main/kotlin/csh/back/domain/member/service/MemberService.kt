@@ -12,6 +12,7 @@ import csh.back.global.jwt.JwtUtil
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @Service
 @Transactional(readOnly = true)
@@ -53,6 +54,24 @@ class MemberService(
         val accessToken = jwtUtil.generateAccessToken(member.id!!, member.email)
         val refreshToken = refreshTokenRepository.save(RefreshToken(member = member, userAgent = userAgent))
         return LoginResult(LoginResponseDto.from(member), accessToken, refreshToken.token)
+    }
+
+    @Transactional
+    fun findOrCreateKakaoMember(kakaoId: String, nickname: String): Member {
+        return memberRepository.findByProviderAndProviderId("KAKAO", kakaoId)
+            .orElseGet {
+                memberRepository.save(
+                    Member(
+                        // 카카오는 비즈 앱 심사 없이 이메일 제공 불가 → unique 제약 충족용 placeholder
+                        email = "kakao_${kakaoId}@triplog.local",
+                        // 카카오 사용자는 비밀번호 인증을 사용하지 않음 → 랜덤 UUID로 채움
+                        password = passwordEncoder.encode(UUID.randomUUID().toString())!!,
+                        name = nickname,
+                        provider = "KAKAO",
+                        providerId = kakaoId,
+                    )
+                )
+            }
     }
 
     @Transactional

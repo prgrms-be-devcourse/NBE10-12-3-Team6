@@ -51,3 +51,6 @@ db_dev.lock.db
 /minio-data
 ### doc ###
 doc/
+
+### local secret ###
+src/main/resources/application-local.yml

@@ -1,4 +1,15 @@
 spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID:dummy-not-configured}
+            client-authentication-method: none
+            authorization-grant-type: authorization_code
+            redirect-uri: "http://localhost:8080/login/oauth2/code/kakao"
+            scope:
+              - profile_nickname
   datasource:
     url: jdbc:h2:./db_dev;MODE=MySQL;AUTO_SERVER=TRUE
     username: sa

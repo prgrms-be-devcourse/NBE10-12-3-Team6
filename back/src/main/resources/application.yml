@@ -2,7 +2,16 @@ spring:
   application:
     name: back
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
+    active: ${SPRING_PROFILES_ACTIVE:dev,local}
+  security:
+    oauth2:
+      client:
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
   datasource:
     hikari:
       auto-commit: false
@@ -18,8 +27,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: ${MAIL_USERNAME:test@example.com}
+    password: ${MAIL_PASSWORD:test}
     properties:
       mail:
         smtp:
