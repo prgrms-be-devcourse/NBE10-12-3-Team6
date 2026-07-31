@@ -7,6 +7,7 @@ import { useStore } from "../store";
 import { Avatar, formatDate, apiFetch, useAuthGuard, API_BASE } from "../lib";
 import { useTripOwnerStore } from "../stores/tripOwnerStore";
 import AnimatedBottomSheet from "../components/AnimatedBottomSheet";
+import HomeBottomNavigation from "../components/HomeBottomNavigation";
 
 type ApiTrip = {
   id: number;
@@ -550,7 +551,16 @@ export default function HomePage() {
   useEffect(() => {
     localStorage.removeItem("pendingInviteCode");
     clearOwnerId();
-    getInit()
+    const initialLoadFrame = requestAnimationFrame(() => {
+      if (new URLSearchParams(window.location.search).get("panel") === "profile") {
+        setShowLogout(true);
+      }
+      void getInit();
+    });
+
+    return () => {
+      cancelAnimationFrame(initialLoadFrame);
+    };
   }, []);
 
   const handleCreateTrip = async () => {
@@ -731,48 +741,17 @@ export default function HomePage() {
         </AnimatedBottomSheet>
       )}
 
-      <div
-        className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-      >
-        <div className={`trip-floating-tab-bar home-floating-tab-bar pointer-events-auto ${showLogout ? "is-profile" : "is-home"}`}>
-          <span className="trip-floating-tab-indicator" aria-hidden="true" />
-          <button
-            type="button"
-            onClick={() => {
-              setShowLogout(false);
-              setConfirmLogout(false);
-            }}
-            className="trip-floating-tab-button"
-            aria-label="여행 모임 목록"
-            aria-current={!showLogout ? "page" : undefined}
-          >
-            <span className={`trip-floating-tab-icon ${!showLogout ? "is-active" : ""}`}>
-              <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 11.25 12 4.5l8.25 6.75M5.75 10.75V20h4.5v-5.25h3.5V20h4.5v-9.25" />
-              </svg>
-            </span>
-            <span className="sr-only">여행 모임 목록</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowLogout(true);
-              setConfirmLogout(false);
-            }}
-            className="trip-floating-tab-button"
-            aria-label="내 정보"
-            aria-current={showLogout ? "page" : undefined}
-          >
-            <span className={`trip-floating-tab-icon ${showLogout ? "is-active" : ""}`}>
-              <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.75 7.75a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.75 19.25a7.25 7.25 0 0 1 14.5 0" />
-              </svg>
-            </span>
-            <span className="sr-only">내 정보</span>
-          </button>
-        </div>
-      </div>
+      <HomeBottomNavigation
+        activeTab={showLogout ? "profile" : "home"}
+        onHome={() => {
+          setShowLogout(false);
+          setConfirmLogout(false);
+        }}
+        onProfile={() => {
+          setShowLogout(true);
+          setConfirmLogout(false);
+        }}
+      />
 
       {showLogout && (
         <AnimatedBottomSheet

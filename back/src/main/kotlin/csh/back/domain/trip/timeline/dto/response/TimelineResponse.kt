@@ -8,6 +8,7 @@ data class TimelineResponse(
     val dayNumber: Long,
     val startTime: LocalDateTime,
     val endTime: LocalDateTime,
+    val isFreeTime: Boolean,
 ) {
     companion object {
         @JvmStatic
@@ -16,6 +17,7 @@ data class TimelineResponse(
             dayNumber = timeline.dayNumber,
             startTime = timeline.startTime,
             endTime = timeline.endTime,
+            isFreeTime = timeline.isFreeTime,
         )
     }
 }
