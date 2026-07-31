@@ -11,8 +11,6 @@ import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
-import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.web.cors.CorsConfiguration
@@ -35,7 +33,6 @@ class SecurityConfig(
         http
             .cors { cors -> cors.configurationSource(corsConfigurationSource()) }
             .csrf { csrf -> csrf.disable() }
-            // JWT를 사용하므로 서버에 세션을 생성하지 않음
             // OAuth2 인가 요청 중 state 파라미터를 세션에 저장해야 하므로 IF_REQUIRED 사용
             // JWT 필터는 매 요청마다 쿠키에서 토큰을 읽으므로 세션 생성 여부와 무관하게 동작
             .sessionManagement { session ->
@@ -88,8 +85,4 @@ class SecurityConfig(
         return source
     }
 
-    @Bean
-    fun passwordEncoder(): PasswordEncoder {
-        return BCryptPasswordEncoder()
-    }
 }

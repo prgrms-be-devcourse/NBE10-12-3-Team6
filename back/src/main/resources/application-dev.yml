@@ -4,7 +4,7 @@ spring:
       client:
         registration:
           kakao:
-            client-id: ${KAKAO_CLIENT_ID}
+            client-id: ${KAKAO_CLIENT_ID:dummy-not-configured}
             client-authentication-method: none
             authorization-grant-type: authorization_code
             redirect-uri: "http://localhost:8080/login/oauth2/code/kakao"

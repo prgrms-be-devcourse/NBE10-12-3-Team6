@@ -40,6 +40,7 @@ class KakaoOAuth2SuccessHandler(
         val member = memberService.findOrCreateKakaoMember(kakaoId, nickname)
 
         val accessToken = jwtUtil.generateAccessToken(member.id!!, member.email)
+        // 이 request는 카카오 → 브라우저 → 백엔드 리다이렉트이므로 실제 브라우저 User-Agent가 담겨 있음
         val userAgent = request.getHeader(HttpHeaders.USER_AGENT)
         val refreshToken = refreshTokenRepository.save(RefreshToken(member = member, userAgent = userAgent))
 
@@ -50,6 +51,7 @@ class KakaoOAuth2SuccessHandler(
             ResponseCookie.from(CookieNames.REFRESH_TOKEN, refreshToken.token)
                 .httpOnly(true).path("/").maxAge(Duration.ofDays(7)).sameSite("Lax").build().toString())
 
+        // TODO: 하드코딩 제거 — 프론트 배포 URL 확정 후 설정값으로 분리
         response.sendRedirect("http://localhost:3000/")
     }
 }
