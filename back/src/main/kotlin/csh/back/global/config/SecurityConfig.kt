@@ -1,6 +1,6 @@
 package csh.back.global.config
 
-import csh.back.domain.member.repository.MemberRepository
+import csh.back.domain.member.repository.RefreshTokenRepository
 import csh.back.global.jwt.JwtAuthenticationFilter
 import csh.back.global.jwt.JwtUtil
 import org.springframework.beans.factory.annotation.Value
@@ -22,7 +22,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableWebSecurity
 class SecurityConfig(
     private val jwtUtil: JwtUtil,
-    private val memberRepository: MemberRepository
+    private val refreshTokenRepository: RefreshTokenRepository
 ) {
 
     @Value("\${cors.allowed-origins}")
@@ -60,7 +60,7 @@ class SecurityConfig(
                     .anyRequest().authenticated()
             }
             // Spring의 기본 로그인 필터 앞에 JWT 필터를 끼워 넣음
-            .addFilterBefore(JwtAuthenticationFilter(jwtUtil, memberRepository), UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterBefore(JwtAuthenticationFilter(jwtUtil, refreshTokenRepository), UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
     }

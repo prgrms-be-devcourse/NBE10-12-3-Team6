@@ -4,8 +4,10 @@ import csh.back.domain.member.dto.response.LoginResponseDto
 import csh.back.domain.member.dto.response.MemberResponseDto
 import csh.back.domain.member.dto.web.LoginResult
 import csh.back.domain.member.entity.Member
+import csh.back.domain.member.entity.RefreshToken
 import csh.back.domain.member.exception.ExistingMemberException
 import csh.back.domain.member.repository.MemberRepository
+import csh.back.domain.member.repository.RefreshTokenRepository
 import csh.back.global.jwt.JwtUtil
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(readOnly = true)
 class MemberService(
     private val memberRepository: MemberRepository,
+    private val refreshTokenRepository: RefreshTokenRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtUtil: JwtUtil,
 ) {
@@ -36,7 +39,9 @@ class MemberService(
         return MemberResponseDto.from(member)
     }
 
-    fun login(email: String, password: String): LoginResult {
+    // RefreshToken row를 INSERT하므로 쓰기 트랜잭션 필요 (클래스 레벨 readOnly 오버라이드)
+    @Transactional
+    fun login(email: String, password: String, userAgent: String?): LoginResult {
         val member: Member = memberRepository.findByEmail(email)
             .orElseThrow { RuntimeException("존재하지 않는 이메일입니다.") }
 
@@ -46,14 +51,12 @@ class MemberService(
 
         // id!!: JPA save 후 항상 id가 할당되므로 non-null 보장
         val accessToken = jwtUtil.generateAccessToken(member.id!!, member.email)
-        return LoginResult(LoginResponseDto.from(member), accessToken, member.refreshToken)
+        val refreshToken = refreshTokenRepository.save(RefreshToken(member = member, userAgent = userAgent))
+        return LoginResult(LoginResponseDto.from(member), accessToken, refreshToken.token)
     }
 
     @Transactional
-    fun logout(memberId: Long) {
-        val member: Member = memberRepository.findById(memberId)
-            .orElseThrow { RuntimeException("존재하지 않는 회원입니다.") }
-
-        member.invalidateRefreshToken()
+    fun logout(refreshToken: String) {
+        refreshTokenRepository.deleteByToken(refreshToken)
     }
 }
