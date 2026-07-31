@@ -1,6 +1,7 @@
 package csh.back.domain.trip.group.settings.controller
 
 import csh.back.domain.member.dto.response.AuthFilterDto
+import csh.back.domain.trip.group.settings.dto.request.TripGroupSettingsModifyRequest
 import csh.back.domain.trip.group.settings.dto.request.TripGroupSettingsUpdateRequest
 import csh.back.domain.trip.group.settings.dto.response.TripGroupSettingsResponse
 import csh.back.domain.trip.group.settings.service.TripGroupSettingsService
@@ -69,4 +70,13 @@ class TripGroupSettingsV1Controller(
                 request = request,
             ),
         )
+
+    @Operation(summary = "익명/실명 투표 설정 변경", description = "방장이 변경 시 진행중인(PENDING) 투표 전체에 일괄 반영")
+    @PatchMapping
+    fun updateAnonymousVote(
+        @PathVariable tripGroupId: Long,
+        @AuthenticationPrincipal member: AuthFilterDto,
+        @RequestBody request: TripGroupSettingsModifyRequest,
+    ): ResponseData<TripGroupSettingsResponse> =
+        ResponseData(200, tripGroupSettingsService.updateAnonymousVote(tripGroupId, member.id, request.isAnonymousVote))
 }
