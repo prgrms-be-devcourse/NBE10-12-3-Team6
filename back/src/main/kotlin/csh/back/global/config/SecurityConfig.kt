@@ -65,6 +65,14 @@ class SecurityConfig(
             .oauth2Login { oauth2 ->
                 oauth2.successHandler(kakaoOAuth2SuccessHandler)
             }
+            .exceptionHandling { ex ->
+                // oauth2Login() 기본 EntryPoint는 미인증 요청에 302(로그인 리다이렉트)를 반환
+                // API 요청에는 부적절하므로 403으로 직접 응답
+                // (GET /oauth2/authorization/kakao는 permitAll이라 이 EntryPoint를 거치지 않음)
+                ex.authenticationEntryPoint { _, response, _ ->
+                    response.sendError(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN)
+                }
+            }
             // JwtAuthenticationFilter: Spring 기본 로그인 필터 앞에 위치
             // DeviceIdFilter: JwtAuthenticationFilter보다 먼저 실행되어 device_id를 request attribute에 주입
             .addFilterBefore(JwtAuthenticationFilter(jwtUtil, refreshTokenRepository), UsernamePasswordAuthenticationFilter::class.java)
