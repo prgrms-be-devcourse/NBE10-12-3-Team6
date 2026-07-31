@@ -3,6 +3,7 @@ package csh.back.domain.trip.group.settings.service
 import csh.back.domain.member.entity.Member
 import csh.back.domain.member.repository.MemberRepository
 import csh.back.domain.trip.group.entity.TripGroup
+import csh.back.domain.trip.group.exception.NonMemberException
 import csh.back.domain.trip.group.repository.TripGroupRepository
 import csh.back.domain.trip.group.settings.entity.TripGroupSettings
 import csh.back.domain.trip.group.settings.repository.TripGroupSettingsRepository
@@ -122,5 +123,36 @@ class TripGroupSettingsServiceTest {
         assertThatThrownBy { tripGroupSettingsService.updateAnonymousVote(tripGroup.id!!, other.id!!, false) }
             .isInstanceOf(IllegalArgumentException::class.java)
             .hasMessage("여행 모임 방장만 접근할 수 있습니다.")
+    }
+
+    @Test
+    @DisplayName("getSettings - 설정이 있으면 저장된 값 반환")
+    fun getSettingsWithExistingSettings() {
+        tripGroupSettingsRepository.save(TripGroupSettings(tripGroup = tripGroup, isAnonymousVote = false))
+
+        val response = tripGroupSettingsService.getSettings(tripGroup.id!!, owner.id!!)
+
+        assertThat(response.isAnonymousVote).isFalse()
+        assertThat(response.days).allMatch { it.freeTimeMinutes == 60 }
+    }
+
+    @Test
+    @DisplayName("getSettings - 설정이 없으면 기본값을 생성해서 반환")
+    fun getSettingsWithoutSettings() {
+        val response = tripGroupSettingsService.getSettings(tripGroup.id!!, owner.id!!)
+
+        assertThat(response.isAnonymousVote).isTrue()
+        assertThat(response.days).allMatch { it.freeTimeMinutes == 60 }
+        assertThat(tripGroupSettingsRepository.findByTripGroupId(tripGroup.id!!).isPresent).isTrue()
+    }
+
+    @Test
+    @DisplayName("getSettings - 그룹 멤버가 아니면 예외 발생")
+    fun getSettingsNonMember() {
+        val other = memberRepository.save(Member("settings-nonmember-${System.nanoTime()}@test.com", "pw", "비멤버"))
+
+        assertThatThrownBy { tripGroupSettingsService.getSettings(tripGroup.id!!, other.id!!) }
+            .isInstanceOf(NonMemberException::class.java)
+            .hasMessage("해당 모임의 멤버가 아닙니다.")
     }
 }
