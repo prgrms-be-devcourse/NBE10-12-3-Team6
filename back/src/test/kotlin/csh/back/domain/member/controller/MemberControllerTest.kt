@@ -189,13 +189,16 @@ class MemberControllerTest {
     }
 
     @Test
-    @DisplayName("로그인 - 같은 계정 2번 로그인 시 row 2개 생성 (멀티 디바이스)")
+    @DisplayName("로그인 - 다른 기기(다른 device_id)로 2번 로그인 시 row 2개 생성 (멀티 디바이스)")
     fun t9() {
-        repeat(2) {
+        // device_id를 명시해 "다른 기기" 시나리오를 의도적으로 구성
+        // (device_id 미설정 시 DeviceIdFilter가 매번 새 UUID를 생성해 우연히 통과하는 상황을 방지)
+        listOf("device-A", "device-B").forEach { deviceId ->
             mvc.perform(
                 post("$BASE_URL/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"email": "admin@admin.com", "password": "1234"}""")
+                    .cookie(Cookie(CookieNames.DEVICE_ID, deviceId))
             ).andExpect(status().isOk())
         }
 

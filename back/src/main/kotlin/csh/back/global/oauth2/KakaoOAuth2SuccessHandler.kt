@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
 
 @Component
@@ -22,6 +23,7 @@ class KakaoOAuth2SuccessHandler(
     private val jwtUtil: JwtUtil,
 ) : AuthenticationSuccessHandler {
 
+    @Transactional
     override fun onAuthenticationSuccess(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -42,7 +44,11 @@ class KakaoOAuth2SuccessHandler(
         val accessToken = jwtUtil.generateAccessToken(member.id!!, member.email)
         // 이 request는 카카오 → 브라우저 → 백엔드 리다이렉트이므로 실제 브라우저 User-Agent가 담겨 있음
         val userAgent = request.getHeader(HttpHeaders.USER_AGENT)
-        val refreshToken = refreshTokenRepository.save(RefreshToken(member = member, userAgent = userAgent))
+        // DeviceIdFilter가 이 요청에서 이미 device_id를 attribute에 주입했으므로 항상 존재
+        val deviceId = request.getAttribute(CookieNames.DEVICE_ID) as String
+        // 같은 기기에서 재로그인 시 기존 토큰 교체 — (member_id, device_id) unique 제약 충족
+        refreshTokenRepository.deleteByMemberIdAndDeviceId(member.id!!, deviceId)
+        val refreshToken = refreshTokenRepository.save(RefreshToken(member = member, userAgent = userAgent, deviceId = deviceId))
 
         response.addHeader(HttpHeaders.SET_COOKIE,
             ResponseCookie.from(CookieNames.ACCESS_TOKEN, accessToken)

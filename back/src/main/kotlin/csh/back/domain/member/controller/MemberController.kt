@@ -48,7 +48,9 @@ class MemberController(
         response: HttpServletResponse,
     ): ResponseData<LoginResponseDto> {
         val userAgent = httpRequest.getHeader(HttpHeaders.USER_AGENT)
-        val result = memberService.login(request.email, request.password, userAgent)
+        // DeviceIdFilter가 Security 체인 앞에서 실행되므로 attribute는 항상 존재
+        val deviceId = httpRequest.getAttribute(CookieNames.DEVICE_ID) as String
+        val result = memberService.login(request.email, request.password, userAgent, deviceId)
 
         // 초대 코드가 있으면 해당 여행에 멤버로 등록
         request.joinCode?.let { tripMemberService.createJoinMember(it, result.userInfo.id) }

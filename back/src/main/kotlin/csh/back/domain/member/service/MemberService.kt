@@ -42,7 +42,7 @@ class MemberService(
 
     // RefreshToken row를 INSERT하므로 쓰기 트랜잭션 필요 (클래스 레벨 readOnly 오버라이드)
     @Transactional
-    fun login(email: String, password: String, userAgent: String?): LoginResult {
+    fun login(email: String, password: String, userAgent: String?, deviceId: String): LoginResult {
         val member: Member = memberRepository.findByEmail(email)
             .orElseThrow { RuntimeException("존재하지 않는 이메일입니다.") }
 
@@ -52,7 +52,9 @@ class MemberService(
 
         // id!!: JPA save 후 항상 id가 할당되므로 non-null 보장
         val accessToken = jwtUtil.generateAccessToken(member.id!!, member.email)
-        val refreshToken = refreshTokenRepository.save(RefreshToken(member = member, userAgent = userAgent))
+        // 같은 기기에서 재로그인 시 기존 토큰 교체 — (member_id, device_id) unique 제약 충족
+        refreshTokenRepository.deleteByMemberIdAndDeviceId(member.id!!, deviceId)
+        val refreshToken = refreshTokenRepository.save(RefreshToken(member = member, userAgent = userAgent, deviceId = deviceId))
         return LoginResult(LoginResponseDto.from(member), accessToken, refreshToken.token)
     }
 

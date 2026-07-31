@@ -3,6 +3,7 @@ package csh.back.domain.member.repository
 import csh.back.domain.member.entity.Member
 import csh.back.domain.member.entity.RefreshToken
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.transaction.annotation.Transactional
 import java.util.Optional
@@ -16,6 +17,12 @@ interface RefreshTokenRepository : JpaRepository<RefreshToken, Long> {
     // derived delete는 SimpleJpaRepository의 @Transactional을 상속받지 않아 명시 필요
     @Transactional
     fun deleteByToken(token: String)
+
+    // 같은 기기에서 재로그인 시 기존 토큰 교체 — bulk DELETE로 처리해 SELECT+DELETE 루프 방지
+    @Modifying
+    @Query("DELETE FROM RefreshToken rt WHERE rt.member.id = :memberId AND rt.deviceId = :deviceId")
+    @Transactional
+    fun deleteByMemberIdAndDeviceId(memberId: Long, deviceId: String)
 
     // 전체 기기 로그아웃용 — 현재 미사용, 향후 "모든 기기 로그아웃" API에서 호출
     @Transactional

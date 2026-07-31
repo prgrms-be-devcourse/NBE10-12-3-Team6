@@ -4,4 +4,6 @@ package csh.back.global.jwt
 object CookieNames {
     const val ACCESS_TOKEN = "accessToken"
     const val REFRESH_TOKEN = "refreshToken"
+    // 로그아웃해도 유지되는 기기 식별자 — 재로그인 시 "알던 기기인지" 판단에 사용
+    const val DEVICE_ID = "device_id"
 }
