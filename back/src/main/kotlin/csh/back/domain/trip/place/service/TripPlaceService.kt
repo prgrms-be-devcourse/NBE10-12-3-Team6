@@ -1,5 +1,7 @@
 package csh.back.domain.trip.place.service
 
+import csh.back.domain.trip.group.exception.NonMemberException
+import csh.back.domain.trip.group.exception.NotFoundException
 import csh.back.domain.trip.group.repository.TripGroupRepository
 import csh.back.domain.trip.event.dto.TripEvent
 import csh.back.domain.trip.event.enums.TripEventType
@@ -10,10 +12,14 @@ import csh.back.domain.trip.place.dto.response.TripPlaceFindResponse
 import csh.back.domain.trip.place.dto.response.TripPlaceSaveResponse
 import csh.back.domain.trip.place.entity.TripPlace
 import csh.back.domain.trip.place.exception.DuplicateTripPlaceException
+import csh.back.domain.trip.place.exception.TripAlreadyStartedException
+import csh.back.domain.trip.place.exception.WishPlaceInUseException
 import csh.back.domain.trip.place.repository.TripPlaceRepository
+import csh.back.domain.vote.item.repository.VoteItemRepository
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
 
 @Service
 @Transactional(readOnly = true)
@@ -23,6 +29,7 @@ class TripPlaceService(
     private val tripMemberRepository: TripMemberRepository,
     private val tripMemberValidator: TripMemberValidator,
     private val tripEventService: TripEventService,
+    private val voteItemRepository: VoteItemRepository,
 ) {
 
     fun findWishPlaces(tripGroupId: Long, memberId: Long): List<TripPlaceFindResponse> {
@@ -78,5 +85,41 @@ class TripPlaceService(
             ),
         )
         return TripPlaceSaveResponse.from(savedPlace)
+    }
+
+    @Transactional
+    fun deletePlace(
+        tripGroupId: Long,
+        tripPlaceId: Long,
+        memberId: Long,
+    ) {
+        tripMemberValidator.validMember(tripGroupId, memberId)
+
+        val tripPlace = tripPlaceRepository.findByIdAndTripGroupId(tripPlaceId, tripGroupId)
+            .orElseThrow { NotFoundException("후보 장소를 찾을 수 없습니다.") }
+
+        if (tripPlace.createdBy.member.id != memberId) {
+            throw NonMemberException("작성자만 삭제할 수 있습니다.")
+        }
+
+        if (!tripPlace.tripGroup.startDate.isAfter(LocalDate.now())) {
+            throw TripAlreadyStartedException("여행 시작 전에만 후보 장소를 삭제할 수 있습니다.")
+        }
+
+        if (voteItemRepository.existsByTripPlaceId(tripPlaceId)) {
+            throw WishPlaceInUseException("이미 투표에 사용된 장소는 삭제할 수 없습니다.")
+        }
+
+        tripPlaceRepository.delete(tripPlace)
+
+        tripEventService.publishAfterCommit(
+            TripEvent(
+                eventType = TripEventType.WISH_PLACE_DELETED,
+                message = "${tripPlace.name}이(가) 후보 장소에서 삭제되었습니다.",
+                tripGroupId = tripGroupId,
+                actorMemberId = memberId,
+                tripPlaceId = tripPlaceId,
+            ),
+        )
     }
 }
