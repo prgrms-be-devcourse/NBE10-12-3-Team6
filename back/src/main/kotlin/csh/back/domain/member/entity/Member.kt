@@ -6,7 +6,9 @@ import jakarta.persistence.Table
 
 @Entity
 @Table(name = "members")
-class Member(
+// @JvmOverloads: provider/providerId에 기본값이 있어 Kotlin끼리는 생략 가능하지만,
+// Java는 기본값을 인식 못해 3인자 생성자가 없어 컴파일 에러 발생 → Java 테스트 코드 호환용
+class Member @JvmOverloads constructor(
     val email: String,
     val password: String,
     val name: String,
