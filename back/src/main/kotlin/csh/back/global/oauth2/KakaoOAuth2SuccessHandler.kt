@@ -1,5 +1,7 @@
 package csh.back.global.oauth2
 
+import csh.back.domain.member.entity.RefreshToken
+import csh.back.domain.member.repository.RefreshTokenRepository
 import csh.back.domain.member.service.MemberService
 import csh.back.global.jwt.CookieNames
 import csh.back.global.jwt.JwtUtil
@@ -16,6 +18,7 @@ import java.time.Duration
 @Component
 class KakaoOAuth2SuccessHandler(
     private val memberService: MemberService,
+    private val refreshTokenRepository: RefreshTokenRepository,
     private val jwtUtil: JwtUtil,
 ) : AuthenticationSuccessHandler {
 
@@ -37,13 +40,14 @@ class KakaoOAuth2SuccessHandler(
         val member = memberService.findOrCreateKakaoMember(kakaoId, nickname)
 
         val accessToken = jwtUtil.generateAccessToken(member.id!!, member.email)
-        val refreshToken = member.refreshToken
+        val userAgent = request.getHeader(HttpHeaders.USER_AGENT)
+        val refreshToken = refreshTokenRepository.save(RefreshToken(member = member, userAgent = userAgent))
 
         response.addHeader(HttpHeaders.SET_COOKIE,
             ResponseCookie.from(CookieNames.ACCESS_TOKEN, accessToken)
                 .httpOnly(true).path("/").maxAge(Duration.ofMinutes(30)).sameSite("Lax").build().toString())
         response.addHeader(HttpHeaders.SET_COOKIE,
-            ResponseCookie.from(CookieNames.REFRESH_TOKEN, refreshToken)
+            ResponseCookie.from(CookieNames.REFRESH_TOKEN, refreshToken.token)
                 .httpOnly(true).path("/").maxAge(Duration.ofDays(7)).sameSite("Lax").build().toString())
 
         response.sendRedirect("http://localhost:3000/")

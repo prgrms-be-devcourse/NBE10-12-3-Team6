@@ -134,6 +134,13 @@ class VoteService(
         voteRepository.saveAll(votes)
     }
 
+    @Transactional
+    fun lockPendingVote(voteId: Long): Vote {
+        val vote = voteRepository.findByIdWithLock(voteId).orElseThrow(::RuntimeException)
+        check(vote.status == VoteStatus.PENDING) { "이미 확정되었거나 만료된 투표입니다." }
+        return vote
+    }
+
     fun voteConfirm(maxVoteItemId: Long, voteId: Long): VoteTimelineResponse {
         val voteItem = voteItemRepository.findById(maxVoteItemId).orElseThrow(::RuntimeException)
         val confirmPlaceId = voteItem.tripPlace.id!!
