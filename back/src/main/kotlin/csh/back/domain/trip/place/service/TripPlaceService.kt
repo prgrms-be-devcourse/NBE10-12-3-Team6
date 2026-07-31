@@ -110,7 +110,13 @@ class TripPlaceService(
             throw WishPlaceInUseException("이미 투표에 사용된 장소는 삭제할 수 없습니다.")
         }
 
-        tripPlaceRepository.delete(tripPlace)
+        try {
+            tripPlaceRepository.delete(tripPlace)
+            tripPlaceRepository.flush()
+        } catch (e: DataIntegrityViolationException) {
+            // 사전 체크를 뚫고 동시성으로 투표에 사용된 케이스
+            throw WishPlaceInUseException("이미 투표에 사용된 장소는 삭제할 수 없습니다.")
+        }
 
         tripEventService.publishAfterCommit(
             TripEvent(
