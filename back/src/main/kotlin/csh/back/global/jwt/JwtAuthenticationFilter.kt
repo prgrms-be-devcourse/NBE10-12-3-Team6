@@ -2,6 +2,7 @@ package csh.back.global.jwt
 
 import csh.back.domain.member.dto.response.AuthFilterDto
 import csh.back.domain.member.repository.RefreshTokenRepository
+import csh.back.domain.member.service.MemberService
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -17,6 +18,7 @@ import java.time.LocalDateTime
 class JwtAuthenticationFilter(
     private val jwtUtil: JwtUtil,
     private val refreshTokenRepository: RefreshTokenRepository,
+    private val memberService: MemberService,
 ) : OncePerRequestFilter() {
 
     override fun doFilterInternal(
@@ -47,7 +49,17 @@ class JwtAuthenticationFilter(
                 val member = rt.member
                 val newAccessToken = jwtUtil.generateAccessToken(member.id!!, member.email)
                 setAccessTokenCookie(response, newAccessToken)
-                response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer ${rt.token} $newAccessToken")
+
+                // 로그아웃 요청은 rotation 제외: 필터가 구 토큰을 먼저 삭제하면 logout 핸들러가
+                // 삭제할 토큰을 찾지 못해 신규 토큰이 DB에 남는 문제 발생
+                if (!isLogoutRequest(request)) {
+                    val newRt = memberService.rotateRefreshToken(rt)
+                    setRefreshTokenCookie(response, newRt.token)
+                    response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer ${newRt.token} $newAccessToken")
+                } else {
+                    response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer ${rt.token} $newAccessToken")
+                }
+
                 setAuthentication(member.email, member.id!!)
             }
         }
@@ -67,11 +79,24 @@ class JwtAuthenticationFilter(
         return arrayOf(parts.getOrNull(0), parts.getOrNull(1))
     }
 
+    private fun isLogoutRequest(request: HttpServletRequest): Boolean =
+        request.method == "POST" && request.requestURI == "/api/v1/auth/logout"
+
     private fun setAccessTokenCookie(response: HttpServletResponse, accessToken: String) {
         val cookie = ResponseCookie.from(CookieNames.ACCESS_TOKEN, accessToken)
             .httpOnly(true)
             .path("/")
             .maxAge(Duration.ofMinutes(30))
+            .sameSite("Lax")
+            .build()
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString())
+    }
+
+    private fun setRefreshTokenCookie(response: HttpServletResponse, refreshToken: String) {
+        val cookie = ResponseCookie.from(CookieNames.REFRESH_TOKEN, refreshToken)
+            .httpOnly(true)
+            .path("/")
+            .maxAge(Duration.ofDays(7))
             .sameSite("Lax")
             .build()
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString())
