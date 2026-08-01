@@ -2,6 +2,7 @@ package csh.back.domain.vote.vote.controller
 
 import csh.back.domain.member.dto.response.AuthFilterDto
 import csh.back.domain.trip.timeline.service.TimelineService
+import csh.back.domain.vote.vote.dto.request.VoteAnonymousModifyRequest
 import csh.back.domain.vote.vote.dto.request.VoteCreateRequest
 import csh.back.domain.vote.vote.dto.response.VoteConfirmResponse
 import csh.back.domain.vote.vote.dto.response.VoteCreateResponse
@@ -73,4 +74,14 @@ class VoteV1Controller(
         @AuthenticationPrincipal member: AuthFilterDto,
     ): ResponseData<VoteConfirmResponse> =
         ResponseData(200, timelineService.confirmVote(tripGroupId, member.id, voteId))
+
+    @Operation(summary = "투표 익명/실명 개별 변경", description = "방장이 특정 투표 1건의 익명 여부를 변경. 진행중인 투표만 변경 가능")
+    @PatchMapping("/{voteId}/anonymous")
+    fun updateAnonymous(
+        @PathVariable tripGroupId: Long,
+        @PathVariable voteId: Long,
+        @RequestBody request: VoteAnonymousModifyRequest,
+        @AuthenticationPrincipal member: AuthFilterDto,
+    ): ResponseData<Boolean> =
+        ResponseData(200, voteService.updateAnonymous(tripGroupId, voteId, member.id, request.isAnonymous))
 }

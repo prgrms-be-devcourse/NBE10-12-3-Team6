@@ -17,7 +17,7 @@ import java.time.LocalDateTime
 
 @Entity
 @Table(name = "trip_votes")
-class Vote(
+class Vote @JvmOverloads constructor(
     @field:ManyToOne(fetch = FetchType.LAZY)
     @field:JoinColumn(name = "trip_group_id", nullable = false)
     val tripGroup: TripGroup,
@@ -29,13 +29,23 @@ class Vote(
     val tripMember: TripMember,
     @field:Column(nullable = false)
     val expireTime: LocalDateTime,
+    @field:Column(nullable = false)
+    isAnonymous: Boolean = true,
 ) : BaseEntity() {
 
     @field:Enumerated(STRING)
     var status: VoteStatus = VoteStatus.PENDING
         protected set
 
+    @field:Column(nullable = false)
+    var isAnonymous: Boolean = isAnonymous
+        protected set
+
     fun updateStatus(status: VoteStatus) {
         this.status = status
+    }
+
+    fun updateAnonymous(isAnonymous: Boolean) {
+        this.isAnonymous = isAnonymous
     }
 }

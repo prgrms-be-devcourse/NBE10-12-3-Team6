@@ -16,16 +16,16 @@ import java.time.LocalDateTime
 abstract class BaseEntity {
     @Id
     @GeneratedValue(strategy = IDENTITY)
-    final var id: Long? = null
-        private set
+    var id: Long? = null
+        protected set
 
     @CreatedDate
-    final var createdAt: LocalDateTime? = null
-        private set
+    var createdAt: LocalDateTime? = null
+        protected set
 
     @LastModifiedDate
-    final var updatedAt: LocalDateTime? = null
-        private set
+    var updatedAt: LocalDateTime? = null
+        protected set
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
