@@ -8,6 +8,7 @@ data class TripPlaceFindResponse(
     val address: String,
     val category: String,
     val createdBy: String,
+    val createdByMemberId: Long,
 ) {
     companion object {
         @JvmStatic
@@ -17,6 +18,7 @@ data class TripPlaceFindResponse(
             address = tripPlace.address,
             category = tripPlace.category,
             createdBy = tripPlace.createdBy.member.name,
+            createdByMemberId = requireNotNull(tripPlace.createdBy.member.id),
         )
     }
 }

@@ -105,6 +105,8 @@ const getSameTypeSummary = (
       return `자유시간 범위 변경 ${count}건`;
     case "WISH_PLACE_ADDED":
       return `후보 장소 추가 ${count}개`;
+    case "WISH_PLACE_DELETED":
+      return `후보 장소 삭제 ${count}개`;
     case "TIMELINE_CREATED":
     case "TIMELINE_BATCH_CREATED":
       return `${dayPrefix}시간 구간 추가 ${count}개`;
@@ -141,6 +143,7 @@ const getNoticeTopic = (eventType: string): TripEventNoticeTopic => {
     case "FREE_TIME_RANGE_UPDATED":
       return "trip";
     case "WISH_PLACE_ADDED":
+    case "WISH_PLACE_DELETED":
       return "place";
     case "TIMELINE_CREATED":
     case "TIMELINE_BATCH_CREATED":
