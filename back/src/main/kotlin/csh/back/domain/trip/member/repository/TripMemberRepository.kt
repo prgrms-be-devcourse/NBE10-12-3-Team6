@@ -52,7 +52,6 @@ interface TripMemberRepository : JpaRepository<TripMember, Long> {
         SELECT new csh.back.domain.trip.member.dto.response.PastMateResponse(
             mate.member.id,
             mate.member.name,
-            mate.member.email,
             COUNT(DISTINCT mate.tripGroup.id),
             MAX(mate.tripGroup.startDate)
         )
@@ -60,7 +59,7 @@ interface TripMemberRepository : JpaRepository<TripMember, Long> {
         JOIN TripMember mate ON mate.tripGroup = me.tripGroup
         WHERE me.member.id = :memberId
           AND mate.member.id <> :memberId
-        GROUP BY mate.member.id, mate.member.name, mate.member.email
+        GROUP BY mate.member.id, mate.member.name
         ORDER BY MAX(mate.tripGroup.startDate) DESC, mate.member.name ASC, mate.member.id ASC
         """
     )
@@ -75,7 +74,6 @@ interface TripMemberRepository : JpaRepository<TripMember, Long> {
         SELECT new csh.back.domain.trip.member.dto.response.PastMateResponse(
             mate.member.id,
             mate.member.name,
-            mate.member.email,
             COUNT(DISTINCT mate.tripGroup.id),
             MAX(mate.tripGroup.startDate)
         )
@@ -84,7 +82,7 @@ interface TripMemberRepository : JpaRepository<TripMember, Long> {
         WHERE me.member.id = :memberId
           AND mate.member.id <> :memberId
           AND LOWER(mate.member.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
-        GROUP BY mate.member.id, mate.member.name, mate.member.email
+        GROUP BY mate.member.id, mate.member.name
         ORDER BY MAX(mate.tripGroup.startDate) DESC, mate.member.name ASC, mate.member.id ASC
         """
     )

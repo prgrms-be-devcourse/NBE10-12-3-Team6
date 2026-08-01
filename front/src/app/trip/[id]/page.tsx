@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useEffect, type MouseEvent } from "react";
+import { useCallback, useState, useEffect, useMemo, useRef, type MouseEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowClockwise } from "@phosphor-icons/react";
@@ -14,12 +14,283 @@ import { useTripEvent } from "./TripEventProvider";
 
 // ── InviteModal ───────────────────────────────────────────────────────────────
 
-function InviteSheet({ trip, onClose }: { trip: Trip; onClose: () => void }) {
+type PastMate = {
+  id: number;
+  name: string;
+  travelCount: number;
+  latestTravelDate: string;
+};
+
+function formatPastMateDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function PastMatesInvitePanel({
+  trip,
+  isAdmin,
+  onInvited,
+}: {
+  trip: Trip;
+  isAdmin: boolean;
+  onInvited: () => void;
+}) {
+  const { currentUser } = useStore();
+  const [keyword, setKeyword] = useState("");
+  const [debouncedKeyword, setDebouncedKeyword] = useState("");
+  const [items, setItems] = useState<PastMate[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [inviting, setInviting] = useState(false);
+  const [onlineIds, setOnlineIds] = useState<Set<number>>(new Set());
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const existingMemberIds = useMemo(
+    () => new Set(trip.members.map(m => Number(m.id))),
+    [trip.members]
+  );
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedKeyword(keyword.trim()), 250);
+    return () => clearTimeout(t);
+  }, [keyword]);
+
+  const loadPage = useCallback(async (targetPage: number, kw: string) => {
+    const p = new URLSearchParams();
+    p.set("page", String(targetPage));
+    p.set("size", "15");
+    if (kw) p.set("search", kw);
+    const res = await apiFetch(`${API_BASE}/api/v1/trips/past-members?${p.toString()}`);
+    if (!res.ok) throw new Error("지난 메이트 조회 실패");
+    const body = await res.json();
+    const data = body.data ?? {};
+    const nextItems: PastMate[] = data.items ?? [];
+    setItems(prev => (targetPage === 0 ? nextItems : [...prev, ...nextItems]));
+    setHasNext(Boolean(data.hasNext));
+    setPage(targetPage);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await loadPage(0, debouncedKeyword);
+      } catch {
+      } finally {
+        if (!cancelled) setInitialLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [debouncedKeyword, loadPage]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(async ([entry]) => {
+      if (entry.isIntersecting && hasNext && !loading && !initialLoading) {
+        setLoading(true);
+        try {
+          await loadPage(page + 1, debouncedKeyword);
+        } catch {
+        } finally {
+          setLoading(false);
+        }
+      }
+    }, { threshold: 0.1 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [page, hasNext, loading, initialLoading, debouncedKeyword, loadPage]);
+
+  const refreshOnline = useCallback(async (ids: number[], mates: PastMate[]) => {
+    if (ids.length === 0) return;
+    try {
+      const p = new URLSearchParams();
+      p.set("userIds", ids.join(","));
+      console.log("[presence] status 요청 ids=", ids);
+      const res = await apiFetch(`${API_BASE}/api/v1/presence/status?${p.toString()}`);
+      if (!res.ok) {
+        console.warn("[presence] status 응답 실패 status=", res.status);
+        return;
+      }
+      const body = await res.json();
+      const map: Record<string, boolean> = body.data ?? {};
+      const nameById = new Map(mates.map(m => [m.id, m.name] as const));
+      const onlineList = Object.entries(map)
+        .filter(([, v]) => v)
+        .map(([k]) => ({ id: Number(k), name: nameById.get(Number(k)) ?? "?" }));
+      const offlineList = Object.entries(map)
+        .filter(([, v]) => !v)
+        .map(([k]) => ({ id: Number(k), name: nameById.get(Number(k)) ?? "?" }));
+      console.log("[presence] status 응답", { online: onlineList, offline: offlineList, raw: map });
+      setOnlineIds(prev => {
+        const next = new Set(prev);
+        for (const [k, v] of Object.entries(map)) {
+          const id = Number(k);
+          if (v) next.add(id);
+          else next.delete(id);
+        }
+        return next;
+      });
+    } catch (error) {
+      console.warn("[presence] status 조회 오류", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    console.log(
+      `[presence] currentUser id=${currentUser.id} name=${currentUser.name} · trip.members=`,
+      trip.members.map(m => ({ id: m.id, name: m.name, isAdmin: m.isAdmin ?? false })),
+    );
+  }, [currentUser.id, currentUser.name, trip.members]);
+
+  useEffect(() => {
+    if (items.length === 0) return;
+    const ids = items.map(m => m.id);
+    (async () => { await refreshOnline(ids, items); })();
+    const interval = setInterval(() => { refreshOnline(ids, items); }, 30_000);
+    return () => clearInterval(interval);
+  }, [items, refreshOnline]);
+
+  const toggle = (mateId: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(mateId)) next.delete(mateId);
+      else next.add(mateId);
+      return next;
+    });
+  };
+
+  const invite = async () => {
+    if (!isAdmin || selectedIds.size === 0 || inviting) return;
+    setInviting(true);
+    try {
+      const res = await apiFetch(`${API_BASE}/api/v1/trips/${trip.id}/members/invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberIds: Array.from(selectedIds) }),
+      });
+      if (!res.ok) throw new Error("초대 실패");
+      setSelectedIds(new Set());
+      onInvited();
+    } catch (e) {
+      console.error("[지난 메이트 초대 실패]", e);
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3 min-h-0">
+      <input
+        className="w-full p-3 bg-gray-100 rounded-xl text-sm outline-none"
+        placeholder="이름으로 지난 메이트 검색"
+        value={keyword}
+        onChange={e => setKeyword(e.target.value)}
+      />
+      {!isAdmin && (
+        <p className="text-xs text-gray-500 bg-orange-50 rounded-xl px-3 py-2">
+          방장만 지난 메이트를 초대할 수 있어요. 조회는 가능합니다.
+        </p>
+      )}
+      <div className="flex flex-col gap-2 max-h-[45vh] overflow-y-auto">
+        {initialLoading ? (
+          <p className="text-sm text-gray-400 text-center py-6">불러오는 중...</p>
+        ) : items.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">
+            {debouncedKeyword ? "검색 결과가 없습니다." : "함께 여행한 메이트가 없습니다."}
+          </p>
+        ) : (
+          items.map(mate => {
+            const alreadyMember = existingMemberIds.has(mate.id);
+            const selected = selectedIds.has(mate.id);
+            return (
+              <button
+                key={mate.id}
+                type="button"
+                onClick={() => !alreadyMember && toggle(mate.id)}
+                disabled={alreadyMember}
+                className={`w-full p-3 rounded-xl flex items-center gap-3 text-left transition ${
+                  selected
+                    ? "bg-blue-50 border border-blue-500"
+                    : alreadyMember
+                      ? "bg-gray-50 opacity-50 cursor-not-allowed border border-transparent"
+                      : "bg-gray-50 border border-transparent"
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                  selected ? "bg-blue-500 border-blue-500" : "border-gray-300"
+                }`}>
+                  {selected && (
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold truncate">{mate.name}</p>
+                    {onlineIds.has(mate.id) && (
+                      <span className="inline-flex items-center gap-1 shrink-0" aria-label="접속중">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        <span className="text-[11px] font-semibold text-green-600">접속중</span>
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    최근 함께한 여행 {formatPastMateDate(mate.latestTravelDate)}
+                  </p>
+                </div>
+                {alreadyMember && (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">
+                    이미 참여
+                  </span>
+                )}
+              </button>
+            );
+          })
+        )}
+        {hasNext && (
+          <div ref={sentinelRef} className="py-3 text-center text-xs text-gray-400">
+            {loading ? "더 불러오는 중..." : ""}
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={invite}
+        disabled={!isAdmin || selectedIds.size === 0 || inviting}
+        className="w-full py-3.5 rounded-2xl text-sm font-semibold bg-blue-500 text-white disabled:opacity-40"
+      >
+        {inviting
+          ? "초대 중..."
+          : `여행방에 초대하기${selectedIds.size > 0 ? ` (${selectedIds.size}명)` : ""}`}
+      </button>
+    </div>
+  );
+}
+
+function InviteSheet({
+  trip,
+  onClose,
+  onMembersInvited,
+}: {
+  trip: Trip;
+  onClose: () => void;
+  onMembersInvited: () => void;
+}) {
+  const { currentUser } = useStore();
   const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState("");
+  const [subTab, setSubTab] = useState<"link" | "past">("link");
   useEffect(() => { setOrigin(window.location.origin); }, []);
   const code = trip.inviteCode;
   const inviteLink = `${origin}/invite/${code}`;
+  const isAdmin = trip.members.some(
+    m => Number(m.id) === Number(currentUser.id) && m.isAdmin,
+  );
 
   const copyLink = () => {
     if (navigator.clipboard) {
@@ -37,26 +308,51 @@ function InviteSheet({ trip, onClose }: { trip: Trip; onClose: () => void }) {
   };
 
   return (
-    <AnimatedBottomSheet onClose={onClose} className="p-6 flex flex-col gap-4">
+    <AnimatedBottomSheet onClose={onClose} className="p-6 flex flex-col gap-4 max-h-[90vh]">
       {(close) => (
         <>
         <div className="flex items-center justify-between">
-          <p className="text-lg font-bold">초대 링크</p>
+          <p className="text-lg font-bold">멤버 초대</p>
           <button onClick={close} className="text-blue-500 font-medium">닫기</button>
         </div>
 
-        <p className="text-sm text-gray-500">아래 링크를 친구에게 공유해주세요.</p>
-
-        <div className="flex items-center justify-center py-6 rounded-2xl bg-blue-50 border border-blue-100">
-          <p className="text-sm font-semibold text-blue-600 break-all text-center px-2">{inviteLink}</p>
+        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setSubTab("link")}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
+              subTab === "link" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+            }`}
+          >
+            링크 초대
+          </button>
+          <button
+            type="button"
+            onClick={() => setSubTab("past")}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
+              subTab === "past" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+            }`}
+          >
+            지난 메이트 초대
+          </button>
         </div>
 
-        <button
-          onClick={copyLink}
-          className="w-full py-3.5 rounded-2xl text-sm font-semibold bg-blue-100 text-blue-600"
-        >
-          {copied ? "복사 완료 ✓" : "링크 복사"}
-        </button>
+        {subTab === "link" ? (
+          <>
+            <p className="text-sm text-gray-500">아래 링크를 친구에게 공유해주세요.</p>
+            <div className="flex items-center justify-center py-6 rounded-2xl bg-blue-50 border border-blue-100">
+              <p className="text-sm font-semibold text-blue-600 break-all text-center px-2">{inviteLink}</p>
+            </div>
+            <button
+              onClick={copyLink}
+              className="w-full py-3.5 rounded-2xl text-sm font-semibold bg-blue-100 text-blue-600"
+            >
+              {copied ? "복사 완료 ✓" : "링크 복사"}
+            </button>
+          </>
+        ) : (
+          <PastMatesInvitePanel trip={trip} isAdmin={isAdmin} onInvited={onMembersInvited} />
+        )}
         </>
       )}
     </AnimatedBottomSheet>
@@ -985,7 +1281,13 @@ export default function TripDetailPage() {
       </div>
 
       {showInvite && (
-        <InviteSheet trip={trip} onClose={() => setShowInvite(false)} />
+        <InviteSheet
+          trip={trip}
+          onClose={() => setShowInvite(false)}
+          onMembersInvited={() => {
+            fetchTripOverview().catch(() => {});
+          }}
+        />
       )}
     </div>
   );
