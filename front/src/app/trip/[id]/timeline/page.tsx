@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useStore, uid } from "../../../store";
 import { formatDate, apiFetch, API_BASE } from "../../../lib";
-import TripEventHeaderNotice from "../TripEventHeaderNotice";
+import { selectPhotoUrls, usePhotoDataPreference } from "../../../photoDataPreference";
 
 interface Post {
   postId: number;
   timelineId: number | null;
-  contentUrl: string;
+  contentUrl: string | null;
+  normalContentUrl?: string | null;
+  dataSaverContentUrl?: string | null;
   createdAt?: string;
   startTime?: string;
   endTime?: string;
@@ -21,13 +23,40 @@ interface DateGroup {
   posts: Post[];
 }
 
+interface PostCursorResponse {
+  groups: DateGroup[];
+  nextCursor: string | null;
+  hasNext: boolean;
+}
+
 type Segment =
   | { type: "timeline"; timelineId: number; posts: Post[] }
   | { type: "free"; slotKey: string; posts: Post[] };
 
-function resolveUrl(contentUrl: string): string {
+function resolveUrl(contentUrl?: string | null): string | null {
+  if (!contentUrl) return null;
   if (contentUrl.startsWith("http")) return contentUrl;
   return `${API_BASE}${contentUrl}`;
+}
+
+function mergeGroups(current: DateGroup[], incoming: DateGroup[]): DateGroup[] {
+  const grouped = new Map<string, Post[]>();
+
+  for (const group of [...current, ...incoming]) {
+    const posts = grouped.get(group.date) ?? [];
+    const postIds = new Set(posts.map(post => post.postId));
+    for (const post of group.posts) {
+      if (!postIds.has(post.postId)) {
+        posts.push(post);
+        postIds.add(post.postId);
+      }
+    }
+    grouped.set(group.date, posts);
+  }
+
+  return Array.from(grouped.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([date, posts]) => ({ date, posts }));
 }
 
 function toSegments(posts: Post[]): Segment[] {
@@ -70,14 +99,27 @@ export default function TimelinePage() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const { trips, upsertTrip } = useStore();
+  const photoDataPreference = usePhotoDataPreference();
   const [groups, setGroups] = useState<DateGroup[]>([]);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasNext, setHasNext] = useState(false);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
+  const [postLoadError, setPostLoadError] = useState(false);
   const [activeDots, setActiveDots] = useState<Record<string, number>>({});
   const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const listScrollRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const loadingRef = useRef(false);
 
   const goBack = () => {
-    if (searchParams.get("from") === "timeline") router.push(`/trip/${id}?tab=timeline`);
-    else router.back();
+    if (searchParams.get("from") === "timeline") {
+      sessionStorage.setItem(`return-tab-${id}`, "timeline");
+      router.push(`/trip/${id}?tab=timeline`);
+      return;
+    }
+
+    router.back();
   };
   const trip = trips.find(t => t.id === id);
 
@@ -101,23 +143,68 @@ export default function TimelinePage() {
           candidates: [], inviteCode: tripData.joinCode ?? "", inviteJoinIndex: 0,
         });
       }).catch(() => {});
-  }, [id, trip]);
+  }, [id, trip, upsertTrip]);
 
-  useEffect(() => {
-    if (!id) return;
-    apiFetch(`${API_BASE}/api/v1/trips/${id}/posts`)
-      .then(r => r.text())
-      .then(text => {
-        if (!text) return;
-        const body = JSON.parse(text);
-        const raw = Array.isArray(body) ? body : (body.data ?? []);
-        setGroups(raw);
-      })
-      .catch(e => console.error(e));
+  const loadPostPage = useCallback(async (cursor: string | null, replace = false) => {
+    if (!id || loadingRef.current) return;
+
+    loadingRef.current = true;
+    setIsLoadingPosts(true);
+    setPostLoadError(false);
+
+    try {
+      const query = new URLSearchParams({ size: "10" });
+      if (cursor) query.set("cursor", cursor);
+
+      const response = await apiFetch(
+        `${API_BASE}/api/v1/trips/${id}/posts?${query.toString()}`
+      );
+      if (!response.ok) {
+        throw new Error("사진 기록을 불러오지 못했습니다.");
+      }
+
+      const body = await response.json();
+      const data = (body.data ?? body) as PostCursorResponse | DateGroup[];
+      const pageGroups = Array.isArray(data) ? data : (data.groups ?? []);
+
+      setGroups(current => replace ? pageGroups : mergeGroups(current, pageGroups));
+      setNextCursor(Array.isArray(data) ? null : data.nextCursor);
+      setHasNext(Array.isArray(data) ? false : data.hasNext);
+    } catch (error) {
+      console.error(error);
+      setPostLoadError(true);
+    } finally {
+      loadingRef.current = false;
+      setIsLoadingPosts(false);
+    }
   }, [id]);
 
+  useEffect(() => {
+    const firstFrame = requestAnimationFrame(() => {
+      void loadPostPage(null, true);
+    });
+    return () => cancelAnimationFrame(firstFrame);
+  }, [loadPostPage]);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    const root = listScrollRef.current;
+    if (!target || !root || !hasNext) return;
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting) {
+          void loadPostPage(nextCursor);
+        }
+      },
+      { root, rootMargin: "240px 0px", threshold: 0 }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasNext, loadPostPage, nextCursor]);
+
   if (!trip) return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex min-h-[100dvh] items-center justify-center">
       <p className="text-gray-400 text-sm">불러오는 중...</p>
     </div>
   );
@@ -126,11 +213,13 @@ export default function TimelinePage() {
     <>
       {lightbox && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onClick={() => setLightbox(null)}>
-          <img src={lightbox} alt="" className="max-w-full max-h-full object-contain" />
+          {/* 원격 S3 URL을 클릭할 때만 원본으로 요청하기 위해 기본 img를 사용한다. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={lightbox} alt="확대된 여행 사진" className="max-w-full max-h-full object-contain" />
         </div>
       )}
-      <div className="flex h-screen flex-col overflow-hidden">
-        <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-2">
+      <div className="flex h-[100dvh] flex-col overflow-hidden">
+        <div className="app-safe-header flex shrink-0 items-center gap-3 px-4 pb-2">
           <button
             onClick={goBack}
             aria-label="뒤로가기"
@@ -140,17 +229,13 @@ export default function TimelinePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <TripEventHeaderNotice className="h-10 flex-1">
-            <h1 className="font-semibold text-base text-center">여행 타임라인</h1>
-          </TripEventHeaderNotice>
-          <div className="w-8" />
         </div>
 
         <div className="shrink-0 px-4 pb-3">
           <p className="text-2xl font-bold">{trip.name} 타임라인</p>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-10 flex flex-col gap-4">
+        <div ref={listScrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 pb-10 flex flex-col gap-4">
           {trip.days.map(day => {
             const group = groups.find(g => g.date === day.date);
             const dayPosts = group?.posts ?? [];
@@ -234,12 +319,28 @@ export default function TimelinePage() {
                           const borderColor = seg.type === "timeline" ? "border-blue-100 bg-blue-50" : "border-gray-200 bg-gray-50";
 
                           return seg.posts.map(post => {
-                            const src = resolveUrl(post.contentUrl);
+                            const selectedUrls = selectPhotoUrls(post, photoDataPreference);
+                            const previewSrc = resolveUrl(selectedUrls.previewUrl);
+                            const detailSrc = resolveUrl(selectedUrls.detailUrl);
                             return (
                               <div key={post.postId} className={`rounded-2xl border p-3 flex flex-col gap-2 snap-start basis-full shrink-0 ${borderColor}`}>
                                 <p className={`text-xs font-semibold ${labelColor}`}>{label}</p>
                                 <div className="flex items-center justify-center rounded-xl overflow-hidden" style={{ height: "360px" }}>
-                                  <img src={src} alt="" draggable={false} className="max-w-full max-h-full object-contain cursor-pointer" onClick={() => setLightbox(src)} />
+                                  {previewSrc ? (
+                                    // 원격 S3 URL에 브라우저 표준 lazy loading을 직접 적용한다.
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={previewSrc}
+                                      alt="여행 사진"
+                                      loading="lazy"
+                                      decoding="async"
+                                      draggable={false}
+                                      className="max-w-full max-h-full object-contain cursor-pointer"
+                                      onClick={() => detailSrc && setLightbox(detailSrc)}
+                                    />
+                                  ) : (
+                                    <p className="text-sm text-gray-400">사진을 불러올 수 없습니다.</p>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -253,6 +354,21 @@ export default function TimelinePage() {
               </div>
             );
           })}
+
+          <div ref={loadMoreRef} className="min-h-8 flex items-center justify-center">
+            {isLoadingPosts && (
+              <p className="text-xs text-gray-400">사진을 불러오는 중...</p>
+            )}
+            {postLoadError && (
+              <button
+                type="button"
+                onClick={() => void loadPostPage(nextCursor, groups.length === 0)}
+                className="text-xs font-semibold text-blue-500"
+              >
+                다시 불러오기
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </>

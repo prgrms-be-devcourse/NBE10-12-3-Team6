@@ -549,14 +549,9 @@ function VoteSheet({
 
   return (
     <AnimatedBottomSheet onClose={onClose} className="max-h-[90vh] flex flex-col">
-      {(close) => (
+      {() => (
         <>
-        <div className="flex items-center justify-between px-4 pt-5 pb-3 border-b border-gray-100 shrink-0">
-          <h2 className="text-base font-bold">일정 후보 투표</h2>
-          <button onClick={close} className="text-blue-500 font-medium">닫기</button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5">
+        <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4">
           <div>
             <p className="text-xl font-bold">{dayTitle}에는 뭐할까요?</p>
             <p className="text-sm text-gray-500 mt-1">식사, 카페, 활동 후보를 등록하고 여행친구들과 투표로 일정을 확정하는 화면입니다.</p>
@@ -720,9 +715,9 @@ export default function PlanPage() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex min-h-[100dvh] flex-col">
       {/* Nav bar */}
-      <div className="flex items-center gap-3 px-4 pt-12 pb-2">
+      <div className="app-safe-header flex items-center gap-3 px-4 pb-2">
         <button onClick={() => router.back()} className="text-blue-500">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

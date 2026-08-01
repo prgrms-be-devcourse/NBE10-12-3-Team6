@@ -8,6 +8,7 @@ import { useStore, Trip, TripDay, PlanCandidate, uid } from "../../store";
 import { Avatar, durationText, formatDate, apiFetch, useAuthGuard, API_BASE } from "../../lib";
 import { useTripOwnerStore } from "../../stores/tripOwnerStore";
 import AnimatedBottomSheet from "../../components/AnimatedBottomSheet";
+import FixedBottomPortal from "../../components/FixedBottomPortal";
 import TripChatRoomButton from "./TripChatRoomButton";
 import TripEventHeaderNotice from "./TripEventHeaderNotice";
 import { useTripEvent } from "./TripEventProvider";
@@ -37,17 +38,12 @@ function InviteSheet({ trip, onClose }: { trip: Trip; onClose: () => void }) {
   };
 
   return (
-    <AnimatedBottomSheet onClose={onClose} className="p-6 flex flex-col gap-4">
-      {(close) => (
+    <AnimatedBottomSheet onClose={onClose} className="flex flex-col px-6 pb-6">
+      {() => (
         <>
-        <div className="flex items-center justify-between">
-          <p className="text-lg font-bold">초대 링크</p>
-          <button onClick={close} className="text-blue-500 font-medium">닫기</button>
-        </div>
+        <p className="mb-4 text-sm text-gray-500">아래 링크를 친구에게 공유해주세요.</p>
 
-        <p className="text-sm text-gray-500">아래 링크를 친구에게 공유해주세요.</p>
-
-        <div className="flex items-center justify-center py-6 rounded-2xl bg-blue-50 border border-blue-100">
+        <div className="mb-4 flex items-center justify-center py-6 rounded-2xl bg-blue-50 border border-blue-100">
           <p className="text-sm font-semibold text-blue-600 break-all text-center px-2">{inviteLink}</p>
         </div>
 
@@ -135,11 +131,7 @@ function AddCandidateSheet({
     >
       {(close) => (
         <>
-        <div className="flex items-center justify-between px-4 pt-5 pb-3 border-b border-gray-100">
-          <h2 className="text-lg font-bold">후보 올리기</h2>
-          <button onClick={close} className="text-blue-500 font-medium">닫기</button>
-        </div>
-        <div className="p-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-4 px-4 pb-4">
           {/* 장소 검색 */}
           <div>
             <label className="text-sm font-semibold mb-1.5 block">장소 검색</label>
@@ -212,45 +204,45 @@ function TripCandidatePoolCard({ trip, onUpdate, tripStatus }: { trip: Trip; onU
   const canRegister = tripStatus === "before";
 
   return (
-    <div className="candidate-pool-card candidate-section-panel px-4 pt-4 pb-0 flex flex-col gap-3 rounded-2xl">
+    <div className="candidate-pool-card candidate-section-panel pt-3 pb-0 flex flex-col gap-4 rounded-2xl">
       <div className="flex items-start justify-between">
         <div>
-          <p className="font-semibold">후보 장소</p>
-          <p className="text-xs text-gray-500 mt-0.5">일차와 상관없이 여행 전체에서 사용할 후보를 올립니다.</p>
+          <p className="text-lg font-bold">후보 장소</p>
+          <p className="mt-1 text-sm text-gray-500">일차와 상관없이 여행 전체에서 사용할 후보를 올립니다.</p>
         </div>
-        <span className="text-xs font-bold text-gray-500 shrink-0 ml-2">{trip.candidates.length}개</span>
+        <span className="ml-3 shrink-0 pt-1 text-sm font-bold text-gray-500">{trip.candidates.length}개</span>
       </div>
 
       {canRegister ? (
         <button
           onClick={() => setShowAdd(true)}
-          className="candidate-add-button w-full py-3 rounded-xl font-semibold text-sm"
+          className="candidate-add-button min-h-12 w-full rounded-2xl px-4 py-3.5 text-base font-semibold"
         >
           + 후보 올리기
         </button>
       ) : (
-        <div className="candidate-closed-notice w-full py-3 rounded-xl text-center text-sm font-semibold">
+        <div className="candidate-closed-notice flex min-h-12 w-full items-center justify-center rounded-2xl px-4 py-3.5 text-center text-base font-semibold">
           여행이 시작되어 후보 등록이 마감되었습니다
         </div>
       )}
 
       {trip.candidates.length === 0 ? (
-        <div className="candidate-empty-card p-3 rounded-xl flex items-start gap-2">
-          <span className="text-base shrink-0">📍</span>
+        <div className="candidate-empty-card flex min-h-28 items-center gap-3 rounded-2xl p-4">
+          <span className="shrink-0 text-2xl">📍</span>
           <div>
-            <p className="text-sm font-semibold">아직 후보 장소가 없습니다.</p>
-            <p className="text-xs text-gray-500 mt-0.5">후보를 올린 뒤 각 일차의 시간 구간에서 투표나 랜덤으로 선택합니다.</p>
+            <p className="text-base font-semibold">아직 후보 장소가 없습니다.</p>
+            <p className="mt-1 text-sm leading-5 text-gray-500">후보를 올린 뒤 각 일차의 시간 구간에서 투표나 랜덤으로 선택합니다.</p>
           </div>
         </div>
       ) : (
-        <div className="candidate-list-scroll flex flex-col gap-2">
+        <div className="candidate-list-scroll flex flex-col gap-3">
           {trip.candidates.map(c => (
-            <div key={c.id} className="candidate-list-item flex items-center gap-3 p-3 rounded-2xl">
-              <span className="text-base shrink-0 text-green-600">📍</span>
+            <div key={c.id} className="candidate-list-item flex items-center gap-3 rounded-2xl p-4">
+              <span className="shrink-0 text-xl text-green-600">📍</span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.placeName}</p>
-                <p className="text-xs text-gray-400 truncate">{c.address}</p>
-                <p className="text-xs text-gray-400">등록자 {c.authorName}</p>
+                <p className="truncate text-base font-semibold">{c.placeName}</p>
+                <p className="mt-0.5 truncate text-sm text-gray-400">{c.address}</p>
+                <p className="mt-0.5 text-xs text-gray-400">등록자 {c.authorName}</p>
               </div>
             </div>
           ))}
@@ -330,7 +322,7 @@ function DayFreeTimeRangeControl({
         <div>
           <p className="text-xs font-bold">자유시간 범위</p>
           <p className="mt-0.5 text-[11px] text-gray-400">
-            방장만 설정 · 여행 시작일부터 변경 불가
+            방장 전용 · 여행 시작 후 고정
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -401,26 +393,13 @@ function BulkFreeTimeRangeSheet({
   return (
     <AnimatedBottomSheet
       onClose={onClose}
-      className="flex flex-col px-5 pb-6 pt-5"
+      className="flex flex-col px-5 pb-6"
     >
       {(close) => (
         <>
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold">자유시간 범위 일괄 설정</h2>
-              <p className="mt-1 text-xs text-gray-400">모든 일차에 동일한 범위를 적용합니다.</p>
-            </div>
-            <button
-              type="button"
-              onClick={close}
-              disabled={saving}
-              className="font-medium text-blue-500 disabled:opacity-40"
-            >
-              닫기
-            </button>
-          </div>
+          <p className="text-center text-xs text-gray-400">모든 일차에 동일한 범위를 적용합니다.</p>
 
-          <div className="mt-6 flex items-center justify-center gap-5 rounded-2xl bg-gray-50 px-4 py-5">
+          <div className="mt-4 flex items-center justify-center gap-5 rounded-2xl bg-gray-50 px-4 py-5">
             <button
               type="button"
               onClick={() => changeMinutes(-30)}
@@ -486,7 +465,7 @@ function HeaderSyncButton({
   loading,
   onClick,
   pendingLabel,
-  positionClass = "right-4",
+  positionClass = "trip-room-header-action-0",
 }: {
   pending: boolean;
   loading: boolean;
@@ -501,7 +480,7 @@ function HeaderSyncButton({
       disabled={!pending || loading}
       aria-label={pending ? pendingLabel : "동기화할 변경 사항 없음"}
       title={pending ? pendingLabel : "동기화할 변경 사항 없음"}
-      className={`timeline-sync-icon-button absolute ${positionClass} top-10 z-10 w-10 h-10 rounded-full flex items-center justify-center ${
+      className={`timeline-sync-icon-button trip-room-header-control absolute ${positionClass} z-10 w-10 h-10 rounded-full flex items-center justify-center ${
         pending ? "is-pending" : "is-idle"
       }`}
     >
@@ -954,20 +933,20 @@ export default function TripDetailPage() {
 
   if (!trip) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex min-h-[100dvh] items-center justify-center">
         <p className="text-gray-400 text-sm">불러오는 중...</p>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen ${tab === "trip" || tab === "candidates" || tab === "vote" ? "trip-detail-page" : "pb-24"} ${isReturningHome || isNavigatingAway ? "trip-page-exit" : ""}`}>
+    <div className={`min-h-[100dvh] ${tab === "trip" || tab === "candidates" || tab === "vote" ? "trip-detail-page" : "pb-24"} ${isReturningHome || isNavigatingAway ? "trip-page-exit" : ""}`}>
       {/* Header */}
-      <div className="relative min-h-[84px] px-4 pt-12 pb-2">
+      <div className="trip-room-header relative shrink-0 pb-2">
         <button
           onClick={goTripList}
           aria-label="여행방 목록"
-          className="trip-header-icon-button absolute left-4 top-10 z-10 w-10 h-10 rounded-full flex items-center justify-center"
+          className="trip-header-icon-button trip-room-header-control trip-room-header-left-control absolute z-10 w-10 h-10 rounded-full flex items-center justify-center"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 10.75 12 4l8.25 6.75" />
@@ -976,7 +955,7 @@ export default function TripDetailPage() {
           </svg>
         </button>
         <TripEventHeaderNotice
-          className={`trip-detail-event-header absolute inset-x-0 top-10 h-10 ${
+          className={`trip-detail-event-header trip-room-header-control absolute inset-x-0 h-10 ${
             tab === "trip"
               ? "has-triple-actions"
               : tab === "candidates" || tab === "vote"
@@ -996,13 +975,13 @@ export default function TripDetailPage() {
               loading={tripSyncLoading}
               onClick={syncTripOverview}
               pendingLabel="새로 참여한 여행 멤버 동기화"
-              positionClass="right-28"
+              positionClass="trip-room-header-action-2"
             />
-            <TripChatRoomButton className="absolute right-16 top-10 z-10" />
+            <TripChatRoomButton className="trip-room-header-control trip-room-header-action-1 absolute z-10" />
             <button
               onClick={() => setShowInvite(true)}
               aria-label="초대 링크"
-              className="trip-header-icon-button absolute right-4 top-10 z-10 w-10 h-10 rounded-full flex items-center justify-center"
+              className="trip-header-icon-button trip-room-header-control trip-room-header-action-0 absolute z-10 w-10 h-10 rounded-full flex items-center justify-center"
             >
               <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -1016,9 +995,9 @@ export default function TripDetailPage() {
               loading={candidateSyncLoading}
               onClick={syncCandidates}
               pendingLabel="변경된 후보 장소 동기화"
-              positionClass="right-16"
+              positionClass="trip-room-header-action-1"
             />
-            <TripChatRoomButton className="absolute right-4 top-10 z-10" />
+            <TripChatRoomButton className="trip-room-header-control trip-room-header-action-0 absolute z-10" />
           </>
         ) : tab === "vote" ? (
           <>
@@ -1027,15 +1006,15 @@ export default function TripDetailPage() {
               loading={voteSyncLoading}
               onClick={syncVoteData}
               pendingLabel="변경된 투표 목록 동기화"
-              positionClass="right-16"
+              positionClass="trip-room-header-action-1"
             />
-            <TripChatRoomButton className="absolute right-4 top-10 z-10" />
+            <TripChatRoomButton className="trip-room-header-control trip-room-header-action-0 absolute z-10" />
           </>
         ) : tab === "timeline" && tripStatus === "during" ? (
           <Link
             href={`/trip/${id}/timeline?from=timeline`}
             onClick={navigateWithPageExit(`/trip/${id}/timeline?from=timeline`)}
-            className="absolute right-4 top-12 z-10 text-xs font-semibold text-blue-500"
+            className="trip-room-header-text-action trip-room-header-action-0 absolute z-10 text-xs font-semibold text-blue-500"
           >
             전체보기
           </Link>
@@ -1047,7 +1026,7 @@ export default function TripDetailPage() {
       {/* Tab content */}
       <div
         key={tab}
-        className={`trip-page-transition px-4 pt-2 flex flex-col gap-5 ${tab === "trip" || tab === "candidates" || tab === "vote" ? "trip-tab-content" : ""}`}
+        className={`app-safe-inline trip-page-transition pt-2 flex flex-col gap-5 ${tab === "trip" || tab === "candidates" || tab === "vote" ? "trip-tab-content" : ""}`}
       >
         {tab === "trip" && (
           <div className="trip-overview-panel flex min-h-0 flex-1 flex-col gap-5 overflow-hidden">
@@ -1089,7 +1068,7 @@ export default function TripDetailPage() {
                   if (tripStatus !== "before") {
                     const items = allDayTimelines[day.dayNumber] ?? [];
                     return (
-                      <div key={day.id} className="p-4 bg-gray-50 rounded-2xl flex flex-col gap-3">
+                      <div key={day.id} className="shrink-0 p-4 bg-gray-50 rounded-2xl flex flex-col gap-3">
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="font-semibold">{day.dayNumber}일차</p>
@@ -1117,7 +1096,7 @@ export default function TripDetailPage() {
                     );
                   }
                   return (
-                    <div key={day.id} className="overflow-hidden rounded-2xl bg-gray-50">
+                    <div key={day.id} className="shrink-0 overflow-hidden rounded-2xl bg-gray-50">
                       <Link
                         href={`/trip/${trip.id}/day/${day.dayNumber}`}
                         onClick={navigateWithPageExit(`/trip/${trip.id}/day/${day.dayNumber}`)}
@@ -1350,11 +1329,12 @@ export default function TripDetailPage() {
       </div>
 
       {/* Bottom tab bar */}
-      <div
-        className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-      >
-        <div className={`trip-floating-tab-bar pointer-events-auto is-${tab}`}>
+      <FixedBottomPortal>
+        <div
+          className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
+          <div className={`trip-floating-tab-bar pointer-events-auto is-${tab}`}>
           <span className="trip-floating-tab-indicator" aria-hidden="true" />
           {([
             { key: "trip", label: "여행 모임", icon: (
@@ -1395,8 +1375,9 @@ export default function TripDetailPage() {
               </button>
             );
           })}
+          </div>
         </div>
-      </div>
+      </FixedBottomPortal>
 
       {showInvite && (
         <InviteSheet trip={trip} onClose={() => setShowInvite(false)} />
