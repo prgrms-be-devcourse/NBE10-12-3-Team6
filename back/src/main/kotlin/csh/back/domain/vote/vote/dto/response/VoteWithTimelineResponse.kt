@@ -10,6 +10,7 @@ data class VoteWithTimelineResponse(
     val startTime: LocalDateTime,
     val confirmedPlaceName: String,
     val voteStatus: String,
+    val isAnonymous: Boolean,
 ) {
     companion object {
         @JvmStatic
@@ -22,6 +23,7 @@ data class VoteWithTimelineResponse(
                 timeline.startTime,
                 confirmedPlaceName,
                 vote.status.nickname,
+                vote.isAnonymous,
             )
         }
     }

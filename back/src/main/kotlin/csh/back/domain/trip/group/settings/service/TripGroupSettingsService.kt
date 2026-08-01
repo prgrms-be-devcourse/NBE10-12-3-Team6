@@ -13,6 +13,8 @@ import csh.back.domain.trip.group.settings.entity.TripGroupSettings
 import csh.back.domain.trip.group.settings.exception.TripGroupSettingsLockedException
 import csh.back.domain.trip.group.settings.repository.TripGroupSettingsRepository
 import csh.back.domain.trip.member.repository.TripMemberRepository
+import csh.back.domain.vote.vote.enums.VoteStatus
+import csh.back.domain.vote.vote.repository.VoteRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
@@ -25,6 +27,7 @@ class TripGroupSettingsService(
     private val tripMemberRepository: TripMemberRepository,
     private val tripGroupSettingsRepository: TripGroupSettingsRepository,
     private val tripEventService: TripEventService,
+    private val voteRepository: VoteRepository,
 ) {
 
     fun getSettings(
@@ -102,6 +105,23 @@ class TripGroupSettingsService(
         )
     }
 
+    fun updateAnonymousVote(
+        tripGroupId: Long,
+        memberId: Long,
+        isAnonymousVote: Boolean,
+    ): TripGroupSettingsResponse {
+        validateTripAdmin(tripGroupId, memberId)
+        val tripGroup = findTripGroup(tripGroupId)
+        val settings = findOrCreateSettings(tripGroup)
+        settings.isAnonymousVote = isAnonymousVote
+        voteRepository.updateIsAnonymousByTripGroupIdAndStatus(tripGroupId, isAnonymousVote, VoteStatus.PENDING)
+
+        return TripGroupSettingsResponse.from(
+            settings = settings,
+            editable = tripGroup.owner.id == memberId && isBeforeTripStart(tripGroup),
+        )
+    }
+
     private fun findTripGroup(tripGroupId: Long): TripGroup =
         tripGroupRepository.findById(tripGroupId)
             .orElseThrow {
@@ -124,6 +144,11 @@ class TripGroupSettingsService(
         if (tripGroup.owner.id != memberId) {
             throw NonMemberException("해당 모임의 소유자만 설정을 변경할 수 있습니다.")
         }
+    }
+
+    private fun validateTripAdmin(tripGroupId: Long, memberId: Long) {
+        val isAdmin = tripMemberRepository.existsByTripGroupIdAndMemberIdAndIsAdminTrue(tripGroupId, memberId)
+        require(isAdmin) { "여행 모임 방장만 접근할 수 있습니다." }
     }
 
     private fun validateDayNumber(

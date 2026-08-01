@@ -200,8 +200,37 @@ function AddCandidateSheet({
 // ── TripCandidatePoolCard ─────────────────────────────────────────────────────
 
 function TripCandidatePoolCard({ trip, onUpdate, tripStatus }: { trip: Trip; onUpdate: (t: Trip) => void; tripStatus: "before" | "during" | "after" }) {
+  const { currentUser } = useStore();
   const [showAdd, setShowAdd] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const canRegister = tripStatus === "before";
+  const deleteTarget = trip.candidates.find(c => c.id === deleteTargetId) ?? null;
+
+  const handleDeleteCandidate = async (tripPlaceId: string) => {
+    setDeleteError("");
+    try {
+      const res = await apiFetch(`${API_BASE}/api/v1/trips/${trip.id}/wish-places/${tripPlaceId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setDeleteError(body?.message ?? "후보 장소를 삭제하지 못했습니다.");
+        return;
+      }
+      onUpdate({ ...trip, candidates: trip.candidates.filter(c => c.id !== tripPlaceId) });
+    } catch (e) {
+      console.error("[후보 삭제 실패]", e);
+      setDeleteError("후보 장소를 삭제하지 못했습니다.");
+    }
+  };
+
+  const confirmDeleteCandidate = () => {
+    if (!deleteTargetId) return;
+    const targetId = deleteTargetId;
+    setDeleteTargetId(null);
+    handleDeleteCandidate(targetId);
+  };
 
   return (
     <div className="candidate-pool-card candidate-section-panel pt-3 pb-0 flex flex-col gap-4 rounded-2xl">
@@ -226,6 +255,8 @@ function TripCandidatePoolCard({ trip, onUpdate, tripStatus }: { trip: Trip; onU
         </div>
       )}
 
+      {deleteError && <p className="text-xs text-red-500">{deleteError}</p>}
+
       {trip.candidates.length === 0 ? (
         <div className="candidate-empty-card flex min-h-28 items-center gap-3 rounded-2xl p-4">
           <span className="shrink-0 text-2xl">📍</span>
@@ -244,8 +275,41 @@ function TripCandidatePoolCard({ trip, onUpdate, tripStatus }: { trip: Trip; onU
                 <p className="mt-0.5 truncate text-sm text-gray-400">{c.address}</p>
                 <p className="mt-0.5 text-xs text-gray-400">등록자 {c.authorName}</p>
               </div>
+              {canRegister && c.authorId === currentUser.id && (
+                <button
+                  onClick={() => setDeleteTargetId(c.id)}
+                  aria-label="희망장소 삭제"
+                  className="shrink-0 text-xs text-gray-400"
+                >
+                  삭제
+                </button>
+              )}
             </div>
           ))}
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteTargetId(null)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 mx-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+            <p className="font-bold text-base">후보 장소 삭제</p>
+            <p className="text-sm text-gray-600">&apos;{deleteTarget.placeName}&apos;을(를) 삭제하시겠습니까?</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteTargetId(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-600"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmDeleteCandidate}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                style={{ background: "#fee2e2", color: "#dc2626" }}
+              >
+                삭제
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -301,6 +365,7 @@ interface TripGroupSettingsPayload {
   tripGroupId: number;
   days: DayFreeTimeSetting[];
   editable: boolean;
+  isAnonymousVote: boolean;
 }
 
 function DayFreeTimeRangeControl({
@@ -458,6 +523,7 @@ const TRIP_OVERVIEW_SYNC_EVENT_TYPES = new Set([
 
 const CANDIDATE_SYNC_EVENT_TYPES = new Set([
   "WISH_PLACE_ADDED",
+  "WISH_PLACE_DELETED",
 ]);
 
 function HeaderSyncButton({
@@ -596,11 +662,27 @@ export default function TripDetailPage() {
     setShowVoteDefaultMenu(true);
   };
 
-  const toggleAnonymousVoteDefault = () => {
-    setIsAnonymousVoteDefault(current => !current);
+  const toggleAnonymousVoteDefault = async () => {
+    const previous = isAnonymousVoteDefault;
+    const next = !previous;
+    setIsAnonymousVoteDefault(next);
 
-    // 백엔드 연결 지점:
-    // 여행방 설정의 isAnonymousVote 값을 그대로 저장하고 조회 응답으로 초기화합니다.
+    try {
+      const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/settings`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isAnonymousVote: next }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.message ?? "익명 투표 설정을 저장하지 못했습니다.");
+      }
+      const settings = body.data as TripGroupSettingsPayload;
+      setIsAnonymousVoteDefault(settings.isAnonymousVote);
+    } catch (error) {
+      console.error("[익명 투표 설정 변경 실패]", error);
+      setIsAnonymousVoteDefault(previous);
+    }
   };
 
   const fetchVoteData = useCallback(async () => {
@@ -725,6 +807,7 @@ export default function TripDetailPage() {
           ),
         );
         setFreeTimeSettingsEditable(settings.editable);
+        setIsAnonymousVoteDefault(settings.isAnonymousVote);
       })
       .catch(error => {
         if (!controller.signal.aborted) {
@@ -867,10 +950,10 @@ export default function TripDetailPage() {
     const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/wish-places`);
     if (!response.ok) throw new Error("후보 장소를 불러오지 못했습니다.");
     const body = await response.json();
-    const wishes: { tripPlaceId: number; name: string; address: string; category: string; createdBy: string }[] = body.data ?? [];
+    const wishes: { tripPlaceId: number; name: string; address: string; category: string; createdBy: string; createdByMemberId: number }[] = body.data ?? [];
     const candidates = wishes.map(w => ({
       id: String(w.tripPlaceId),
-      authorId: 0,
+      authorId: w.createdByMemberId,
       authorName: w.createdBy,
       placeName: w.name,
       address: w.address,

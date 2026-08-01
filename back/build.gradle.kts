@@ -88,6 +88,7 @@ dependencies {
 
 
 
+
     // QFile 생성 및 가져오기
     kapt("com.querydsl:querydsl-apt:5.1.0:jakarta")
     kapt("jakarta.persistence:jakarta.persistence-api")

@@ -21,6 +21,7 @@ class MemberService(
     private val refreshTokenRepository: RefreshTokenRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtUtil: JwtUtil,
+    private val newDeviceLoginNotificationService: NewDeviceLoginNotificationService,
 ) {
     @Transactional
     fun signUp(email: String, password: String, name: String): MemberResponseDto {
@@ -52,6 +53,8 @@ class MemberService(
 
         // id!!: JPA save 후 항상 id가 할당되므로 non-null 보장
         val accessToken = jwtUtil.generateAccessToken(member.id!!, member.email)
+        // delete 이전에 호출 — delete 후에 호출하면 existsByMemberIdAndDeviceId가 항상 false를 반환해 판단 불가
+        newDeviceLoginNotificationService.notifyIfNewDevice(member.id!!, member.email, deviceId, userAgent)
         // 같은 기기에서 재로그인 시 기존 토큰 교체 — (member_id, device_id) unique 제약 충족
         refreshTokenRepository.deleteByMemberIdAndDeviceId(member.id!!, deviceId)
         val refreshToken = refreshTokenRepository.save(RefreshToken(member = member, userAgent = userAgent, deviceId = deviceId))
@@ -74,6 +77,21 @@ class MemberService(
                     )
                 )
             }
+    }
+
+    // 기존 RefreshToken을 삭제하고 같은 (member, deviceId)로 새 토큰을 발급한다.
+    // deleteByToken(JPA lifecycle 방식)은 INSERT보다 DELETE가 늦게 flush돼 unique 제약 위반 발생 가능.
+    // deleteByMemberIdAndDeviceId(@Modifying bulk DELETE)는 즉시 SQL을 실행하므로 순서 문제 없음.
+    @Transactional
+    fun rotateRefreshToken(oldRefreshToken: RefreshToken): RefreshToken {
+        refreshTokenRepository.deleteByMemberIdAndDeviceId(oldRefreshToken.member.id!!, oldRefreshToken.deviceId)
+        return refreshTokenRepository.save(
+            RefreshToken(
+                member = oldRefreshToken.member,
+                deviceId = oldRefreshToken.deviceId,
+                userAgent = oldRefreshToken.userAgent,
+            )
+        )
     }
 
     @Transactional

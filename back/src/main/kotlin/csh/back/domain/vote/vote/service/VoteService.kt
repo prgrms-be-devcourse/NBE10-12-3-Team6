@@ -7,6 +7,7 @@ import csh.back.domain.trip.group.entity.TripGroup
 import csh.back.domain.trip.group.exception.NonMemberException
 import csh.back.domain.trip.group.exception.NotFoundException
 import csh.back.domain.trip.group.repository.TripGroupRepository
+import csh.back.domain.trip.group.settings.repository.TripGroupSettingsRepository
 import csh.back.domain.trip.member.repository.TripMemberRepository
 import csh.back.domain.trip.place.service.TripPlaceService
 import csh.back.domain.trip.timeline.entity.Timeline
@@ -19,6 +20,7 @@ import csh.back.domain.vote.vote.dto.response.VoteFindResponse
 import csh.back.domain.vote.vote.dto.response.VoteFindUserResponse
 import csh.back.domain.vote.vote.dto.response.VoteFindWithUpdateCountResponse
 import csh.back.domain.vote.vote.dto.response.VoteWithTimelineResponse
+import csh.back.domain.vote.vote.dto.response.VoterResponse
 import csh.back.domain.vote.vote.dto.web.VoteTimelineResponse
 import csh.back.domain.vote.vote.entity.Vote
 import csh.back.domain.vote.vote.enums.VoteStatus
@@ -34,6 +36,7 @@ class VoteService(
     private val voteItemRepository: VoteItemRepository,
     private val voteUserRepository: VoteUserRepository,
     private val tripGroupRepository: TripGroupRepository,
+    private val tripGroupSettingsRepository: TripGroupSettingsRepository,
     private val timelineRepository: TimelineRepository,
     private val tripMemberRepository: TripMemberRepository,
     private val tripPlaceService: TripPlaceService,
@@ -67,6 +70,12 @@ class VoteService(
         val voteItemList = voteItemRepository.findAllByVoteIdWithTripPlace(voteId)
         val countMap = voteCount(voteId)
         val vote = voteRepository.findById(voteId).orElseThrow(::RuntimeException)
+        val votersByVoteItemId: Map<Long?, List<VoterResponse>> = if (vote.isAnonymous) {
+            emptyMap()
+        } else {
+            voteUserRepository.findAllByVoteIdWithVoter(voteId)
+                .groupBy({ it.voteItem.id }, { VoterResponse(it.tripMember.id!!, it.tripMember.member.name) })
+        }
         val voteItem = voteUser?.voteItem
         val updateCount = voteUser?.updateCount ?: DEFAULT_UPDATE_COUNT
         val voteFindResponses = voteItemList.map { vi ->
@@ -75,6 +84,7 @@ class VoteService(
                 vi.tripPlace.name,
                 countMap.getOrDefault(vi.id, 0L),
                 vi == voteItem,
+                votersByVoteItemId.getOrDefault(vi.id, emptyList()),
             )
         }
         val wishPlaceFindResponses = tripPlaceService.findWishPlaces(tripGroupId, memberId)
@@ -116,7 +126,8 @@ class VoteService(
         val tripGroup = validateTripMember(tripGroupId, memberId)
         val tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripGroupId).orElseThrow(::RuntimeException)
         val expireTime = tripGroup.startDate.minusDays(1).atStartOfDay()
-        val vote = Vote(tripGroup = tripGroup, timeline = timeline, tripMember = tripMember, expireTime = expireTime)
+        val isAnonymous = resolveIsAnonymous(tripGroupId)
+        val vote = Vote(tripGroup = tripGroup, timeline = timeline, tripMember = tripMember, expireTime = expireTime, isAnonymous = isAnonymous)
         val saved = voteRepository.save(vote)
         return VoteCreateResponse.from(saved)
     }
@@ -126,17 +137,35 @@ class VoteService(
         val tripGroup = validateTripMember(tripGroupId, memberId)
         val expireTime = tripGroup.startDate.minusDays(1).atStartOfDay()
         val tripMember = tripMemberRepository.findByMemberIdAndTripGroupId(memberId, tripGroupId).orElseThrow(::RuntimeException)
+        val isAnonymous = resolveIsAnonymous(tripGroupId)
         val votes = timelines.map { timeline ->
-            Vote(tripGroup = tripGroup, timeline = timeline, tripMember = tripMember, expireTime = expireTime)
+            Vote(tripGroup = tripGroup, timeline = timeline, tripMember = tripMember, expireTime = expireTime, isAnonymous = isAnonymous)
         }
         voteRepository.saveAll(votes)
     }
+
+    private fun resolveIsAnonymous(tripGroupId: Long): Boolean =
+        tripGroupSettingsRepository.findByTripGroupId(tripGroupId).map { it.isAnonymousVote }.orElse(true)
 
     @Transactional
     fun lockPendingVote(voteId: Long): Vote {
         val vote = voteRepository.findByIdWithLock(voteId).orElseThrow(::RuntimeException)
         check(vote.status == VoteStatus.PENDING) { "이미 확정되었거나 만료된 투표입니다." }
         return vote
+    }
+
+    @Transactional
+    fun updateAnonymous(tripGroupId: Long, voteId: Long, memberId: Long, isAnonymous: Boolean): Boolean {
+        validateTripAdmin(tripGroupId, memberId)
+        val vote = voteRepository.findById(voteId).orElseThrow(::RuntimeException)
+        check(vote.status == VoteStatus.PENDING) { "이미 확정되었거나 만료된 투표입니다." }
+        vote.updateAnonymous(isAnonymous)
+        return vote.isAnonymous
+    }
+
+    private fun validateTripAdmin(tripGroupId: Long, memberId: Long) {
+        val isAdmin = tripMemberRepository.existsByTripGroupIdAndMemberIdAndIsAdminTrue(tripGroupId, memberId)
+        require(isAdmin) { "여행 모임 방장만 접근할 수 있습니다." }
     }
 
     fun voteConfirm(maxVoteItemId: Long, voteId: Long): VoteTimelineResponse {

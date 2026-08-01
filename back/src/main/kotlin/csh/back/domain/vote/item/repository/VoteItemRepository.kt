@@ -11,4 +11,6 @@ interface VoteItemRepository : JpaRepository<VoteItem, Long> {
     fun findAllByVoteIdWithTripPlace(voteId: Long): List<VoteItem>
 
     fun findByVoteIdAndTripPlaceId(voteId: Long, tripPlaceId: Long): Optional<VoteItem>
+
+    fun existsByTripPlaceId(tripPlaceId: Long): Boolean
 }

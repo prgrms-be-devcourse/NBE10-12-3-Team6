@@ -15,6 +15,7 @@ interface VoteDetail {
   place: string;
   count: number;
   isVoted: boolean;
+  voters: { tripMemberId: number; name: string }[];
 }
 
 const VOTE_DETAIL_SYNC_EVENT_TYPES = new Set([
@@ -100,6 +101,7 @@ export default function BlockDetailPage() {
     const results: VoteDetail[] = body.data?.voteResults ?? [];
     setVoteDetails(results);
     setUpdateCount(body.data?.updateCount ?? 0);
+    setIsAnonymousVote(body.data?.isAnonymous ?? true);
     const status = body.data?.voteStatus ?? null;
     const confirmed = status ? status === "투표 확정" : body.data?.isConfirmed ?? false;
     setVoteStatus(status);
@@ -316,14 +318,28 @@ export default function BlockDetailPage() {
     setShowHostMenu(true);
   };
 
-  const toggleAnonymousVote = () => {
+  const toggleAnonymousVote = async () => {
     if (anonymousVoteLocked) return;
 
-    const nextIsAnonymousVote = !isAnonymousVote;
+    const previous = isAnonymousVote;
+    const nextIsAnonymousVote = !previous;
     setIsAnonymousVote(nextIsAnonymousVote);
 
-    // 백엔드 연결 지점:
-    // nextIsAnonymousVote를 투표 설정 API에 그대로 저장하고 조회 응답으로 초기화합니다.
+    try {
+      const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/votes/${blockId}/anonymous`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isAnonymous: nextIsAnonymousVote }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.message ?? "투표 익명 설정을 저장하지 못했습니다.");
+      }
+      setIsAnonymousVote(body.data as boolean);
+    } catch (error) {
+      console.error("[투표 익명 설정 변경 실패]", error);
+      setIsAnonymousVote(previous);
+    }
   };
 
   const decideByVote = async () => {
@@ -590,6 +606,15 @@ export default function BlockDetailPage() {
                       <span className="text-xs text-gray-400">등록자 {c.authorName}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-gray-600">{voteCount(c.id)}표</span>
+                        {fromVote && !isAnonymousVote && (() => {
+                          const voters = voteDetails?.find(v => String(v.tripPlaceId) === c.id)?.voters ?? [];
+                          if (voters.length === 0) return null;
+                          return (
+                            <span className="text-xs text-gray-400">
+                              ({voters.map(v => v.name).join(", ")})
+                            </span>
+                          );
+                        })()}
                         {voted && (
                           <span className="my-vote-badge text-xs font-semibold px-2 py-0.5 rounded-full">
                             내 투표

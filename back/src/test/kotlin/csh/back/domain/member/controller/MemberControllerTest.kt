@@ -2,6 +2,8 @@ package csh.back.domain.member.controller
 
 import csh.back.domain.member.repository.RefreshTokenRepository
 import csh.back.global.jwt.CookieNames
+import csh.back.global.mail.EmailCooldownGuard
+import csh.back.global.mail.MailService
 import jakarta.servlet.http.Cookie
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
@@ -12,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers.print
@@ -27,6 +30,14 @@ class MemberControllerTest {
 
     @Autowired
     private lateinit var refreshTokenRepository: RefreshTokenRepository
+
+    // login()이 notifyIfNewDevice()를 호출하고, 그 안에서 Redis(EmailCooldownGuard)와 SMTP(MailService)를 사용.
+    // MemberControllerTest는 알림 동작이 아닌 로그인/로그아웃 HTTP 동작을 검증하므로 인프라 의존성 차단.
+    @MockitoBean
+    private lateinit var emailCooldownGuard: EmailCooldownGuard
+
+    @MockitoBean
+    private lateinit var mailService: MailService
 
     companion object {
         private const val BASE_URL = "/api/v1/auth"

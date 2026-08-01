@@ -16,4 +16,12 @@ interface VoteUserRepository : JpaRepository<VoteUser, Long> {
     fun findByVoteItemId(voteItemId: Long): List<VoteUser>
 
     fun findByVoteIdAndTripMemberId(voteId: Long, tripMemberId: Long): Optional<VoteUser>
+
+    @Query(
+        "SELECT vu FROM VoteUser vu " +
+            "JOIN FETCH vu.tripMember tm " +
+            "JOIN FETCH tm.member " +
+            "WHERE vu.vote.id = :voteId",
+    )
+    fun findAllByVoteIdWithVoter(voteId: Long): List<VoteUser>
 }

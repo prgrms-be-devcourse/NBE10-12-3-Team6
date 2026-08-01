@@ -4,8 +4,10 @@ import csh.back.domain.member.repository.MemberRepository
 import csh.back.domain.member.support.WithMockMember
 import csh.back.domain.trip.group.entity.TripGroup
 import csh.back.domain.trip.group.repository.TripGroupRepository
+import csh.back.domain.trip.group.settings.repository.TripGroupSettingsRepository
 import csh.back.domain.trip.member.entity.TripMember
 import csh.back.domain.trip.member.repository.TripMemberRepository
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -42,6 +44,9 @@ class TripGroupSettingsV1ControllerTest {
 
     @Autowired
     lateinit var tripMemberRepository: TripMemberRepository
+
+    @Autowired
+    lateinit var tripGroupSettingsRepository: TripGroupSettingsRepository
 
     private var futureTripId: Long = 0L
 
@@ -200,6 +205,30 @@ class TripGroupSettingsV1ControllerTest {
         )
 
         return requireNotNull(tripGroup.id)
+    }
+
+    @Test
+    @DisplayName("익명/실명 투표 설정 변경 - 200")
+    @WithMockMember
+    fun updateAnonymousVote() {
+        mvc.perform(
+            patch("$BASE_URL/trips/$futureTripId/settings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                        "isAnonymousVote": false
+                    }
+                    """.trimIndent(),
+                ),
+        )
+            .andExpect(handler().handlerType(TripGroupSettingsV1Controller::class.java))
+            .andExpect(handler().methodName("updateAnonymousVote"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.isAnonymousVote").value(false))
+
+        val saved = tripGroupSettingsRepository.findByTripGroupId(futureTripId).orElseThrow()
+        assertThat(saved.isAnonymousVote).isFalse()
     }
 
     private companion object {
