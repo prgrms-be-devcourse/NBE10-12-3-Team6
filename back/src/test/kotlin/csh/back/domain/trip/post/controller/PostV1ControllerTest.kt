@@ -3,6 +3,7 @@ package csh.back.domain.trip.post.controller
 import tools.jackson.databind.ObjectMapper
 import csh.back.domain.trip.group.support.WithMockLoginUser
 import csh.back.domain.trip.post.dto.request.UpdatePostRequest
+import csh.back.domain.trip.post.dto.response.PostCursorResponse
 import csh.back.domain.trip.post.dto.response.PostResponse
 import csh.back.domain.trip.post.dto.response.PostTimelineResponse
 import csh.back.domain.trip.post.dto.response.PostsDailyResponse
@@ -113,6 +114,8 @@ class PostV1ControllerTest {
             .andExpect(jsonPath("$.timelineId").value(TIMELINE_ID))
             .andExpect(jsonPath("$.type").value("IMAGE"))
             .andExpect(jsonPath("$.contentUrl").value("https://example.com/test-image.jpg"))
+            .andExpect(jsonPath("$.normalContentUrl").value("https://example.com/test-image.jpg"))
+            .andExpect(jsonPath("$.dataSaverContentUrl").value("https://example.com/test-image.jpg"))
             .andExpect(jsonPath("$.content").value("부산 여행 시작!"))
             .andExpect(jsonPath("$.likeCount").value(0))
 
@@ -152,6 +155,8 @@ class PostV1ControllerTest {
             .andExpect(jsonPath("$.timelineId").value(TIMELINE_ID))
             .andExpect(jsonPath("$.type").value("IMAGE"))
             .andExpect(jsonPath("$.contentUrl").value("https://example.com/test-image.jpg"))
+            .andExpect(jsonPath("$.normalContentUrl").value("https://example.com/test-image.jpg"))
+            .andExpect(jsonPath("$.dataSaverContentUrl").value("https://example.com/test-image.jpg"))
             .andExpect(jsonPath("$.content").value("부산 여행"))
             .andExpect(jsonPath("$.likeCount").value(3))
 
@@ -174,6 +179,8 @@ class PostV1ControllerTest {
                     PostsDailyResponse.PostSummary(
                         postId = POST_ID,
                         contentUrl = "https://example.com/test-image.jpg",
+                        normalContentUrl = "https://example.com/test-image-normal.webp",
+                        dataSaverContentUrl = "https://example.com/test-image-data-saver.webp",
                         timelineId = TIMELINE_ID,
                         startTime = startTime,
                         endTime = endTime,
@@ -184,10 +191,15 @@ class PostV1ControllerTest {
                 )
             )
         )
+        val cursorResponse = PostCursorResponse(
+            groups = response,
+            nextCursor = "next-cursor",
+            hasNext = true
+        )
 
         `when`(
-            postService.getPosts(TRIP_GROUP_ID, MEMBER_ID)
-        ).thenReturn(response)
+            postService.getPosts(TRIP_GROUP_ID, MEMBER_ID, null, 10)
+        ).thenReturn(cursorResponse)
 
         mvc.perform(
             get(BASE_URL, TRIP_GROUP_ID)
@@ -196,20 +208,30 @@ class PostV1ControllerTest {
             .andExpect(handler().handlerType(PostV1Controller::class.java))
             .andExpect(handler().methodName("getPosts"))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$[0].date").value("2026-07-30"))
-            .andExpect(jsonPath("$[0].posts[0].postId").value(POST_ID))
+            .andExpect(jsonPath("$.groups[0].date").value("2026-07-30"))
+            .andExpect(jsonPath("$.groups[0].posts[0].postId").value(POST_ID))
             .andExpect(
-                jsonPath("$[0].posts[0].contentUrl")
+                jsonPath("$.groups[0].posts[0].contentUrl")
                     .value("https://example.com/test-image.jpg")
             )
-            .andExpect(jsonPath("$[0].posts[0].timelineId").value(TIMELINE_ID))
-            .andExpect(jsonPath("$[0].posts[0].startTime").value("2026-07-30T10:00:00"))
-            .andExpect(jsonPath("$[0].posts[0].endTime").value("2026-07-30T11:00:00"))
-            .andExpect(jsonPath("$[0].posts[0].confirmedPlaceName").value("광안리"))
-            .andExpect(jsonPath("$[0].posts[0].createdAt").value("2026-07-30T10:20:00"))
-            .andExpect(jsonPath("$[0].posts[0].likeCount").value(5))
+            .andExpect(
+                jsonPath("$.groups[0].posts[0].normalContentUrl")
+                    .value("https://example.com/test-image-normal.webp")
+            )
+            .andExpect(
+                jsonPath("$.groups[0].posts[0].dataSaverContentUrl")
+                    .value("https://example.com/test-image-data-saver.webp")
+            )
+            .andExpect(jsonPath("$.groups[0].posts[0].timelineId").value(TIMELINE_ID))
+            .andExpect(jsonPath("$.groups[0].posts[0].startTime").value("2026-07-30T10:00:00"))
+            .andExpect(jsonPath("$.groups[0].posts[0].endTime").value("2026-07-30T11:00:00"))
+            .andExpect(jsonPath("$.groups[0].posts[0].confirmedPlaceName").value("광안리"))
+            .andExpect(jsonPath("$.groups[0].posts[0].createdAt").value("2026-07-30T10:20:00"))
+            .andExpect(jsonPath("$.groups[0].posts[0].likeCount").value(5))
+            .andExpect(jsonPath("$.nextCursor").value("next-cursor"))
+            .andExpect(jsonPath("$.hasNext").value(true))
 
-        verify(postService).getPosts(TRIP_GROUP_ID, MEMBER_ID)
+        verify(postService).getPosts(TRIP_GROUP_ID, MEMBER_ID, null, 10)
     }
 
     @Test

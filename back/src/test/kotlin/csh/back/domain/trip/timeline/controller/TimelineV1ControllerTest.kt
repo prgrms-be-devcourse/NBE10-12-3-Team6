@@ -248,6 +248,26 @@ class TimelineV1ControllerTest {
             .andExpect(status().isForbidden)
     }
 
+    @Test
+    @DisplayName("존재하지 않는 여행방의 타임라인 조회는 404 반환")
+    @WithMockLoginUser
+    fun rejectsMissingTripGroup() {
+        mvc.perform(get("$BASE_URL/count", MISSING_TRIP_ID))
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.statusCode").value(404))
+            .andExpect(jsonPath("$.message").value("존재하지 않는 모임입니다."))
+    }
+
+    @Test
+    @DisplayName("여행방 비멤버의 타임라인 조회는 403 반환")
+    @WithMockLoginUser(id = NON_MEMBER_ID, email = "member2@admin.com")
+    fun rejectsNonMember() {
+        mvc.perform(get("$BASE_URL/count", TRIP_ID))
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.statusCode").value(403))
+            .andExpect(jsonPath("$.message").value("해당 모임의 멤버가 아닙니다."))
+    }
+
     private fun createTimeline(startTime: String, endTime: String): Long {
         val result = mvc.perform(
             post(BASE_URL, TRIP_ID)
@@ -274,5 +294,7 @@ class TimelineV1ControllerTest {
     companion object {
         private const val BASE_URL = "/api/v1/trips/{tripId}/timelines"
         private const val TRIP_ID = 1L
+        private const val MISSING_TRIP_ID = 999L
+        private const val NON_MEMBER_ID = 2L
     }
 }

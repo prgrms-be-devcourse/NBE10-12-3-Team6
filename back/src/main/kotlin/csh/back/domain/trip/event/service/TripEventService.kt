@@ -1,6 +1,8 @@
 package csh.back.domain.trip.event.service
 
 import csh.back.domain.trip.event.dto.TripEvent
+import csh.back.domain.trip.group.exception.NonMemberException
+import csh.back.domain.trip.group.exception.NotFoundException
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
 import org.springframework.jdbc.core.JdbcTemplate
@@ -115,7 +117,7 @@ class TripEventService(
             subscriber = subscriber,
             event = SseEmitter.event()
                 .name(CONNECTED_EVENT)
-                .data("여행방 변경 알림 연결이 완료되었습니다."),
+                .data("여행방 변경 알림 연결 완료"),
         )
 
         return emitter
@@ -217,15 +219,24 @@ class TripEventService(
     }
 
     private fun validateTripMember(tripGroupId: Long, memberId: Long) {
-        val count = jdbcTemplate.queryForObject(
+        val tripGroupCount = jdbcTemplate.queryForObject(
+            "select count(*) from trip_groups where id = ?",
+            Int::class.java,
+            tripGroupId,
+        )
+        if (tripGroupCount == null || tripGroupCount == 0) {
+            throw NotFoundException("존재하지 않는 모임입니다.")
+        }
+
+        val tripMemberCount = jdbcTemplate.queryForObject(
             "select count(*) from trip_members where trip_group_id = ? and member_id = ?",
             Int::class.java,
             tripGroupId,
             memberId,
         )
 
-        require(count != null && count > 0) {
-            "여행 모임 멤버만 접근할 수 있습니다."
+        if (tripMemberCount == null || tripMemberCount == 0) {
+            throw NonMemberException("해당 모임의 멤버가 아닙니다.")
         }
     }
 

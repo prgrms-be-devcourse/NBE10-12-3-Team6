@@ -97,7 +97,7 @@ class TripGroupService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.TRIP_GROUP_UPDATED,
-                message = "여행방 정보가 변경되었습니다.",
+                message = "여행방 정보 변경",
                 tripGroupId = tripId,
                 actorMemberId = ownerId,
             ),

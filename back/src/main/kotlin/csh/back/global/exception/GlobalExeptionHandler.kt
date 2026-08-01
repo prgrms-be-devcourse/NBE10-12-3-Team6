@@ -9,8 +9,11 @@ import csh.back.domain.trip.group.settings.exception.TripGroupSettingsLockedExce
 import csh.back.domain.trip.place.exception.DuplicateTripPlaceException
 import csh.back.global.dto.ErrorResponse
 import csh.back.global.mail.exception.MailCooldownException
+import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -21,6 +24,17 @@ class GlobalExeptionHandler {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @ExceptionHandler(NotFoundException::class)
+    fun handleGroupNotFound(
+        e: NotFoundException,
+        request: HttpServletRequest,
+    ): ResponseEntity<*> {
+        if (request.acceptsEventStream()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build<Void>()
+        }
+
+        return handleGroupNotFound(e)
+    }
+
     fun handleGroupNotFound(e: NotFoundException): ResponseEntity<ErrorResponse> {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
             .body(ErrorResponse(404, e.message))
@@ -37,6 +51,17 @@ class GlobalExeptionHandler {
     }
 
     @ExceptionHandler(NonMemberException::class)
+    fun handleGroupNotFound(
+        e: NonMemberException,
+        request: HttpServletRequest,
+    ): ResponseEntity<*> {
+        if (request.acceptsEventStream()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build<Void>()
+        }
+
+        return handleGroupNotFound(e)
+    }
+
     fun handleGroupNotFound(e: NonMemberException): ResponseEntity<ErrorResponse> {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ErrorResponse(403, e.message))
@@ -85,4 +110,8 @@ class GlobalExeptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(ErrorResponse(500, e.message))
     }
+
+    private fun HttpServletRequest.acceptsEventStream(): Boolean =
+        getHeader(HttpHeaders.ACCEPT)
+            ?.contains(MediaType.TEXT_EVENT_STREAM_VALUE) == true
 }

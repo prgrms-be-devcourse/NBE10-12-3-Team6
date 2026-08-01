@@ -37,4 +37,4 @@ COPY --from=builder /workspace/build/libs/*.jar back.jar
 EXPOSE 8080
 
 # JAR 실행 (ENTRYPOINT + CMD 분리 방식보다 단순한 단일 실행 방식)
-ENTRYPOINT ["java", "-Duser.timezone=Asia/Seoul", "-jar", "back.jar"]
+ENTRYPOINT ["java", "--enable-native-access=ALL-UNNAMED", "-Duser.timezone=Asia/Seoul", "-jar", "back.jar"]

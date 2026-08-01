@@ -7,11 +7,20 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
 import jakarta.persistence.JoinColumn
+import jakarta.persistence.Index
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 
 @Entity
-@Table(name = "trip_posts")
+@Table(
+    name = "trip_posts",
+    indexes = [
+        Index(
+            name = "idx_trip_posts_author_created_id",
+            columnList = "trip_member_id, created_at, id"
+        )
+    ]
+)
 class Post(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trip_member_id", nullable = false)
@@ -23,6 +32,8 @@ class Post(
 
     var type: String? = null,
     var contentUrl: String? = null,
+    var normalContentUrl: String? = null,
+    var dataSaverContentUrl: String? = null,
 
     @Column(length = 1000)
     var content: String? = null
