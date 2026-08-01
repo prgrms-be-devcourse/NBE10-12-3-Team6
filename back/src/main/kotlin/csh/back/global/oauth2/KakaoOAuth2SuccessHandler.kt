@@ -3,6 +3,7 @@ package csh.back.global.oauth2
 import csh.back.domain.member.entity.RefreshToken
 import csh.back.domain.member.repository.RefreshTokenRepository
 import csh.back.domain.member.service.MemberService
+import csh.back.domain.member.service.NewDeviceLoginNotificationService
 import csh.back.global.jwt.CookieNames
 import csh.back.global.jwt.JwtUtil
 import jakarta.servlet.http.HttpServletRequest
@@ -21,6 +22,7 @@ class KakaoOAuth2SuccessHandler(
     private val memberService: MemberService,
     private val refreshTokenRepository: RefreshTokenRepository,
     private val jwtUtil: JwtUtil,
+    private val newDeviceLoginNotificationService: NewDeviceLoginNotificationService,
 ) : AuthenticationSuccessHandler {
 
     @Transactional
@@ -46,6 +48,8 @@ class KakaoOAuth2SuccessHandler(
         val userAgent = request.getHeader(HttpHeaders.USER_AGENT)
         // DeviceIdFilter가 이 요청에서 이미 device_id를 attribute에 주입했으므로 항상 존재
         val deviceId = request.getAttribute(CookieNames.DEVICE_ID) as String
+        // delete 이전에 호출 — delete 후에는 existsByMemberIdAndDeviceId가 항상 false를 반환해 판단 불가
+        newDeviceLoginNotificationService.notifyIfNewDevice(member.id!!, member.email, deviceId, userAgent)
         // 같은 기기에서 재로그인 시 기존 토큰 교체 — (member_id, device_id) unique 제약 충족
         refreshTokenRepository.deleteByMemberIdAndDeviceId(member.id!!, deviceId)
         val refreshToken = refreshTokenRepository.save(RefreshToken(member = member, userAgent = userAgent, deviceId = deviceId))

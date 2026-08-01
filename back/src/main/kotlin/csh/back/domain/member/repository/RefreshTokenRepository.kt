@@ -27,4 +27,7 @@ interface RefreshTokenRepository : JpaRepository<RefreshToken, Long> {
     // 전체 기기 로그아웃용 — 현재 미사용, 향후 "모든 기기 로그아웃" API에서 호출
     @Transactional
     fun deleteAllByMember(member: Member)
+
+    // 새 기기 로그인 감지용 — 로그인 직전 해당 (member, device) 조합이 이미 알려진 기기인지 확인
+    fun existsByMemberIdAndDeviceId(memberId: Long, deviceId: String): Boolean
 }
