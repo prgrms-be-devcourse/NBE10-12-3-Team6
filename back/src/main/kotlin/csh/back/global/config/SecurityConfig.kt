@@ -1,6 +1,7 @@
 package csh.back.global.config
 
 import csh.back.domain.member.repository.RefreshTokenRepository
+import csh.back.domain.member.service.MemberService
 import csh.back.global.filter.DeviceIdFilter
 import csh.back.global.jwt.JwtAuthenticationFilter
 import csh.back.global.jwt.JwtUtil
@@ -23,6 +24,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 class SecurityConfig(
     private val jwtUtil: JwtUtil,
     private val refreshTokenRepository: RefreshTokenRepository,
+    private val memberService: MemberService,
     private val kakaoOAuth2SuccessHandler: KakaoOAuth2SuccessHandler,
 ) {
 
@@ -75,7 +77,7 @@ class SecurityConfig(
             }
             // JwtAuthenticationFilter: Spring 기본 로그인 필터 앞에 위치
             // DeviceIdFilter: JwtAuthenticationFilter보다 먼저 실행되어 device_id를 request attribute에 주입
-            .addFilterBefore(JwtAuthenticationFilter(jwtUtil, refreshTokenRepository), UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterBefore(JwtAuthenticationFilter(jwtUtil, refreshTokenRepository, memberService), UsernamePasswordAuthenticationFilter::class.java)
             .addFilterBefore(DeviceIdFilter(), JwtAuthenticationFilter::class.java)
 
         return http.build()
