@@ -98,10 +98,13 @@ class MemberService(
 
     @Transactional
     fun logout(refreshToken: String) {
+정        // deleteByToken 이후엔 member 참조가 사라지므로 먼저 memberId를 뽑아둔다
+        val memberId = refreshTokenRepository.findByTokenWithMember(refreshToken)
+            .map { it.member.id!! }
+            .orElse(null)
         refreshTokenRepository.deleteByToken(refreshToken)
-        member.invalidateRefreshToken()
 
         // 로그아웃 시 열려있는 SSE 연결을 즉시 종료해 presence를 online 상태로 남기지 않음
-        presenceService.disconnectAll(memberId)
+        memberId?.let { presenceService.disconnectAll(it) }
     }
 }

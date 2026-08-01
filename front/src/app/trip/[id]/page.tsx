@@ -150,7 +150,7 @@ function PastMatesInvitePanel({
     if (items.length === 0) return;
     const ids = items.map(m => m.id);
     (async () => { await refreshOnline(ids, items); })();
-    const interval = setInterval(() => { refreshOnline(ids, items); }, 30_000);
+    const interval = setInterval(() => { refreshOnline(ids, items); }, 20_000);
     return () => clearInterval(interval);
   }, [items, refreshOnline]);
 
@@ -350,10 +350,6 @@ function InviteSheet({
               {copied ? "복사 완료 ✓" : "링크 복사"}
             </button>
           </>
-        ) : (
-          <PastMatesInvitePanel trip={trip} isAdmin={isAdmin} onInvited={onMembersInvited} />
-        )}
-        </>
         ) : (
           <PastMatesInvitePanel trip={trip} isAdmin={isAdmin} onInvited={onMembersInvited} />
         )}
@@ -1782,7 +1778,13 @@ export default function TripDetailPage() {
       </div>
 
       {showInvite && (
-        <InviteSheet trip={trip} onClose={() => setShowInvite(false)} />
+        <InviteSheet
+          trip={trip}
+          onClose={() => setShowInvite(false)}
+          onMembersInvited={() => {
+            fetchTripOverview().catch(() => {});
+          }}
+        />
       )}
       {showBulkFreeTimeSheet && (
         <BulkFreeTimeRangeSheet

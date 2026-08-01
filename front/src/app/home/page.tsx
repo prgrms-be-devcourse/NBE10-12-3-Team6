@@ -591,7 +591,17 @@ export default function HomePage() {
   };
 
   const handleLogout = () => {
+    // 백엔드에 로그아웃 통보 (fire-and-forget) — 서버가 refreshToken 무효화 + presence 정리를 수행.
+    // apiFetch가 헤더 조립을 동기 실행 후 fetch를 시작하므로, 이 직후 localStorage.clear() 해도
+    // 요청은 이미 accessToken을 담아 나간다. await하지 않아 UX 지연 없음.
+    apiFetch(`${API_BASE}/api/v1/auth/logout`, { method: "POST" }).catch((e) => {
+      console.error("[로그아웃 API 실패]", e);
+    });
+    // 클라이언트 상태 정리 — 반드시 accessToken 제거해서 PresenceHeartbeat 재접속을 차단
     localStorage.clear();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("triplog-logout"));
+    }
     router.replace("/");
   };
 
