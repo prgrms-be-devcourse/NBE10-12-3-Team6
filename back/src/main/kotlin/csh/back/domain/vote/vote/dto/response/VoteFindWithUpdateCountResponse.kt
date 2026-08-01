@@ -9,6 +9,7 @@ data class VoteFindWithUpdateCountResponse(
     val updateCount: Int,
     val voteStatus: String,
     val confirmedPlaceId: Long?,
+    val isAnonymous: Boolean,
 ) {
     companion object {
         @JvmStatic
@@ -27,6 +28,7 @@ data class VoteFindWithUpdateCountResponse(
                 updateCount,
                 voteStatus.nickname,
                 confirmedPlaceId,
+                vote.isAnonymous,
             )
         }
     }

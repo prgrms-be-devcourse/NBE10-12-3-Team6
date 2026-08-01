@@ -12,6 +12,8 @@ import csh.back.domain.trip.group.entity.TripGroup
 import csh.back.domain.trip.group.exception.NonMemberException
 import csh.back.domain.trip.group.exception.NotFoundException
 import csh.back.domain.trip.group.repository.TripGroupRepository
+import csh.back.domain.trip.group.settings.entity.TripGroupSettings
+import csh.back.domain.trip.group.settings.repository.TripGroupSettingsRepository
 import csh.back.domain.trip.member.dto.response.TripMemberResponse
 import csh.back.domain.trip.member.entity.TripMember
 import csh.back.domain.trip.member.repository.TripMemberRepository
@@ -27,6 +29,7 @@ class TripGroupService(
     private val tripMemberRepository: TripMemberRepository,
     private val memberRepository: MemberRepository,
     private val tripEventService: TripEventService,
+    private val tripGroupSettingsRepository: TripGroupSettingsRepository,
 ) {
 
     @Transactional(readOnly = true)
@@ -52,6 +55,9 @@ class TripGroupService(
             endDate = endDate,
         )
         val savedGroup = tripGroupRepository.save(group)
+        tripGroupSettingsRepository.save(
+            TripGroupSettings(tripGroup = savedGroup),
+        )
 
         tripMemberRepository.save(
             TripMember(

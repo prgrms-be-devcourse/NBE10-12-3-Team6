@@ -13,6 +13,17 @@ spring:
     redis:
       host: localhost
       port: 6379
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: dummy-test-client-id
+            client-authentication-method: none
+            authorization-grant-type: authorization_code
+            redirect-uri: "http://localhost:8080/login/oauth2/code/kakao"
+            scope:
+              - profile_nickname
 
 app:
   s3:

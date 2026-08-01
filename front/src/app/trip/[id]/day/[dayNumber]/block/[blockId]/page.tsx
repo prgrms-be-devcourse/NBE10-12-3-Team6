@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
-import { ArrowClockwise } from "@phosphor-icons/react";
+import { ArrowClockwise, CrownSimple } from "@phosphor-icons/react";
 import { useStore, TripDay, PlanCandidate, uid } from "../../../../../../store";
 import { timeText, useAuthGuard, apiFetch, API_BASE } from "../../../../../../lib";
 import TripChatRoomButton from "../../../../TripChatRoomButton";
@@ -15,6 +15,7 @@ interface VoteDetail {
   place: string;
   count: number;
   isVoted: boolean;
+  voters: { tripMemberId: number; name: string }[];
 }
 
 const VOTE_DETAIL_SYNC_EVENT_TYPES = new Set([
@@ -41,6 +42,8 @@ export default function BlockDetailPage() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [pendingVote, setPendingVote] = useState<string | null>(null);
   const [showHostMenu, setShowHostMenu] = useState(false);
+  const [hostMenuClosing, setHostMenuClosing] = useState(false);
+  const hostMenuCloseTimerRef = useRef<number | null>(null);
   const [voteDetails, setVoteDetails] = useState<VoteDetail[] | null>(null);
   const [wishPlaces, setWishPlaces] = useState<PlanCandidate[] | null>(null);
   const [blockOrder, setBlockOrder] = useState<number | null>(null);
@@ -57,6 +60,7 @@ export default function BlockDetailPage() {
   const [confirmedModalClosing, setConfirmedModalClosing] = useState(false);
   const [voteSyncPending, setVoteSyncPending] = useState(false);
   const [voteSyncLoading, setVoteSyncLoading] = useState(false);
+  const [isAnonymousVote, setIsAnonymousVote] = useState(true);
 
   const trip = trips.find(t => t.id === id);
   const dayNum = parseInt(dayNumber);
@@ -97,6 +101,7 @@ export default function BlockDetailPage() {
     const results: VoteDetail[] = body.data?.voteResults ?? [];
     setVoteDetails(results);
     setUpdateCount(body.data?.updateCount ?? 0);
+    setIsAnonymousVote(body.data?.isAnonymous ?? true);
     const status = body.data?.voteStatus ?? null;
     const confirmed = status ? status === "투표 확정" : body.data?.isConfirmed ?? false;
     setVoteStatus(status);
@@ -164,6 +169,14 @@ export default function BlockDetailPage() {
     const frame = requestAnimationFrame(() => setConfirmedModalPresented(true));
     return () => cancelAnimationFrame(frame);
   }, [showConfirmedModal]);
+
+  useEffect(() => {
+    return () => {
+      if (hostMenuCloseTimerRef.current !== null) {
+        window.clearTimeout(hostMenuCloseTimerRef.current);
+      }
+    };
+  }, []);
 
   if (!trip && !fromVote) return null;
 
@@ -272,6 +285,7 @@ export default function BlockDetailPage() {
   })();
 
   const voteClosed = voteStatus !== null && voteStatus !== "투표 진행중";
+  const anonymousVoteLocked = voteStatus === "투표 확정" || voteStatus === "투표 기한 만료";
 
   const isHost = trip?.members.find(m => m.id === currentUser.id)?.isAdmin ?? false;
   const confirmedByVote = voteConfirmed && confirmedPlaceId
@@ -279,6 +293,54 @@ export default function BlockDetailPage() {
     : null;
   const displaySelected = selected ?? confirmedByVote ?? null;
   const showCenteredEmpty = voteDetails !== null && !displaySelected && !candidatesLoading && candidates.length === 0;
+
+  const closeHostMenu = (afterClose?: () => void) => {
+    if (!showHostMenu || hostMenuClosing) return;
+
+    setHostMenuClosing(true);
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    hostMenuCloseTimerRef.current = window.setTimeout(() => {
+      setShowHostMenu(false);
+      setHostMenuClosing(false);
+      hostMenuCloseTimerRef.current = null;
+      afterClose?.();
+    }, prefersReducedMotion ? 0 : 200);
+  };
+
+  const toggleHostMenu = () => {
+    if (tripStarted || hostMenuClosing) return;
+    if (showHostMenu) {
+      closeHostMenu();
+      return;
+    }
+
+    setHostMenuClosing(false);
+    setShowHostMenu(true);
+  };
+
+  const toggleAnonymousVote = async () => {
+    if (anonymousVoteLocked) return;
+
+    const previous = isAnonymousVote;
+    const nextIsAnonymousVote = !previous;
+    setIsAnonymousVote(nextIsAnonymousVote);
+
+    try {
+      const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/votes/${blockId}/anonymous`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isAnonymous: nextIsAnonymousVote }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.message ?? "투표 익명 설정을 저장하지 못했습니다.");
+      }
+      setIsAnonymousVote(body.data as boolean);
+    } catch (error) {
+      console.error("[투표 익명 설정 변경 실패]", error);
+      setIsAnonymousVote(previous);
+    }
+  };
 
   const decideByVote = async () => {
     if (fromVote) {
@@ -387,18 +449,60 @@ export default function BlockDetailPage() {
             {isHost && (
               <div className="relative shrink-0">
                 <button
-                  onClick={() => !tripStarted && setShowHostMenu(v => !v)}
-                  className={`host-badge ${showHostMenu ? "is-open" : ""} text-xs font-bold px-2.5 py-1.5 rounded-full`}
+                  type="button"
+                  onClick={toggleHostMenu}
+                  aria-expanded={showHostMenu && !hostMenuClosing}
+                  aria-haspopup="true"
+                  aria-label="방장 투표 설정 열기"
+                  title="방장 투표 설정"
+                  className={`host-badge ${showHostMenu ? "is-open" : ""} flex h-10 w-10 items-center justify-center rounded-full border`}
                 >
-                  방장
+                  <CrownSimple size={19} weight="bold" />
                 </button>
                 {showHostMenu && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowHostMenu(false)} />
-                    <div className="host-menu absolute right-0 top-9 z-50 rounded-2xl shadow-xl border p-2 flex flex-col gap-1 w-36">
+                    <div className="fixed inset-0 z-40" onClick={() => closeHostMenu()} />
+                    <div className={`host-menu ${hostMenuClosing ? "is-closing" : ""} absolute right-0 top-12 z-50 flex w-52 flex-col gap-2 rounded-2xl border p-2 shadow-xl`}>
+                      <div
+                        className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5"
+                        style={{
+                          backgroundColor: "var(--surface-muted)",
+                          borderColor: "var(--border)",
+                        }}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold">익명 투표</p>
+                          <p className="mt-0.5 text-[11px] text-gray-400">현재 투표 설정</p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={isAnonymousVote}
+                          aria-label="익명 투표 사용"
+                          onClick={toggleAnonymousVote}
+                          disabled={anonymousVoteLocked}
+                          className="relative h-6 w-10 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed"
+                          style={{
+                            backgroundColor: anonymousVoteLocked
+                              ? "#2f333b"
+                              : isAnonymousVote
+                                ? "#3b82f6"
+                                : "#64748b",
+                          }}
+                        >
+                          <span
+                            className="absolute left-0 top-[3px] h-[18px] w-[18px] rounded-full transition-transform"
+                            style={{
+                              backgroundColor: anonymousVoteLocked ? "#6b7280" : "#ffffff",
+                              transform: `translateX(${isAnonymousVote ? 19 : 3}px)`,
+                              boxShadow: "0 1px 3px rgba(15, 23, 42, 0.25)",
+                            }}
+                          />
+                        </button>
+                      </div>
                       <button
                         disabled={candidates.length === 0 || tripStarted || voteClosed || candidates.every(c => voteCount(c.id) === 0)}
-                        onClick={() => { setShowHostMenu(false); setShowConfirmModal(true); }}
+                        onClick={() => closeHostMenu(() => setShowConfirmModal(true))}
                         className="confirm-vote-button w-full px-3 py-2.5 rounded-xl text-sm font-semibold text-left disabled:opacity-40"
                       >
                         📊 투표 확정
@@ -502,6 +606,15 @@ export default function BlockDetailPage() {
                       <span className="text-xs text-gray-400">등록자 {c.authorName}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-gray-600">{voteCount(c.id)}표</span>
+                        {fromVote && !isAnonymousVote && (() => {
+                          const voters = voteDetails?.find(v => String(v.tripPlaceId) === c.id)?.voters ?? [];
+                          if (voters.length === 0) return null;
+                          return (
+                            <span className="text-xs text-gray-400">
+                              ({voters.map(v => v.name).join(", ")})
+                            </span>
+                          );
+                        })()}
                         {voted && (
                           <span className="my-vote-badge text-xs font-semibold px-2 py-0.5 rounded-full">
                             내 투표

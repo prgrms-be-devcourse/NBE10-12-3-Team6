@@ -1,8 +1,11 @@
 package csh.back.global.config
 
-import csh.back.domain.member.repository.MemberRepository
+import csh.back.domain.member.repository.RefreshTokenRepository
+import csh.back.domain.member.service.MemberService
+import csh.back.global.filter.DeviceIdFilter
 import csh.back.global.jwt.JwtAuthenticationFilter
 import csh.back.global.jwt.JwtUtil
+import csh.back.global.oauth2.KakaoOAuth2SuccessHandler
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -10,8 +13,6 @@ import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
-import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.web.cors.CorsConfiguration
@@ -22,7 +23,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableWebSecurity
 class SecurityConfig(
     private val jwtUtil: JwtUtil,
-    private val memberRepository: MemberRepository
+    private val refreshTokenRepository: RefreshTokenRepository,
+    private val memberService: MemberService,
+    private val kakaoOAuth2SuccessHandler: KakaoOAuth2SuccessHandler,
 ) {
 
     @Value("\${cors.allowed-origins}")
@@ -33,9 +36,10 @@ class SecurityConfig(
         http
             .cors { cors -> cors.configurationSource(corsConfigurationSource()) }
             .csrf { csrf -> csrf.disable() }
-            // JWT를 사용하므로 서버에 세션을 생성하지 않음
+            // OAuth2 인가 요청 중 state 파라미터를 세션에 저장해야 하므로 IF_REQUIRED 사용
+            // JWT 필터는 매 요청마다 쿠키에서 토큰을 읽으므로 세션 생성 여부와 무관하게 동작
             .sessionManagement { session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             }
             .headers { headers ->
                 headers.frameOptions { frame -> frame.sameOrigin() }
@@ -53,14 +57,28 @@ class SecurityConfig(
                     "/api/v1/auth/check_email",
                     "/api/v1/auth/verify_email",
                     "/uploadedimages/**",
-                    "/actuator/prometheus"
+                    "/actuator/prometheus",
+                    "/oauth2/authorization/**",
                 ).permitAll()
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     // 그 외 모든 요청은 JWT 필터를 거치되 인증 강제하지 않음
                     .anyRequest().authenticated()
             }
-            // Spring의 기본 로그인 필터 앞에 JWT 필터를 끼워 넣음
-            .addFilterBefore(JwtAuthenticationFilter(jwtUtil, memberRepository), UsernamePasswordAuthenticationFilter::class.java)
+            .oauth2Login { oauth2 ->
+                oauth2.successHandler(kakaoOAuth2SuccessHandler)
+            }
+            .exceptionHandling { ex ->
+                // oauth2Login() 기본 EntryPoint는 미인증 요청에 302(로그인 리다이렉트)를 반환
+                // API 요청에는 부적절하므로 403으로 직접 응답
+                // (GET /oauth2/authorization/kakao는 permitAll이라 이 EntryPoint를 거치지 않음)
+                ex.authenticationEntryPoint { _, response, _ ->
+                    response.sendError(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN)
+                }
+            }
+            // JwtAuthenticationFilter: Spring 기본 로그인 필터 앞에 위치
+            // DeviceIdFilter: JwtAuthenticationFilter보다 먼저 실행되어 device_id를 request attribute에 주입
+            .addFilterBefore(JwtAuthenticationFilter(jwtUtil, refreshTokenRepository, memberService), UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterBefore(DeviceIdFilter(), JwtAuthenticationFilter::class.java)
 
         return http.build()
     }
@@ -80,8 +98,4 @@ class SecurityConfig(
         return source
     }
 
-    @Bean
-    fun passwordEncoder(): PasswordEncoder {
-        return BCryptPasswordEncoder()
-    }
 }

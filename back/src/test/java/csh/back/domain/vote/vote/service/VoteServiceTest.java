@@ -35,6 +35,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ActiveProfiles("test")
 @SpringBootTest
@@ -249,5 +250,50 @@ class VoteServiceTest {
         assertThat(responses).hasSize(2);
         assertThat(responses).extracting(VoteFindUserResponse::getName)
                 .containsExactlyInAnyOrder(owner.getName(), other.getName());
+    }
+
+    @Test
+    @DisplayName("updateAnonymous - 방장이 변경 시 isAnonymous 값이 변경됨")
+    void updateAnonymous() {
+        Timeline timeline = createTimeline(1L,
+                LocalDateTime.of(2026, 10, 1, 9, 0), LocalDateTime.of(2026, 10, 1, 10, 0));
+        Vote vote = voteRepository.save(new Vote(
+                tripGroup, timeline, ownerTripMember, tripGroup.getStartDate().minusDays(1).atStartOfDay()));
+
+        boolean result = voteService.updateAnonymous(tripGroup.getId(), vote.getId(), owner.getId(), false);
+
+        assertThat(result).isFalse();
+        Vote updated = voteRepository.findById(vote.getId()).orElseThrow();
+        assertThat(updated.isAnonymous()).isFalse();
+    }
+
+    @Test
+    @DisplayName("updateAnonymous - 방장이 아니면 예외 발생")
+    void updateAnonymousNonAdmin() {
+        Timeline timeline = createTimeline(1L,
+                LocalDateTime.of(2026, 10, 1, 9, 0), LocalDateTime.of(2026, 10, 1, 10, 0));
+        Vote vote = voteRepository.save(new Vote(
+                tripGroup, timeline, ownerTripMember, tripGroup.getStartDate().minusDays(1).atStartOfDay()));
+
+        Member other = memberRepository.save(new Member("vote-nonadmin@test.com", "pw", "비방장"));
+        tripMemberRepository.save(new TripMember(other, tripGroup, false));
+
+        assertThatThrownBy(() -> voteService.updateAnonymous(tripGroup.getId(), vote.getId(), other.getId(), false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("여행 모임 방장만 접근할 수 있습니다.");
+    }
+
+    @Test
+    @DisplayName("updateAnonymous - PENDING 상태가 아니면 예외 발생")
+    void updateAnonymousNotPending() {
+        Timeline timeline = createTimeline(1L,
+                LocalDateTime.of(2026, 10, 1, 9, 0), LocalDateTime.of(2026, 10, 1, 10, 0));
+        Vote vote = voteRepository.save(new Vote(
+                tripGroup, timeline, ownerTripMember, tripGroup.getStartDate().minusDays(1).atStartOfDay()));
+        vote.updateStatus(VoteStatus.CONFIRMED);
+
+        assertThatThrownBy(() -> voteService.updateAnonymous(tripGroup.getId(), vote.getId(), owner.getId(), false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("이미 확정되었거나 만료된 투표입니다.");
     }
 }

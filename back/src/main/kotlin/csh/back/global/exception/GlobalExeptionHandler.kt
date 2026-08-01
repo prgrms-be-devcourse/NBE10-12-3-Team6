@@ -4,7 +4,11 @@ import csh.back.domain.member.exception.EmailVerificationException
 import csh.back.domain.member.exception.ExistingMemberException
 import csh.back.domain.trip.group.exception.NonMemberException
 import csh.back.domain.trip.group.exception.NotFoundException
+import csh.back.domain.trip.group.settings.exception.InvalidFreeTimeMinutesException
+import csh.back.domain.trip.group.settings.exception.TripGroupSettingsLockedException
 import csh.back.domain.trip.place.exception.DuplicateTripPlaceException
+import csh.back.domain.trip.place.exception.TripAlreadyStartedException
+import csh.back.domain.trip.place.exception.WishPlaceInUseException
 import csh.back.global.dto.ErrorResponse
 import csh.back.global.mail.exception.MailCooldownException
 import org.slf4j.LoggerFactory
@@ -63,6 +67,30 @@ class GlobalExeptionHandler {
     fun handleMailCooldown(e: MailCooldownException): ResponseEntity<ErrorResponse> {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
             .body(ErrorResponse(429, e.message))
+    }
+
+    @ExceptionHandler(InvalidFreeTimeMinutesException::class)
+    fun handleInvalidFreeTimeMinutes(e: InvalidFreeTimeMinutesException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, e.message))
+    }
+
+    @ExceptionHandler(TripGroupSettingsLockedException::class)
+    fun handleTripGroupSettingsLocked(e: TripGroupSettingsLockedException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(ErrorResponse(409, e.message))
+    }
+
+    @ExceptionHandler(WishPlaceInUseException::class)
+    fun handleWishPlaceInUse(e: WishPlaceInUseException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(ErrorResponse(409, e.message))
+    }
+
+    @ExceptionHandler(TripAlreadyStartedException::class)
+    fun handleTripAlreadyStarted(e: TripAlreadyStartedException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, e.message))
     }
 
     @ExceptionHandler(RuntimeException::class)

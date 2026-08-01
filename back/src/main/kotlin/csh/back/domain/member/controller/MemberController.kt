@@ -4,7 +4,6 @@ import csh.back.domain.member.dto.request.CheckEmailDtp
 import csh.back.domain.member.dto.request.LoginRequestDto
 import csh.back.domain.member.dto.request.MemberRequestDto
 import csh.back.domain.member.dto.request.VerifyEmailDto
-import csh.back.domain.member.dto.response.AuthFilterDto
 import csh.back.domain.member.dto.response.LoginResponseDto
 import csh.back.domain.member.dto.response.MemberResponseDto
 import csh.back.domain.member.service.EmailVerificationService
@@ -15,11 +14,12 @@ import csh.back.global.dto.ResponseData
 import csh.back.global.jwt.CookieNames
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseCookie
-import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.bind.annotation.CookieValue
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -44,9 +44,13 @@ class MemberController(
     @PostMapping("/login")
     fun login(
         @RequestBody @Valid request: LoginRequestDto,
+        httpRequest: HttpServletRequest,
         response: HttpServletResponse,
     ): ResponseData<LoginResponseDto> {
-        val result = memberService.login(request.email, request.password)
+        val userAgent = httpRequest.getHeader(HttpHeaders.USER_AGENT)
+        // DeviceIdFilter가 Security 체인 앞에서 실행되므로 attribute는 항상 존재
+        val deviceId = httpRequest.getAttribute(CookieNames.DEVICE_ID) as String
+        val result = memberService.login(request.email, request.password, userAgent, deviceId)
 
         // 초대 코드가 있으면 해당 여행에 멤버로 등록
         request.joinCode?.let { tripMemberService.createJoinMember(it, result.userInfo.id) }
@@ -76,12 +80,11 @@ class MemberController(
 
     @Operation(summary = "로그아웃")
     @PostMapping("/logout")
-    fun logout(response: HttpServletResponse): ResponseData<Void?> {
-        val authentication = SecurityContextHolder.getContext().authentication
-        val principal = authentication?.principal as? AuthFilterDto
-            ?: throw RuntimeException("로그인이 필요합니다.")
-
-        memberService.logout(principal.id)
+    fun logout(
+        @CookieValue(name = CookieNames.REFRESH_TOKEN, required = false) refreshToken: String?,
+        response: HttpServletResponse,
+    ): ResponseData<Void?> {
+        refreshToken?.let { memberService.logout(it) }
 
         // 쿠키 만료 처리로 클라이언트 토큰 삭제
         response.addHeader(HttpHeaders.SET_COOKIE,

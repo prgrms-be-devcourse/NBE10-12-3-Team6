@@ -212,4 +212,30 @@ class VoteV1ControllerTest {
                 .andExpect(jsonPath("$.data.confirmedPlaceId").value(place.getId()))
                 .andExpect(jsonPath("$.data.isTie").value(false));
     }
+
+    @Test
+    @DisplayName("투표 익명/실명 개별 변경 - 200")
+    @WithMockLoginUser(id = 1L, email = "admin@admin.com")
+    void updateAnonymous() throws Exception {
+        Timeline timeline = createTimeline();
+        Vote vote = createVote(timeline);
+
+        mvc.perform(
+                        patch(BASE_URL + "/trips/" + tripGroup.getId() + "/votes/" + vote.getId() + "/anonymous")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                            "isAnonymous": false
+                                        }
+                                        """)
+                )
+                .andDo(print())
+                .andExpect(handler().handlerType(VoteV1Controller.class))
+                .andExpect(handler().methodName("updateAnonymous"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(false));
+
+        Vote updated = voteRepository.findById(vote.getId()).orElseThrow();
+        org.assertj.core.api.Assertions.assertThat(updated.isAnonymous()).isFalse();
+    }
 }
