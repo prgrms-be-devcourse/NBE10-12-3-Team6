@@ -3,12 +3,15 @@ package csh.back.global.oauth2
 import csh.back.domain.member.repository.MemberRepository
 import csh.back.domain.member.repository.RefreshTokenRepository
 import csh.back.global.jwt.CookieNames
+import csh.back.global.mail.EmailCooldownGuard
+import csh.back.global.mail.MailService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.http.HttpHeaders
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
@@ -30,6 +33,13 @@ class KakaoOAuth2SuccessHandlerTest {
 
     @Autowired
     private lateinit var refreshTokenRepository: RefreshTokenRepository
+
+    // notifyIfNewDevice()가 Redis(EmailCooldownGuard)·SMTP(MailService)를 사용하므로 차단
+    @MockitoBean
+    private lateinit var emailCooldownGuard: EmailCooldownGuard
+
+    @MockitoBean
+    private lateinit var mailService: MailService
 
     @AfterEach
     fun cleanup() {

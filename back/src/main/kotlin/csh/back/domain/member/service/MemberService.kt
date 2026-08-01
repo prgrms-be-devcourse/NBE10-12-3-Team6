@@ -21,6 +21,7 @@ class MemberService(
     private val refreshTokenRepository: RefreshTokenRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtUtil: JwtUtil,
+    private val newDeviceLoginNotificationService: NewDeviceLoginNotificationService,
 ) {
     @Transactional
     fun signUp(email: String, password: String, name: String): MemberResponseDto {
@@ -52,6 +53,8 @@ class MemberService(
 
         // id!!: JPA save 후 항상 id가 할당되므로 non-null 보장
         val accessToken = jwtUtil.generateAccessToken(member.id!!, member.email)
+        // delete 이전에 호출 — delete 후에 호출하면 existsByMemberIdAndDeviceId가 항상 false를 반환해 판단 불가
+        newDeviceLoginNotificationService.notifyIfNewDevice(member.id!!, member.email, deviceId, userAgent)
         // 같은 기기에서 재로그인 시 기존 토큰 교체 — (member_id, device_id) unique 제약 충족
         refreshTokenRepository.deleteByMemberIdAndDeviceId(member.id!!, deviceId)
         val refreshToken = refreshTokenRepository.save(RefreshToken(member = member, userAgent = userAgent, deviceId = deviceId))
