@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param
 import org.springframework.data.domain.Pageable
 import java.time.LocalDateTime
 
+
 interface PostRepository : JpaRepository<Post, Long> {
     fun findByTimelineTripGroupId(tripGroupId: Long): List<Post>
     fun findByAuthorId(authorId: Long): List<Post>
@@ -53,4 +54,17 @@ interface PostRepository : JpaRepository<Post, Long> {
         startTime: LocalDateTime,
         endTime: LocalDateTime
     ): List<Post>
+    @Query(
+        """
+    select p.id
+    from Post p
+    where p.createdAt >= :startAt
+      and p.createdAt < :endAt
+    order by p.id asc
+    """
+    )
+    fun findIdsByCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+        @Param("startAt") startAt: LocalDateTime,
+        @Param("endAt") endAt: LocalDateTime
+    ): List<Long>
 }
