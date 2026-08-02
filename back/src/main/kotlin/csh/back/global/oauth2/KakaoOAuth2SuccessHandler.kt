@@ -8,6 +8,7 @@ import csh.back.global.jwt.CookieNames
 import csh.back.global.jwt.JwtUtil
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseCookie
 import org.springframework.security.core.Authentication
@@ -24,6 +25,9 @@ class KakaoOAuth2SuccessHandler(
     private val jwtUtil: JwtUtil,
     private val newDeviceLoginNotificationService: NewDeviceLoginNotificationService,
 ) : AuthenticationSuccessHandler {
+
+    @Value("\${app.frontend-url}")
+    private lateinit var frontendUrl: String
 
     @Transactional
     override fun onAuthenticationSuccess(
@@ -61,7 +65,6 @@ class KakaoOAuth2SuccessHandler(
             ResponseCookie.from(CookieNames.REFRESH_TOKEN, refreshToken.token)
                 .httpOnly(true).path("/").maxAge(Duration.ofDays(7)).sameSite("Lax").build().toString())
 
-        // TODO: 하드코딩 제거 — 프론트 배포 URL 확정 후 설정값으로 분리
-        response.sendRedirect("http://localhost:3000/")
+        response.sendRedirect("${frontendUrl.trimEnd('/')}?oauth=success")
     }
 }

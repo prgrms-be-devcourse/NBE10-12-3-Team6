@@ -75,7 +75,9 @@ class KakaoOAuth2SuccessHandlerTest {
     fun t1() {
         val kakaoId = "111111111"
 
-        handler.onAuthenticationSuccess(mockRequest(), MockHttpServletResponse(), createAuthentication(kakaoId, "닉네임A"))
+        val response = MockHttpServletResponse()
+
+        handler.onAuthenticationSuccess(mockRequest(), response, createAuthentication(kakaoId, "닉네임A"))
 
         val member = memberRepository.findByProviderAndProviderId("KAKAO", kakaoId)
         assertThat(member).isPresent
@@ -83,6 +85,7 @@ class KakaoOAuth2SuccessHandlerTest {
         assertThat(member.get().providerId).isEqualTo(kakaoId)
         assertThat(member.get().name).isEqualTo("닉네임A")
         assertThat(member.get().email).isEqualTo("kakao_${kakaoId}@triplog.local")
+        assertThat(response.redirectedUrl).isEqualTo("http://localhost:3000?oauth=success")
     }
 
     @Test
