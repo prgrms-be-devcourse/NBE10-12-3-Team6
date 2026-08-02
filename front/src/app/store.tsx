@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { hasStoredAuthentication } from "./authStorage";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -146,7 +147,7 @@ export function TripLogProvider({ children }: { children: ReactNode }) {
   const [trips, setTrips] = useState<Trip[]>([]);
 
   useEffect(() => {
-    setIsLoggedIn(!!localStorage.getItem("accessToken"));
+    setIsLoggedIn(hasStoredAuthentication());
     setCurrentUser({
       id: Number(localStorage.getItem("userId") ?? 0),
       name: localStorage.getItem("userName") ?? "",
@@ -154,7 +155,7 @@ export function TripLogProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const login = (name?: string, id?: number) => {
+  const login = useCallback((name?: string, id?: number) => {
     const newName = name ?? "";
     const newId = id ?? 0;
     if (typeof window !== "undefined") {
@@ -163,7 +164,7 @@ export function TripLogProvider({ children }: { children: ReactNode }) {
     }
     setCurrentUser(u => ({ ...u, id: newId, name: newName }));
     setIsLoggedIn(true);
-  };
+  }, []);
 
   const signup = (nickname: string) => {
     if (nickname.trim()) setCurrentUser(u => ({ ...u, name: nickname.trim() }));

@@ -79,6 +79,11 @@ class MemberService(
             }
     }
 
+    fun getLoginUser(memberId: Long): LoginResponseDto =
+        memberRepository.findById(memberId)
+            .map(LoginResponseDto::from)
+            .orElseThrow { RuntimeException("존재하지 않는 회원입니다.") }
+
     // 기존 RefreshToken을 삭제하고 같은 (member, deviceId)로 새 토큰을 발급한다.
     // deleteByToken(JPA lifecycle 방식)은 INSERT보다 DELETE가 늦게 flush돼 unique 제약 위반 발생 가능.
     // deleteByMemberIdAndDeviceId(@Modifying bulk DELETE)는 즉시 SQL을 실행하므로 순서 문제 없음.
