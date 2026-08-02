@@ -11,6 +11,7 @@ import csh.back.domain.trip.place.entity.TripPlace;
 import csh.back.domain.trip.place.repository.TripPlaceRepository;
 import csh.back.domain.trip.timeline.entity.Timeline;
 import csh.back.domain.trip.timeline.repository.TimelineRepository;
+import csh.back.domain.trip.chat.repository.TripChatMessageRepository;
 import csh.back.domain.vote.item.repository.VoteItemRepository;
 import csh.back.domain.vote.user.repository.VoteUserRepository;
 import csh.back.domain.vote.vote.entity.Vote;
@@ -67,6 +68,9 @@ class VoteItemV1ControllerTest {
     @Autowired
     private VoteUserRepository voteUserRepository;
 
+    @Autowired
+    private TripChatMessageRepository tripChatMessageRepository;
+
     private Member member;
     private TripGroup tripGroup;
     private TripMember tripMember;
@@ -114,6 +118,7 @@ class VoteItemV1ControllerTest {
         tripPlaceRepository.deleteAll(tripPlaceRepository.findAllByTripGroupId(tripGroup.getId()));
         timelineRepository.delete(timeline);
         tripMemberRepository.delete(tripMember);
+        tripChatMessageRepository.deleteAllByTripGroupId(tripGroup.getId());
         tripGroupRepository.delete(tripGroup);
     }
 

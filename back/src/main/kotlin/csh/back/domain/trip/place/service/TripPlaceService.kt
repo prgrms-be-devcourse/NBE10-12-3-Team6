@@ -1,5 +1,6 @@
 package csh.back.domain.trip.place.service
 
+import csh.back.domain.trip.chat.service.ChatService
 import csh.back.domain.trip.group.exception.NonMemberException
 import csh.back.domain.trip.group.exception.NotFoundException
 import csh.back.domain.trip.group.repository.TripGroupRepository
@@ -30,6 +31,7 @@ class TripPlaceService(
     private val tripMemberValidator: TripMemberValidator,
     private val tripEventService: TripEventService,
     private val voteItemRepository: VoteItemRepository,
+    private val chatService: ChatService,
 ) {
 
     fun findWishPlaces(tripGroupId: Long, memberId: Long): List<TripPlaceFindResponse> {
@@ -84,6 +86,7 @@ class TripPlaceService(
                 tripPlaceId = requireNotNull(savedPlace.id),
             ),
         )
+        chatService.recordSystemMessage(tripGroupId, "${savedPlace.name} 후보 장소 추가")
         return TripPlaceSaveResponse.from(savedPlace)
     }
 
@@ -127,5 +130,6 @@ class TripPlaceService(
                 tripPlaceId = tripPlaceId,
             ),
         )
+        chatService.recordSystemMessage(tripGroupId, "${tripPlace.name}이(가) 후보 장소에서 삭제되었습니다.")
     }
 }

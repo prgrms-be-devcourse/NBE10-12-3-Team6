@@ -3,6 +3,7 @@ package csh.back.domain.trip.timeline.service
 import csh.back.domain.trip.event.dto.TripEvent
 import csh.back.domain.trip.event.enums.TripEventType
 import csh.back.domain.trip.event.service.TripEventService
+import csh.back.domain.trip.chat.service.ChatService
 import csh.back.domain.trip.group.entity.TripGroup
 import csh.back.domain.trip.group.exception.NonMemberException
 import csh.back.domain.trip.group.exception.NotFoundException
@@ -40,6 +41,7 @@ class TimelineService(
     private val entityManager: EntityManager,
     private val voteRepository: VoteRepository,
     private val timelineFreeTimeService: TimelineFreeTimeService,
+    private val chatService: ChatService,
 ) {
 
     fun createTimeline(
@@ -75,6 +77,7 @@ class TimelineService(
                 timelineId = requireNotNull(savedTimeline.id),
             ),
         )
+        chatService.recordSystemMessage(tripGroupId, "${savedTimeline.dayNumber}일차 시간 구간 추가")
 
         return TimelineResponse.from(savedTimeline)
     }
@@ -123,6 +126,7 @@ class TimelineService(
                 },
             ),
         )
+        chatService.recordSystemMessage(tripGroupId, "${request.dayNumber}일차 시간 구간 추가")
 
         return savedTimelines.map(TimelineResponse::from)
     }
@@ -199,6 +203,7 @@ class TimelineService(
                 timelineId = timelineId,
             ),
         )
+        chatService.recordSystemMessage(tripGroupId, "${timeline.dayNumber}일차 시간 구간 시간 변경")
 
         return TimelineResponse.from(timeline)
     }
@@ -224,6 +229,7 @@ class TimelineService(
                 timelineId = timelineId,
             ),
         )
+        chatService.recordSystemMessage(tripGroupId, "${dayNumber}일차 시간 구간 삭제")
     }
 
     fun confirmVote(
@@ -260,6 +266,7 @@ class TimelineService(
                 tripPlaceId = confirmPlaceId,
             ),
         )
+        chatService.recordSystemMessage(tripGroupId, "${timeline.dayNumber}일차 시간 구간 ${tripWishPlace.name} 장소 확정")
 
         return VoteConfirmResponse.of(
             VoteStatus.CONFIRMED.nickname,
@@ -288,6 +295,7 @@ class TimelineService(
                     voteId = voteId,
                 ),
             )
+            chatService.recordSystemMessage(requireNotNull(timeline.tripGroup.id), "${timeline.dayNumber}일차 시간 구간 투표 종료")
             return
         }
 
@@ -315,6 +323,7 @@ class TimelineService(
                 tripPlaceId = voteTimelineResponse.confirmPlaceId,
             ),
         )
+        chatService.recordSystemMessage(requireNotNull(timeline.tripGroup.id), "${timeline.dayNumber}일차 시간 구간 ${tripWishPlace.name} 장소 확정")
     }
 
     private fun selectWinner(candidateIds: List<Long>): Long =

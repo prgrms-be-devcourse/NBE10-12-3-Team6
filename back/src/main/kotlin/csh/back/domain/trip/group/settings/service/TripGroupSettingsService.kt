@@ -11,6 +11,7 @@ import csh.back.domain.trip.group.settings.dto.request.TripGroupSettingsUpdateRe
 import csh.back.domain.trip.group.settings.dto.response.TripGroupSettingsResponse
 import csh.back.domain.trip.group.settings.entity.TripGroupSettings
 import csh.back.domain.trip.group.settings.exception.TripGroupSettingsLockedException
+import csh.back.domain.trip.chat.service.ChatService
 import csh.back.domain.trip.group.settings.repository.TripGroupSettingsRepository
 import csh.back.domain.trip.member.repository.TripMemberRepository
 import csh.back.domain.vote.vote.enums.VoteStatus
@@ -28,6 +29,7 @@ class TripGroupSettingsService(
     private val tripGroupSettingsRepository: TripGroupSettingsRepository,
     private val tripEventService: TripEventService,
     private val voteRepository: VoteRepository,
+    private val chatService: ChatService,
 ) {
 
     fun getSettings(
@@ -69,6 +71,7 @@ class TripGroupSettingsService(
                 dayNumber = dayNumber.toLong(),
             ),
         )
+        chatService.recordSystemMessage(tripGroupId, "${dayNumber}일차 자유시간 범위 변경")
 
         return TripGroupSettingsResponse.from(
             settings = settings,
@@ -98,6 +101,7 @@ class TripGroupSettingsService(
                 actorMemberId = memberId,
             ),
         )
+        chatService.recordSystemMessage(tripGroupId, "모든 일차 자유시간 범위 변경")
 
         return TripGroupSettingsResponse.from(
             settings = settings,

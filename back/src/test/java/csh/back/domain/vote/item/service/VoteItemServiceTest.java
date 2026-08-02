@@ -10,6 +10,7 @@ import csh.back.domain.trip.place.entity.TripPlace;
 import csh.back.domain.trip.place.repository.TripPlaceRepository;
 import csh.back.domain.trip.timeline.entity.Timeline;
 import csh.back.domain.trip.timeline.repository.TimelineRepository;
+import csh.back.domain.trip.chat.repository.TripChatMessageRepository;
 import csh.back.domain.vote.item.repository.VoteItemRepository;
 import csh.back.domain.vote.user.dto.response.VoteUserSaveResponseDto;
 import csh.back.domain.vote.user.repository.VoteUserRepository;
@@ -62,6 +63,9 @@ class VoteItemServiceTest {
     @Autowired
     private TripPlaceRepository tripPlaceRepository;
 
+    @Autowired
+    private TripChatMessageRepository tripChatMessageRepository;
+
     private Member member;
     private TripGroup tripGroup;
     private TripMember tripMember;
@@ -108,6 +112,7 @@ class VoteItemServiceTest {
         tripPlaceRepository.deleteAll(tripPlaceRepository.findAllByTripGroupId(tripGroup.getId()));
         timelineRepository.delete(timeline);
         tripMemberRepository.delete(tripMember);
+        tripChatMessageRepository.deleteAllByTripGroupId(tripGroup.getId());
         tripGroupRepository.delete(tripGroup);
         memberRepository.delete(member);
     }

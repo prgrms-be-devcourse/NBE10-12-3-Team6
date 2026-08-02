@@ -1,5 +1,6 @@
 package csh.back.domain.vote.vote.service
 
+import csh.back.domain.trip.chat.service.ChatService
 import csh.back.domain.trip.event.dto.TripEvent
 import csh.back.domain.trip.event.enums.TripEventType
 import csh.back.domain.trip.event.service.TripEventService
@@ -41,6 +42,7 @@ class VoteService(
     private val tripMemberRepository: TripMemberRepository,
     private val tripPlaceService: TripPlaceService,
     private val tripEventService: TripEventService,
+    private val chatService: ChatService,
 ) {
 
     fun findVoteList(tripGroupId: Long, memberId: Long): List<VoteFindListResponse> {
@@ -118,6 +120,7 @@ class VoteService(
                 voteId = requireNotNull(response.voteId),
             ),
         )
+        chatService.recordSystemMessage(tripGroupId, "${timeline.dayNumber}일차 시간 구간 투표 생성")
         return response
     }
 

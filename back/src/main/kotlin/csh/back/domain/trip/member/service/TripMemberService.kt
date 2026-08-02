@@ -1,6 +1,7 @@
 package csh.back.domain.trip.member.service
 
 import csh.back.domain.member.repository.MemberRepository
+import csh.back.domain.trip.chat.service.ChatService
 import csh.back.domain.trip.event.dto.TripEvent
 import csh.back.domain.trip.event.enums.TripEventType
 import csh.back.domain.trip.event.service.TripEventService
@@ -23,6 +24,7 @@ class TripMemberService(
     private val tripMemberRepository: TripMemberRepository,
     private val memberRepository: MemberRepository,
     private val tripEventService: TripEventService,
+    private val chatService: ChatService,
 ) {
 
     // 지난 메이트 무한 스크롤 조회 — 최근 함께한 순. keyword가 있으면 이름 부분 매치 필터링.
@@ -60,6 +62,7 @@ class TripMemberService(
                     actorMemberId = memberId,
                 ),
             )
+            chatService.recordSystemMessage(requireNotNull(tripGroup.id), "${member.name}님 여행방 참여")
         }
     }
 
