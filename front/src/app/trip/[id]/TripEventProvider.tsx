@@ -324,6 +324,7 @@ export function TripEventProvider({ children }: { children: ReactNode }) {
     if (!id) return;
 
     let closed = false;
+    let reconnectAllowed = true;
     const controller = new AbortController();
 
     const handleEvent = (rawEvent: string) => {
@@ -341,8 +342,15 @@ export function TripEventProvider({ children }: { children: ReactNode }) {
           signal: controller.signal,
         });
 
-        if (!response.ok || !response.body) {
-          throw new Error("여행방 변경 알림 연결에 실패했습니다.");
+        if (!response.ok) {
+          if (response.status === 403 || response.status === 404) {
+            reconnectAllowed = false;
+          }
+          throw new Error(`여행방 변경 알림 연결 실패 (${response.status})`);
+        }
+
+        if (!response.body) {
+          throw new Error("여행방 변경 알림 응답 스트림이 없습니다.");
         }
 
         const reader = response.body.getReader();
@@ -364,7 +372,7 @@ export function TripEventProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (!closed) {
+      if (!closed && reconnectAllowed) {
         reconnectTimer.current = setTimeout(connect, TRIP_EVENT_RECONNECT_DELAY_MS);
       }
     };

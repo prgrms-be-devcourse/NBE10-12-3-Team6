@@ -69,6 +69,9 @@ dependencies {
     // AWS S3 연동을 위한 의존성
     implementation("org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE")
 
+    // 목록용 WebP 이미지 생성
+    runtimeOnly("com.github.usefulness:webp-imageio:0.10.2")
+
     // Mail
     implementation("org.springframework.boot:spring-boot-starter-mail")
 
@@ -97,6 +100,11 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+}
+
+tasks.withType<JavaExec> {
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
 tasks.register<Copy>("installGitHooks") {

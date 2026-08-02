@@ -11,7 +11,7 @@ spring:
             scope:
               - profile_nickname
   datasource:
-    url: jdbc:h2:./db_dev;MODE=MySQL;AUTO_SERVER=TRUE
+    url: jdbc:h2:file:${TRIPLOG_DB_PATH};MODE=MySQL;AUTO_SERVER=TRUE
     username: sa
     password:
     driver-class-name: org.h2.Driver

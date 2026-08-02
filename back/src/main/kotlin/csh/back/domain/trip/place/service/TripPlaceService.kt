@@ -78,7 +78,7 @@ class TripPlaceService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.WISH_PLACE_ADDED,
-                message = "${savedPlace.name}이(가) 후보 장소에 추가되었습니다.",
+                message = "${savedPlace.name} 후보 장소 추가",
                 tripGroupId = tripGroupId,
                 actorMemberId = memberId,
                 tripPlaceId = requireNotNull(savedPlace.id),

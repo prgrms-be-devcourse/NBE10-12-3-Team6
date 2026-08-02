@@ -5,6 +5,7 @@ import csh.back.domain.trip.group.service.TripGroupService
 import csh.back.domain.trip.member.repository.TripMemberRepository
 import csh.back.domain.trip.member.validator.TripMemberValidator
 import csh.back.domain.trip.post.dto.request.UpdatePostRequest
+import csh.back.domain.trip.post.dto.response.PostCursorResponse
 import csh.back.domain.trip.post.dto.response.PostResponse
 import csh.back.domain.trip.post.dto.response.PostTimelineResponse
 import csh.back.domain.trip.post.dto.response.PostsDailyResponse
@@ -14,11 +15,14 @@ import csh.back.domain.trip.post.repository.PostRepository
 import csh.back.domain.trip.timeline.entity.Timeline
 import csh.back.domain.trip.timeline.repository.TimelineRepository
 import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
+import java.nio.charset.StandardCharsets
+import java.util.Base64
 
 @Service
 @Transactional(readOnly = true)
@@ -27,6 +31,7 @@ class PostService(
     private val tripMemberRepository: TripMemberRepository,
     private val timelineRepository: TimelineRepository,
     private val s3UploadService: S3UploadService,
+    private val postImageProcessor: PostImageProcessor,
     private val tripMemberValidator: TripMemberValidator,
     private val tripGroupService: TripGroupService,
     private val postLikeRepository: PostLikeRepository
@@ -34,8 +39,13 @@ class PostService(
 
     fun getPosts(
         tripGroupId: Long,
-        memberId: Long
-    ): List<PostsDailyResponse> {
+        memberId: Long,
+        cursor: String?,
+        size: Int
+    ): PostCursorResponse {
+        require(size in 1..MAX_PAGE_SIZE) {
+            "사진은 한 번에 최대 ${MAX_PAGE_SIZE}개까지 조회할 수 있습니다."
+        }
         tripMemberValidator.validMember(tripGroupId, memberId)
 
         val tripGroup =
@@ -46,10 +56,23 @@ class PostService(
                 tripGroup.id!!
             )
 
-        val posts =
-            postRepository.findWithTimelineAndPlaceByAuthorIdIn(
-                tripMembers
+        val pageRequest = PageRequest.of(0, size + 1)
+        val decodedCursor = cursor?.let(::decodeCursor)
+        val fetchedPosts = if (decodedCursor == null) {
+            postRepository.findFirstPageWithTimelineAndPlaceByAuthorIn(
+                tripMembers,
+                pageRequest
             )
+        } else {
+            postRepository.findNextPageWithTimelineAndPlaceByAuthorIn(
+                tripMembers,
+                decodedCursor.createdAt,
+                decodedCursor.postId,
+                pageRequest
+            )
+        }
+        val hasNext = fetchedPosts.size > size
+        val posts = fetchedPosts.take(size)
 
         val schedulesByDate =
             timelineRepository
@@ -61,7 +84,7 @@ class PostService(
         val likeCounts =
             findLikeCounts(posts)
 
-        return posts
+        val groups = posts
             .groupBy {
                 it.createdAt!!.toLocalDate()
             }
@@ -82,6 +105,16 @@ class PostService(
                     }
                 )
             }
+
+        return PostCursorResponse(
+            groups = groups,
+            nextCursor = if (hasNext) {
+                posts.lastOrNull()?.let(::encodeCursor)
+            } else {
+                null
+            },
+            hasNext = hasNext
+        )
     }
 
     fun getPost(
@@ -124,11 +157,15 @@ class PostService(
         tripGroupId: Long,
         postId: Long
     ) {
-        postRepository.delete(
-            findAuthorizedPost(
-                tripGroupId,
-                postId
-            )
+        val post = findAuthorizedPost(
+            tripGroupId,
+            postId
+        )
+        postRepository.delete(post)
+        s3UploadService.deleteImages(
+            post.contentUrl,
+            post.normalContentUrl,
+            post.dataSaverContentUrl
         )
     }
 
@@ -176,15 +213,17 @@ class PostService(
             image != null &&
                     !image.isEmpty
 
-        val imageUrl =
+        val uploadedImages =
             if (hasImage) {
-                s3UploadService.uploadImage(image)
+                val originalImage = requireNotNull(image)
+                val variants = postImageProcessor.createVariants(originalImage)
+                s3UploadService.uploadImages(originalImage, variants)
             } else {
                 null
             }
 
-        val savedPost =
-            postRepository.save(
+        val savedPost = try {
+            postRepository.saveAndFlush(
                 Post(
                     author = author,
                     timeline = timeline,
@@ -194,10 +233,21 @@ class PostService(
                         } else {
                             "TEXT"
                         },
-                    contentUrl = imageUrl,
+                    originalFilename = uploadedImages?.originalFilename,
+                    contentUrl = uploadedImages?.originalUrl,
+                    normalContentUrl = uploadedImages?.normalUrl,
+                    dataSaverContentUrl = uploadedImages?.dataSaverUrl,
                     content = null
                 )
             )
+        } catch (exception: RuntimeException) {
+            s3UploadService.deleteImages(
+                uploadedImages?.originalUrl,
+                uploadedImages?.normalUrl,
+                uploadedImages?.dataSaverUrl
+            )
+            throw exception
+        }
         return PostResponse.from(savedPost)
     }
 
@@ -298,7 +348,12 @@ class PostService(
         if (timeline != null) {
             return PostsDailyResponse.PostSummary(
                 postId = post.id,
+                originalFilename = post.originalFilename,
                 contentUrl = post.contentUrl,
+                normalContentUrl = post.normalContentUrl ?: post.contentUrl,
+                dataSaverContentUrl = post.dataSaverContentUrl
+                    ?: post.normalContentUrl
+                    ?: post.contentUrl,
                 timelineId = timeline.id,
                 startTime = timeline.startTime,
                 endTime = timeline.endTime,
@@ -320,7 +375,12 @@ class PostService(
 
         return PostsDailyResponse.PostSummary(
             postId = post.id,
+            originalFilename = post.originalFilename,
             contentUrl = post.contentUrl,
+            normalContentUrl = post.normalContentUrl ?: post.contentUrl,
+            dataSaverContentUrl = post.dataSaverContentUrl
+                ?: post.normalContentUrl
+                ?: post.contentUrl,
             timelineId = null,
             startTime = slotStart,
             endTime =
@@ -490,5 +550,36 @@ class PostService(
 
         validateAuthor(post)
         return post
+    }
+
+    private fun encodeCursor(post: Post): String {
+        val cursorValue = "${requireNotNull(post.createdAt)}|${requireNotNull(post.id)}"
+        return Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(cursorValue.toByteArray(StandardCharsets.UTF_8))
+    }
+
+    private fun decodeCursor(cursor: String): PostCursor = try {
+        val decoded = String(
+            Base64.getUrlDecoder().decode(cursor),
+            StandardCharsets.UTF_8
+        )
+        val parts = decoded.split('|', limit = 2)
+        require(parts.size == 2)
+        PostCursor(
+            createdAt = LocalDateTime.parse(parts[0]),
+            postId = parts[1].toLong()
+        )
+    } catch (exception: RuntimeException) {
+        throw IllegalArgumentException("올바르지 않은 사진 조회 커서입니다.", exception)
+    }
+
+    private data class PostCursor(
+        val createdAt: LocalDateTime,
+        val postId: Long
+    )
+
+    companion object {
+        private const val MAX_PAGE_SIZE = 10
     }
 }

@@ -28,17 +28,8 @@ export default function TripChatRoomButton({
           onClose={() => setIsOpen(false)}
           className="flex h-[72%] flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]"
         >
-          {(close) => (
+          {() => (
             <>
-              <div className="flex shrink-0 justify-end px-5 pt-5 pb-3">
-                <button
-                  type="button"
-                  onClick={close}
-                  className="text-sm font-semibold text-blue-500"
-                >
-                  닫기
-                </button>
-              </div>
               <div
                 className="min-h-0 flex-1 overflow-y-auto"
                 aria-label="채팅방 준비 영역"

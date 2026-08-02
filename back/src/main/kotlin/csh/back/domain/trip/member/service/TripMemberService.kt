@@ -39,7 +39,7 @@ class TripMemberService(
             tripEventService.publishAfterCommit(
                 TripEvent(
                     eventType = TripEventType.TRIP_MEMBER_JOINED,
-                    message = "${member.name}님이 여행방에 참여했습니다.",
+                    message = "${member.name}님 여행방 참여",
                     tripGroupId = requireNotNull(tripGroup.id),
                     actorMemberId = memberId,
                 ),

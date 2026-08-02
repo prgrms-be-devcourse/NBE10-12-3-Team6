@@ -142,7 +142,7 @@ export function PageHeader({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 pt-12 pb-2 px-4">
+    <div className="app-safe-header flex items-center gap-3 px-4 pb-2">
       {onBack ? (
         <button onClick={onBack} className="text-blue-500 p-1 -ml-1">
           <svg

@@ -63,7 +63,7 @@ class TripGroupSettingsService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.FREE_TIME_RANGE_UPDATED,
-                message = "${dayNumber}일차 자유시간 범위가 변경되었습니다.",
+                message = "${dayNumber}일차 자유시간 범위 변경",
                 tripGroupId = tripGroupId,
                 actorMemberId = memberId,
                 dayNumber = dayNumber.toLong(),
@@ -93,7 +93,7 @@ class TripGroupSettingsService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.FREE_TIME_RANGE_UPDATED,
-                message = "모든 일차의 자유시간 범위가 변경되었습니다.",
+                message = "모든 일차 자유시간 범위 변경",
                 tripGroupId = tripGroupId,
                 actorMemberId = memberId,
             ),

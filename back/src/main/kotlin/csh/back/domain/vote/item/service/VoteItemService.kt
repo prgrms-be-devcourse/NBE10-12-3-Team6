@@ -59,7 +59,7 @@ class VoteItemService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.VOTE_PARTICIPATION_UPDATED,
-                message = "${vote.timeline.dayNumber}일차 시간 구간의 투표 현황이 변경되었습니다.",
+                message = "${vote.timeline.dayNumber}일차 시간 구간 투표 현황 변경",
                 tripGroupId = tripGroupId,
                 actorMemberId = memberId,
                 dayNumber = vote.timeline.dayNumber,

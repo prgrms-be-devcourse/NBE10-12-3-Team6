@@ -381,7 +381,7 @@ export default function BlockDetailPage() {
   };
 
   return (
-    <div className="trip-page-transition flex flex-col h-screen">
+    <div className="trip-page-transition flex h-[100dvh] flex-col">
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowConfirmModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl p-6 mx-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
@@ -405,7 +405,7 @@ export default function BlockDetailPage() {
           </div>
         </div>
       )}
-      <div className="flex items-center gap-3 px-4 pt-12 pb-2">
+      <div className="app-safe-header flex items-center gap-3 px-4 pb-2">
         <button onClick={goBack} aria-label="뒤로가기" className="trip-header-icon-button w-10 h-10 rounded-full flex items-center justify-center">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

@@ -97,28 +97,14 @@ function MobileDatePicker({
     <AnimatedBottomSheet
       onClose={onClose}
       zIndexClassName="z-[60]"
-      className="overflow-y-auto px-5 pt-4 pb-6"
+      className="overflow-y-auto px-5 pb-6"
     >
       {(close) => (
         <>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-lg font-bold">{title}</p>
-            <p className="text-xs text-gray-500 mt-0.5">날짜를 선택하세요.</p>
-          </div>
-          <button
-            type="button"
-            onClick={close}
-            className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center"
-            aria-label="닫기"
-          >
-            ✕
-          </button>
-        </div>
+        <span className="sr-only">{title}</span>
 
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <label className="flex flex-col gap-1.5">
-            <span aria-hidden="true" className="text-xs font-bold text-transparent">&nbsp;</span>
+          <label>
             <div className="relative">
               <select
                 value={year}
@@ -134,8 +120,7 @@ function MobileDatePicker({
               </svg>
             </div>
           </label>
-          <label className="flex flex-col gap-1.5">
-            <span aria-hidden="true" className="text-xs font-bold text-transparent">&nbsp;</span>
+          <label>
             <div className="relative">
               <select
                 value={month}
@@ -407,18 +392,6 @@ function RegionSheetPicker({
         >
           {(close) => (
             <>
-            <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
-              <p className="text-lg font-bold">지역 선택</p>
-              <button
-                type="button"
-                onClick={close}
-                className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center"
-                aria-label="닫기"
-              >
-                ✕
-              </button>
-            </div>
-
             <div className="overflow-y-auto px-5 pb-8 flex flex-col gap-5">
               {DOMESTIC_REGIONS.map(({ group, cities }) => (
                 <div key={group}>
@@ -596,8 +569,8 @@ export default function HomePage() {
   };
 
   return (
-    <div className="home-page min-h-screen">
-      <div className="shrink-0 flex items-center justify-between px-4 pt-14 pb-2">
+    <div className="home-page min-h-[100dvh]">
+      <div className="app-safe-header shrink-0 flex items-center justify-between px-4 pb-2">
         <p className="text-3xl font-bold">내 여행</p>
         <button onClick={() => setShowCreate(true)} aria-label="여행 모임 만들기" className="home-create-button w-10 h-10 flex items-center justify-center rounded-full">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.75} viewBox="0 0 24 24">
@@ -688,13 +661,9 @@ export default function HomePage() {
           onClose={() => setShowCreate(false)}
           className="max-h-[90vh] overflow-y-auto"
         >
-          {(close) => (
+          {() => (
             <>
-            <div className="flex items-center justify-between px-4 pt-5 pb-3 border-b border-gray-100">
-              <h2 className="text-lg font-bold">여행 모임 만들기</h2>
-              <button onClick={close} className="text-blue-500 font-medium">닫기</button>
-            </div>
-            <div className="p-4 flex flex-col gap-5">
+            <div className="flex flex-col gap-5 px-4 pb-4">
               <div>
                 <label className="text-sm font-semibold mb-1.5 block">여행 이름</label>
                 <input ref={tripTitleRef} className="w-full p-3 bg-gray-100 rounded-xl text-sm outline-none" placeholder="여행 이름을 입력해주세요" value={tripTitle} onChange={e => setTripTitle(e.target.value)} />
@@ -759,24 +728,10 @@ export default function HomePage() {
             setShowLogout(false);
             setConfirmLogout(false);
           }}
-          className="px-5 pt-5 pb-6"
+          className="px-5 pb-6"
         >
           {(close) => (
             <>
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <p className="text-lg font-bold">{confirmLogout ? "로그아웃" : "내 정보"}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={close}
-                  className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center"
-                  aria-label="닫기"
-                >
-                  ✕
-                </button>
-              </div>
-
               <div className="home-logout-body">
                 {confirmLogout ? (
                   <div className="home-logout-confirm-item rounded-2xl bg-gray-50 p-5 mb-4 text-center">

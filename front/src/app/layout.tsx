@@ -72,7 +72,7 @@ export default function RootLayout({
       <body className="min-h-full bg-gray-50 flex justify-center">
         <TripLogProvider>
           <MobileKeyboardFocusGuard />
-          <div className="w-full max-w-md bg-white relative overflow-x-hidden" style={{ minHeight: "100dvh" }}>
+          <div className="triplog-app-shell w-full max-w-md bg-white relative overflow-x-clip" style={{ minHeight: "100dvh" }}>
             {children}
           </div>
         </TripLogProvider>

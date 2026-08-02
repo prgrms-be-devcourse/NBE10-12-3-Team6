@@ -298,7 +298,7 @@ export default function LoginPage() {
   // ── 로그인 ────────────────────────────────────────────────────────────────────
   if (mode === "login") {
     return (
-      <div className={`auth-screen-transition auth-${authTransition} relative flex flex-col min-h-screen px-6 overflow-hidden`}>
+      <div className={`auth-screen-transition auth-${authTransition} relative flex min-h-[100dvh] flex-col overflow-hidden px-6`}>
         <Toast message={toast.message} visible={toast.visible} />
 
         {loginAnim && (
@@ -358,7 +358,7 @@ export default function LoginPage() {
             </div>
           </>
         )}
-        <div className="flex items-center gap-3 pt-14 pb-4 border-b border-gray-100">
+        <div className="app-safe-header flex items-center gap-3 border-b border-gray-100 pb-4">
           <button
             onClick={() => changeMode("landing", "back")}
             aria-label="뒤로가기"
@@ -419,7 +419,7 @@ export default function LoginPage() {
 
   // ── 회원가입 ──────────────────────────────────────────────────────────────────
   return (
-    <div className={`auth-screen-transition auth-${authTransition} relative flex flex-col min-h-screen px-6 overflow-hidden`}>
+    <div className={`auth-screen-transition auth-${authTransition} relative flex min-h-[100dvh] flex-col overflow-hidden px-6`}>
       <Toast message={toast.message} visible={toast.visible} />
 
       {loginAnim && (
@@ -481,7 +481,7 @@ export default function LoginPage() {
         </>
       )}
 
-      <div className="flex items-center gap-3 pt-14 pb-4 border-b border-gray-100">
+      <div className="app-safe-header flex items-center gap-3 border-b border-gray-100 pb-4">
         <button
           onClick={() => changeMode("landing", "back")}
           aria-label="뒤로가기"

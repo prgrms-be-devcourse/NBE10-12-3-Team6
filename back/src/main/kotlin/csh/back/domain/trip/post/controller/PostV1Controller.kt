@@ -4,8 +4,8 @@ import csh.back.domain.member.dto.response.AuthFilterDto
 import csh.back.domain.trip.post.dto.request.CreatePostRequest
 import csh.back.domain.trip.post.dto.request.UpdatePostRequest
 import csh.back.domain.trip.post.dto.response.PostResponse
+import csh.back.domain.trip.post.dto.response.PostCursorResponse
 import csh.back.domain.trip.post.dto.response.PostTimelineResponse
-import csh.back.domain.trip.post.dto.response.PostsDailyResponse
 import csh.back.domain.trip.post.like.dto.response.PostLikeResponse
 import csh.back.domain.trip.post.like.service.PostLikeService
 import csh.back.domain.trip.post.service.PostService
@@ -53,11 +53,18 @@ class PostV1Controller(
     ): PostResponse = postService.getPost(tripGroupId, postId)
 
     @GetMapping
-    @Operation(summary = "게시글 전체 조회", description = "타임라인별 전체 게시글을 조회합니다.")
+    @Operation(summary = "게시글 목록 조회", description = "타임라인 게시글을 커서 기반으로 10개씩 조회합니다.")
     fun getPosts(
         @PathVariable tripGroupId: Long,
-        @AuthenticationPrincipal member: AuthFilterDto
-    ): List<PostsDailyResponse> = postService.getPosts(tripGroupId, member.id)
+        @AuthenticationPrincipal member: AuthFilterDto,
+        @RequestParam(required = false) cursor: String?,
+        @RequestParam(defaultValue = "10") size: Int
+    ): PostCursorResponse = postService.getPosts(
+        tripGroupId,
+        member.id,
+        cursor,
+        size
+    )
 
     @PutMapping("/{postId}")
     @Operation(summary = "게시글 수정", description = "게시글 내용을 수정합니다.")
