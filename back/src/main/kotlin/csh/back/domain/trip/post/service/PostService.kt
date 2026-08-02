@@ -233,6 +233,7 @@ class PostService(
                         } else {
                             "TEXT"
                         },
+                    originalFilename = uploadedImages?.originalFilename,
                     contentUrl = uploadedImages?.originalUrl,
                     normalContentUrl = uploadedImages?.normalUrl,
                     dataSaverContentUrl = uploadedImages?.dataSaverUrl,
@@ -347,6 +348,7 @@ class PostService(
         if (timeline != null) {
             return PostsDailyResponse.PostSummary(
                 postId = post.id,
+                originalFilename = post.originalFilename,
                 contentUrl = post.contentUrl,
                 normalContentUrl = post.normalContentUrl ?: post.contentUrl,
                 dataSaverContentUrl = post.dataSaverContentUrl
@@ -373,6 +375,7 @@ class PostService(
 
         return PostsDailyResponse.PostSummary(
             postId = post.id,
+            originalFilename = post.originalFilename,
             contentUrl = post.contentUrl,
             normalContentUrl = post.normalContentUrl ?: post.contentUrl,
             dataSaverContentUrl = post.dataSaverContentUrl

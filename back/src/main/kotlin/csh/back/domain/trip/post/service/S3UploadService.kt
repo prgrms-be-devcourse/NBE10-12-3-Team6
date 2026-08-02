@@ -11,6 +11,7 @@ import java.io.IOException
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.net.URI
+import java.text.Normalizer
 import java.util.UUID
 
 @Service
@@ -26,7 +27,8 @@ class S3UploadService(
     ): UploadedPostImages {
         require(file != null && !file.isEmpty) { "업로드된 이미지가 없습니다." }
 
-        val extension = file.originalFilename
+        val originalFilename = sanitizeOriginalFilename(file.originalFilename)
+        val extension = originalFilename
             ?.takeIf { it.contains('.') }
             ?.substringAfterLast('.', missingDelimiterValue = "")
             ?.lowercase()
@@ -58,6 +60,7 @@ class S3UploadService(
                 contentType = variants.dataSaver.contentType
             )
             UploadedPostImages(
+                originalFilename = originalFilename,
                 originalUrl = originalUrl,
                 normalUrl = uploadedNormalUrl,
                 dataSaverUrl = dataSaverUrl
@@ -66,6 +69,20 @@ class S3UploadService(
             deleteImages(originalUrl, normalUrl)
             throw exception
         }
+    }
+
+    private fun sanitizeOriginalFilename(filename: String?): String? {
+        val basename = filename
+            ?.trim()
+            ?.substringAfterLast('/')
+            ?.substringAfterLast('\\')
+            ?: return null
+
+        return Normalizer.normalize(basename, Normalizer.Form.NFC)
+            .replace(CONTROL_CHARACTERS, "")
+            .trim()
+            .take(MAX_ORIGINAL_FILENAME_LENGTH)
+            .takeIf { it.isNotBlank() }
     }
 
     fun deleteImages(vararg imageUrls: String?) {
@@ -106,8 +123,14 @@ class S3UploadService(
     }
 
     data class UploadedPostImages(
+        val originalFilename: String?,
         val originalUrl: String,
         val normalUrl: String,
         val dataSaverUrl: String
     )
+
+    companion object {
+        private const val MAX_ORIGINAL_FILENAME_LENGTH = 255
+        private val CONTROL_CHARACTERS = Regex("[\\p{Cc}\\p{Cf}]")
+    }
 }

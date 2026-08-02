@@ -31,6 +31,10 @@ class Post(
     var timeline: Timeline? = null,
 
     var type: String? = null,
+
+    @Column(name = "original_filename", length = 255)
+    var originalFilename: String? = null,
+
     var contentUrl: String? = null,
     var normalContentUrl: String? = null,
     var dataSaverContentUrl: String? = null,

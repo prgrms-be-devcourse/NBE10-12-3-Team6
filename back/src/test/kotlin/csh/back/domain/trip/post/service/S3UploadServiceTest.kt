@@ -2,6 +2,7 @@ package csh.back.domain.trip.post.service
 
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.model.PutObjectRequest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -47,6 +48,29 @@ class S3UploadServiceTest {
         assertTrue(result.originalUrl.contains("/posts/original/"))
         assertTrue(result.normalUrl.contains("/posts/normal/"))
         assertTrue(result.dataSaverUrl.contains("/posts/data-saver/"))
+        assertEquals("photo.jpg", result.originalFilename)
+    }
+
+    @Test
+    @DisplayName("원본 파일명에서 경로와 제어 문자를 제거한다")
+    fun sanitizeOriginalFilename() {
+        `when`(amazonS3.getUrl(eq(BUCKET), anyString())).thenAnswer { invocation ->
+            URI("https://storage.example.com/$BUCKET/${invocation.arguments[1]}").toURL()
+        }
+        val file = MockMultipartFile(
+            "image",
+            "../../private/여행 사진\r\n.jpg",
+            "image/jpeg",
+            "original".toByteArray()
+        )
+        val variants = PostImageProcessor.PostImageVariants(
+            normal = encodedImage("normal"),
+            dataSaver = encodedImage("data-saver")
+        )
+
+        val result = service.uploadImages(file, variants)
+
+        assertEquals("여행 사진.jpg", result.originalFilename)
     }
 
     @Test

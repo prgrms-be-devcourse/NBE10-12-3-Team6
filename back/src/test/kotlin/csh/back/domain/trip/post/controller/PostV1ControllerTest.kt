@@ -86,6 +86,7 @@ class PostV1ControllerTest {
             id = POST_ID,
             timelineId = TIMELINE_ID,
             type = "IMAGE",
+            originalFilename = "test-image.jpg",
             contentUrl = "https://example.com/test-image.jpg",
             content = "부산 여행 시작!",
             likeCount = 0L
@@ -113,6 +114,7 @@ class PostV1ControllerTest {
             .andExpect(jsonPath("$.id").value(POST_ID))
             .andExpect(jsonPath("$.timelineId").value(TIMELINE_ID))
             .andExpect(jsonPath("$.type").value("IMAGE"))
+            .andExpect(jsonPath("$.originalFilename").value("test-image.jpg"))
             .andExpect(jsonPath("$.contentUrl").value("https://example.com/test-image.jpg"))
             .andExpect(jsonPath("$.normalContentUrl").value("https://example.com/test-image.jpg"))
             .andExpect(jsonPath("$.dataSaverContentUrl").value("https://example.com/test-image.jpg"))
@@ -135,6 +137,7 @@ class PostV1ControllerTest {
             id = POST_ID,
             timelineId = TIMELINE_ID,
             type = "IMAGE",
+            originalFilename = "test-image.jpg",
             contentUrl = "https://example.com/test-image.jpg",
             content = "부산 여행",
             likeCount = 3L
@@ -154,6 +157,7 @@ class PostV1ControllerTest {
             .andExpect(jsonPath("$.id").value(POST_ID))
             .andExpect(jsonPath("$.timelineId").value(TIMELINE_ID))
             .andExpect(jsonPath("$.type").value("IMAGE"))
+            .andExpect(jsonPath("$.originalFilename").value("test-image.jpg"))
             .andExpect(jsonPath("$.contentUrl").value("https://example.com/test-image.jpg"))
             .andExpect(jsonPath("$.normalContentUrl").value("https://example.com/test-image.jpg"))
             .andExpect(jsonPath("$.dataSaverContentUrl").value("https://example.com/test-image.jpg"))
@@ -178,6 +182,7 @@ class PostV1ControllerTest {
                 posts = listOf(
                     PostsDailyResponse.PostSummary(
                         postId = POST_ID,
+                        originalFilename = "test-image.jpg",
                         contentUrl = "https://example.com/test-image.jpg",
                         normalContentUrl = "https://example.com/test-image-normal.webp",
                         dataSaverContentUrl = "https://example.com/test-image-data-saver.webp",
@@ -210,6 +215,7 @@ class PostV1ControllerTest {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.groups[0].date").value("2026-07-30"))
             .andExpect(jsonPath("$.groups[0].posts[0].postId").value(POST_ID))
+            .andExpect(jsonPath("$.groups[0].posts[0].originalFilename").value("test-image.jpg"))
             .andExpect(
                 jsonPath("$.groups[0].posts[0].contentUrl")
                     .value("https://example.com/test-image.jpg")
