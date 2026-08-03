@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useParams } from "next/navigation";
 import { ChatCircleDots } from "@phosphor-icons/react";
 import AnimatedBottomSheet from "../../components/AnimatedBottomSheet";
+import TripChatRoom from "./TripChatRoom";
 
 export default function TripChatRoomButton({
   className = "",
@@ -10,6 +12,7 @@ export default function TripChatRoomButton({
   className?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const { id } = useParams<{ id: string }>();
 
   return (
     <>
@@ -28,14 +31,7 @@ export default function TripChatRoomButton({
           onClose={() => setIsOpen(false)}
           className="flex h-[72%] flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]"
         >
-          {() => (
-            <>
-              <div
-                className="min-h-0 flex-1 overflow-y-auto"
-                aria-label="채팅방 준비 영역"
-              />
-            </>
-          )}
+          {() => <TripChatRoom tripGroupId={Number(id)} />}
         </AnimatedBottomSheet>
       )}
     </>

@@ -423,7 +423,15 @@ function RegionSheetPicker({
   );
 }
 
-function TripCard({ trip, animationDelayMs = 0 }: { trip: ApiTrip; animationDelayMs?: number }) {
+function TripCard({
+  trip,
+  animationDelayMs = 0,
+  unreadCount = 0,
+}: {
+  trip: ApiTrip;
+  animationDelayMs?: number;
+  unreadCount?: number;
+}) {
   const status = getTripStatus(trip.startDate, trip.nights);
   const badge = STATUS_BADGE[status];
   return (
@@ -435,7 +443,14 @@ function TripCard({ trip, animationDelayMs = 0 }: { trip: ApiTrip; animationDela
       <div className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-start justify-between mb-3">
           <div>
-            <p className="font-bold text-base">{trip.name}</p>
+            <p className="font-bold text-base flex items-center gap-1.5">
+              {trip.name}
+              {unreadCount > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </p>
             <p className="text-sm text-gray-500 mt-0.5">{trip.region} · {trip.nights}박 {trip.nights + 1}일</p>
           </div>
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ml-2 ${badge.className}`}>
@@ -455,6 +470,7 @@ export default function HomePage() {
   const clearOwnerId = useTripOwnerStore((state) => state.clearOwnerId);
 
   const [trips, setTrips] = useState<ApiTrip[]>([]);
+  const [unreadCounts, setUnreadCounts] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [resultAnimationKey, setResultAnimationKey] = useState(0);
   const [hasSearched, setHasSearched] = useState(false);
@@ -496,6 +512,15 @@ export default function HomePage() {
     }
   }
 
+  const loadUnreadCounts = async () => {
+    try {
+      const res = await apiFetch(`${API_BASE}/api/v1/trips/chat/unread-counts`);
+      const body = await res.json();
+      setUnreadCounts(body.data ?? {});
+    } catch {
+    }
+  };
+
   const resetSearch = () => {
     setKeyWord("");
     setSearchDate("");
@@ -523,6 +548,7 @@ export default function HomePage() {
     clearOwnerId();
     const initialLoadFrame = requestAnimationFrame(() => {
       void getInit();
+      void loadUnreadCounts();
     });
 
     return () => {
@@ -639,7 +665,14 @@ export default function HomePage() {
               {[...trips].sort((a, b) => {
                 const order = { during: 0, before: 1, after: 2 };
                 return order[getTripStatus(a.startDate, a.nights)] - order[getTripStatus(b.startDate, b.nights)];
-              }).map((trip, index) => <TripCard key={trip.id} trip={trip} animationDelayMs={Math.min(index, 6) * 55} />)}
+              }).map((trip, index) => (
+                <TripCard
+                  key={trip.id}
+                  trip={trip}
+                  animationDelayMs={Math.min(index, 6) * 55}
+                  unreadCount={unreadCounts[trip.id] ?? 0}
+                />
+              ))}
             </div>
           )}
         </div>
