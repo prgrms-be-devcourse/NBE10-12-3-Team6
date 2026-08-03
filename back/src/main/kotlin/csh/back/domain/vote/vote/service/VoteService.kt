@@ -49,6 +49,7 @@ class VoteService(
         val tripGroup = validateTripMember(tripGroupId, memberId)
         val totalDays = tripGroup.nights + 1
         val byDay = timelineRepository.findAllByTripGroupId(tripGroupId)
+            .filterNot { it.isFreeTime }
             .groupBy { it.dayNumber }
         val byTimelineId = voteRepository.findVotesWithTimelineByTripGroupId(tripGroupId)
             .associateBy { it.timeline.id }
