@@ -113,13 +113,12 @@ class S3UploadService(
     }
 
     private fun deleteImage(imageUrl: String) {
-        runCatching {
-            val path = URI(imageUrl).path.removePrefix("/")
-            val objectKey = path.removePrefix("$bucket/")
-            if (objectKey.isNotBlank()) {
-                amazonS3.deleteObject(bucket, objectKey)
-            }
+        val path = URI(imageUrl).path.removePrefix("/")
+        val objectKey = path.removePrefix("$bucket/")
+        require(objectKey.isNotBlank()) {
+            "삭제할 S3 객체 키를 이미지 URL에서 찾을 수 없습니다."
         }
+        amazonS3.deleteObject(bucket, objectKey)
     }
 
     data class UploadedPostImages(

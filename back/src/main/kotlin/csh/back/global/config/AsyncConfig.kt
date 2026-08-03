@@ -20,4 +20,15 @@ class AsyncConfig {
         executor.initialize()
         return executor
     }
+
+    @Bean("postDeleteExecutor")
+    fun postDeleteExecutor(): TaskExecutor {
+        val executor = ThreadPoolTaskExecutor()
+        executor.corePoolSize = 1
+        executor.maxPoolSize = 3
+        executor.queueCapacity = 100
+        executor.setThreadNamePrefix("post-delete-")
+        executor.initialize()
+        return executor
+    }
 }

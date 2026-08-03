@@ -191,7 +191,8 @@ class PostV1ControllerTest {
                         endTime = endTime,
                         confirmedPlaceName = "광안리",
                         createdAt = createdAt,
-                        likeCount = 5L
+                        likeCount = 5L,
+                        authorMemberId = MEMBER_ID
                     )
                 )
             )

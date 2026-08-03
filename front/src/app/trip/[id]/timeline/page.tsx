@@ -8,6 +8,8 @@ import { selectPhotoUrls, usePhotoDataPreference } from "../../../photoDataPrefe
 
 interface Post {
   postId: number;
+  authorMemberId?: number | null;
+  content?: string | null;
   timelineId: number | null;
   contentUrl: string | null;
   normalContentUrl?: string | null;
@@ -98,7 +100,7 @@ export default function TimelinePage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
-  const { trips, upsertTrip } = useStore();
+  const { trips, upsertTrip, currentUser } = useStore();
   const photoDataPreference = usePhotoDataPreference();
   const [groups, setGroups] = useState<DateGroup[]>([]);
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -107,6 +109,10 @@ export default function TimelinePage() {
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [postLoadError, setPostLoadError] = useState(false);
   const [activeDots, setActiveDots] = useState<Record<string, number>>({});
+  const [editingPostId, setEditingPostId] = useState<number | null>(null);
+  const [contentDraft, setContentDraft] = useState("");
+  const [postActionId, setPostActionId] = useState<number | null>(null);
+  const [postActionError, setPostActionError] = useState("");
   const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const listScrollRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -178,6 +184,55 @@ export default function TimelinePage() {
       setIsLoadingPosts(false);
     }
   }, [id]);
+
+  const updatePostContent = async (postId: number) => {
+    if (!id || postActionId !== null) return;
+    setPostActionId(postId);
+    setPostActionError("");
+    try {
+      const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/posts/${postId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: contentDraft.trim() || null }),
+      });
+      if (!response.ok) throw new Error("게시글 내용을 수정하지 못했습니다.");
+
+      setGroups(current => current.map(group => ({
+        ...group,
+        posts: group.posts.map(post => post.postId === postId
+          ? { ...post, content: contentDraft.trim() || null }
+          : post),
+      })));
+      setEditingPostId(null);
+    } catch (error) {
+      setPostActionError(error instanceof Error ? error.message : "게시글 내용을 수정하지 못했습니다.");
+    } finally {
+      setPostActionId(null);
+    }
+  };
+
+  const deletePost = async (postId: number) => {
+    if (!id || postActionId !== null) return;
+    if (!window.confirm("게시글과 서버에 저장된 사진을 모두 삭제할까요?")) return;
+
+    setPostActionId(postId);
+    setPostActionError("");
+    try {
+      const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/posts/${postId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("게시글을 삭제하지 못했습니다.");
+
+      setGroups(current => current
+        .map(group => ({ ...group, posts: group.posts.filter(post => post.postId !== postId) }))
+        .filter(group => group.posts.length > 0));
+      if (editingPostId === postId) setEditingPostId(null);
+    } catch (error) {
+      setPostActionError(error instanceof Error ? error.message : "게시글을 삭제하지 못했습니다.");
+    } finally {
+      setPostActionId(null);
+    }
+  };
 
   useEffect(() => {
     const firstFrame = requestAnimationFrame(() => {
@@ -271,6 +326,7 @@ export default function TimelinePage() {
                         }}
                         onPointerDown={(e) => {
                           if (e.pointerType === "touch") return;
+                          if ((e.target as HTMLElement).closest("button, textarea, input")) return;
                           e.preventDefault();
                           const el = e.currentTarget;
                           el.setPointerCapture(e.pointerId);
@@ -324,7 +380,32 @@ export default function TimelinePage() {
                             const detailSrc = resolveUrl(selectedUrls.detailUrl);
                             return (
                               <div key={post.postId} className={`rounded-2xl border p-3 flex flex-col gap-2 snap-start basis-full shrink-0 ${borderColor}`}>
-                                <p className={`text-xs font-semibold ${labelColor}`}>{label}</p>
+                                <div className="flex items-start justify-between gap-3">
+                                  <p className={`text-xs font-semibold ${labelColor}`}>{label}</p>
+                                  {post.authorMemberId === currentUser.id && (
+                                    <div className="flex shrink-0 gap-2 text-xs font-semibold">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingPostId(post.postId);
+                                          setContentDraft(post.content ?? "");
+                                          setPostActionError("");
+                                        }}
+                                        className="text-blue-500"
+                                      >
+                                        내용 수정
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => void deletePost(post.postId)}
+                                        disabled={postActionId === post.postId}
+                                        className="text-red-500 disabled:opacity-50"
+                                      >
+                                        삭제
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                                 <div className="flex items-center justify-center rounded-xl overflow-hidden" style={{ height: "360px" }}>
                                   {previewSrc ? (
                                     // 원격 S3 URL에 브라우저 표준 lazy loading을 직접 적용한다.
@@ -342,6 +423,37 @@ export default function TimelinePage() {
                                     <p className="text-sm text-gray-400">사진을 불러올 수 없습니다.</p>
                                   )}
                                 </div>
+                                {editingPostId === post.postId ? (
+                                  <div className="flex flex-col gap-2">
+                                    <textarea
+                                      value={contentDraft}
+                                      onChange={event => setContentDraft(event.target.value)}
+                                      maxLength={1000}
+                                      rows={3}
+                                      placeholder="사진과 함께 남길 내용을 입력하세요."
+                                      className="w-full resize-none rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:border-blue-400"
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingPostId(null)}
+                                        className="rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-500"
+                                      >
+                                        취소
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => void updatePostContent(post.postId)}
+                                        disabled={postActionId === post.postId}
+                                        className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                                      >
+                                        저장
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : post.content ? (
+                                  <p className="whitespace-pre-wrap break-words text-sm text-gray-700">{post.content}</p>
+                                ) : null}
                               </div>
                             );
                           });
@@ -369,6 +481,9 @@ export default function TimelinePage() {
               </button>
             )}
           </div>
+          {postActionError && (
+            <p className="px-1 text-center text-xs text-red-500">{postActionError}</p>
+          )}
         </div>
       </div>
     </>
