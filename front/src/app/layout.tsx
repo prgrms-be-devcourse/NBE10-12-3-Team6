@@ -74,7 +74,6 @@ export default function RootLayout({
         <TripLogProvider>
           <MobileKeyboardFocusGuard />
           <PresenceHeartbeat />
-          <div className="w-full max-w-md bg-white relative overflow-x-hidden" style={{ minHeight: "100dvh" }}>
           <div className="triplog-app-shell w-full max-w-md bg-white relative overflow-x-clip" style={{ minHeight: "100dvh" }}>
             {children}
           </div>
