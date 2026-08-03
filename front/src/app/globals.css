@@ -521,9 +521,73 @@ textarea,
   flex-direction: column;
 }
 
+.account-password-stack {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--background);
+}
+
+.account-password-background,
+.account-password-page {
+  position: absolute;
+  inset: 0;
+}
+
+.account-password-background {
+  z-index: 0;
+}
+
+.account-password-page {
+  z-index: 50;
+  background: var(--background);
+}
+
+.account-password-page.trip-page-transition {
+  animation: accountPasswordSlideIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .account-password-page.trip-page-exit {
   pointer-events: none;
-  animation: tripPageEnter 0.42s cubic-bezier(0.22, 1, 0.36, 1) reverse both;
+  animation: accountPasswordSlideOut 0.42s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes accountPasswordSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes accountPasswordSlideOut {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.home-bottom-navigation-root.is-returning {
+  pointer-events: none;
+  animation: accountNavigationReturn 0.2s ease-out 0.22s both;
+}
+
+.home-bottom-navigation-root.is-returning * {
+  pointer-events: none !important;
+}
+
+@keyframes accountNavigationReturn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .account-logout-panel {
