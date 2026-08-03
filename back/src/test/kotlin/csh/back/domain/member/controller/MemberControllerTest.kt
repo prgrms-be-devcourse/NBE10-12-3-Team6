@@ -9,9 +9,14 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers
+import org.mockito.BDDMockito.then
+import org.mockito.BDDMockito.willThrow
+import org.mockito.Mockito.never
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.data.redis.RedisConnectionFailureException
 import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
@@ -292,5 +297,26 @@ class MemberControllerTest {
     fun t13() {
         mvc.perform(get("$BASE_URL/me"))
             .andExpect(status().isForbidden())
+    }
+
+    @Test
+    @DisplayName("로그인 - Redis 장애 시에도 로그인 성공 (알림만 스킵)")
+    fun t14() {
+        // Redis 다운을 시뮬레이션: 쿨다운 체크가 RedisConnectionFailureException을 던짐
+        willThrow(RedisConnectionFailureException("Unable to connect to Redis"))
+            .given(emailCooldownGuard)
+            .check(ArgumentMatchers.anyString(), ArgumentMatchers.anyString())
+
+        mvc.perform(
+            post("$BASE_URL/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"email": "admin@admin.com", "password": "1234"}""")
+        ).andExpect(status().isOk())
+            .andExpect(header().exists("Set-Cookie"))
+
+        // 알림은 스킵되어야 하므로 메일 발송 없음
+        then(mailService).shouldHaveNoInteractions()
+        // 로그인 자체는 정상 완료 — RefreshToken row가 생성됨
+        assertThat(refreshTokenRepository.count()).isEqualTo(1L)
     }
 }

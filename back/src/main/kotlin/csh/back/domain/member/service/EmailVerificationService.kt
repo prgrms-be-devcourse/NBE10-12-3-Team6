@@ -8,6 +8,7 @@ import csh.back.global.mail.MailService
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Service
 import java.time.Duration
+import org.slf4j.LoggerFactory
 
 @Service
 class EmailVerificationService(
@@ -16,6 +17,8 @@ class EmailVerificationService(
     private val redisTemplate: StringRedisTemplate,
     private val memberRepository: MemberRepository,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     companion object {
         private const val CODE_TTL_MINUTES = 5L     // 인증 코드 유효 시간 (분)
         private const val COOLDOWN_SECONDS = 30L    // 재발송 제한 시간 (초)
@@ -33,7 +36,7 @@ class EmailVerificationService(
         emailCooldownGuard.check(COOLDOWN_PURPOSE, email)
 
         val code = (100_000..999_999).random().toString()
-
+        log.info("이메일 인증 코드 발급: {}", code)
         // 인증 코드를 Redis에 저장 (5분 TTL)
         redisTemplate.opsForValue().set(
             "$CODE_KEY_PREFIX$email",
