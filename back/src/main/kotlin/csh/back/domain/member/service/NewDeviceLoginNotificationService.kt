@@ -4,6 +4,8 @@ import csh.back.domain.member.repository.RefreshTokenRepository
 import csh.back.global.mail.EmailCooldownGuard
 import csh.back.global.mail.MailService
 import csh.back.global.mail.exception.MailCooldownException
+import org.slf4j.LoggerFactory
+import org.springframework.dao.DataAccessException
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -15,6 +17,7 @@ class NewDeviceLoginNotificationService(
     private val emailCooldownGuard: EmailCooldownGuard,
 ) {
     companion object {
+        private val log = LoggerFactory.getLogger(NewDeviceLoginNotificationService::class.java)
         private const val COOLDOWN_PURPOSE = "new_device_login"
         // 로그아웃 후 재로그인 시 동일 기기 중복 알림 방지 — 30일 내 재발송 차단
         private const val COOLDOWN_DAYS_IN_SECONDS = 30L * 24 * 60 * 60
@@ -28,11 +31,14 @@ class NewDeviceLoginNotificationService(
         val cooldownKey = "$memberId:$deviceId"
         try {
             emailCooldownGuard.check(COOLDOWN_PURPOSE, cooldownKey)
+            emailCooldownGuard.mark(COOLDOWN_PURPOSE, cooldownKey, COOLDOWN_DAYS_IN_SECONDS)
         } catch (e: MailCooldownException) {
             return
+        } catch (e: DataAccessException) {
+            // Redis 장애 시 쿨다운 판단·마킹 불가 — 중복 발송을 막기 위해 알림만 스킵하고 로그인은 계속 진행
+            log.warn("Skipping new-device notification: cooldown store unavailable ({})", e.message)
+            return
         }
-
-        emailCooldownGuard.mark(COOLDOWN_PURPOSE, cooldownKey, COOLDOWN_DAYS_IN_SECONDS)
 
         mailService.sendHtmlEmail(
             to = memberEmail,
