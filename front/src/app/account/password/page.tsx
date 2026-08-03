@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthGuard } from "../../lib";
+import AccountHome from "../AccountHome";
 
 export default function PasswordChangePage() {
   useAuthGuard();
@@ -23,11 +24,17 @@ export default function PasswordChangePage() {
       !passwordMismatch,
   );
 
+  useEffect(() => {
+    router.prefetch("/account");
+  }, [router]);
+
   const leaveToAccount = () => {
     if (isLeaving) return;
 
     setIsLeaving(true);
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
     window.setTimeout(
       () => router.replace("/account"),
       prefersReducedMotion ? 0 : 420,
@@ -43,8 +50,12 @@ export default function PasswordChangePage() {
   };
 
   return (
-    <div className={`account-page account-password-page trip-page-transition ${isLeaving ? "trip-page-exit" : ""}`}>
-      <header className="app-safe-header shrink-0 flex items-center gap-3 border-b border-gray-100 px-4 pb-4">
+    <div className="account-password-stack">
+      <div className="account-password-background" aria-hidden inert>
+        <AccountHome navigationMode={isLeaving ? "returning" : "hidden"} />
+      </div>
+      <div className={`account-page account-password-page trip-page-transition ${isLeaving ? "trip-page-exit" : ""}`}>
+        <header className="app-safe-header shrink-0 flex items-center gap-3 border-b border-gray-100 px-4 pb-4">
         <button
           type="button"
           onClick={leaveToAccount}
@@ -57,9 +68,9 @@ export default function PasswordChangePage() {
           </svg>
         </button>
         <h1 className="text-lg font-bold">비밀번호 변경</h1>
-      </header>
+        </header>
 
-      <main className="account-password-content flex-1 overflow-y-auto px-4 pt-7">
+        <main className="account-password-content flex-1 overflow-y-auto px-4 pt-7">
         <form onSubmit={handleSubmit} className="flex min-h-full flex-col">
           <div className="flex flex-col gap-6">
             <div>
@@ -127,7 +138,8 @@ export default function PasswordChangePage() {
             비밀번호 변경
           </button>
         </form>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
