@@ -16,7 +16,7 @@ import jakarta.persistence.UniqueConstraint
 // Java는 기본값을 인식 못해 3인자 생성자가 없어 컴파일 에러 발생 → Java 테스트 코드 호환용
 class Member @JvmOverloads constructor(
     val email: String,
-    val password: String,
+    var password: String,
     val name: String,
     // 소셜 로그인 식별자 (A-lite 방식): 이메일 대신 provider+providerId 조합으로 소셜 회원 조회
     // email/password 컬럼을 nullable로 전환하지 않고, 카카오 가입 시 placeholder 값으로 채움
