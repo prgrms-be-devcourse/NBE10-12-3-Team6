@@ -1,5 +1,6 @@
 package csh.back.domain.member.controller
 
+import csh.back.domain.member.dto.request.ChangePasswordRequest
 import csh.back.domain.member.dto.request.CheckEmailDtp
 import csh.back.domain.member.dto.request.LoginRequestDto
 import csh.back.domain.member.dto.request.MemberRequestDto
@@ -23,6 +24,7 @@ import org.springframework.http.ResponseCookie
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.CookieValue
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -97,6 +99,23 @@ class MemberController(
         refreshToken?.let { memberService.logout(it) }
 
         // 쿠키 만료 처리로 클라이언트 토큰 삭제
+        response.addHeader(HttpHeaders.SET_COOKIE,
+            ResponseCookie.from(CookieNames.ACCESS_TOKEN, "").path("/").maxAge(0).build().toString())
+        response.addHeader(HttpHeaders.SET_COOKIE,
+            ResponseCookie.from(CookieNames.REFRESH_TOKEN, "").path("/").maxAge(0).build().toString())
+
+        return ResponseData(200, null)
+    }
+
+    @Operation(summary = "비밀번호 변경 (로컬 회원 전용, 변경 후 전체 기기 로그아웃)")
+    @PatchMapping("/password")
+    fun changePassword(
+        @AuthenticationPrincipal member: AuthFilterDto,
+        @RequestBody @Valid request: ChangePasswordRequest,
+        response: HttpServletResponse,
+    ): ResponseData<Void?> {
+        memberService.changePassword(member.id, request.currentPassword, request.newPassword)
+
         response.addHeader(HttpHeaders.SET_COOKIE,
             ResponseCookie.from(CookieNames.ACCESS_TOKEN, "").path("/").maxAge(0).build().toString())
         response.addHeader(HttpHeaders.SET_COOKIE,
