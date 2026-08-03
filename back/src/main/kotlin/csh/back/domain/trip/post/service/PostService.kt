@@ -10,11 +10,14 @@ import csh.back.domain.trip.post.dto.response.PostResponse
 import csh.back.domain.trip.post.dto.response.PostTimelineResponse
 import csh.back.domain.trip.post.dto.response.PostsDailyResponse
 import csh.back.domain.trip.post.entity.Post
+import csh.back.domain.trip.post.event.PostDeletedEvent
 import csh.back.domain.trip.post.like.repository.PostLikeRepository
+import csh.back.domain.trip.post.reminder.repository.PostReminderRepository
 import csh.back.domain.trip.post.repository.PostRepository
 import csh.back.domain.trip.timeline.entity.Timeline
 import csh.back.domain.trip.timeline.repository.TimelineRepository
 import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -34,7 +37,9 @@ class PostService(
     private val postImageProcessor: PostImageProcessor,
     private val tripMemberValidator: TripMemberValidator,
     private val tripGroupService: TripGroupService,
-    private val postLikeRepository: PostLikeRepository
+    private val postLikeRepository: PostLikeRepository,
+    private val postReminderRepository: PostReminderRepository,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     fun getPosts(
@@ -161,12 +166,16 @@ class PostService(
             tripGroupId,
             postId
         )
-        s3UploadService.deleteImages(
+        val imageUrls = listOfNotNull(
             post.contentUrl,
             post.normalContentUrl,
             post.dataSaverContentUrl
-        )
+        ).distinct()
+
+        postLikeRepository.deleteAllByPostId(postId)
+        postReminderRepository.deleteAllByPostId(postId)
         postRepository.delete(post)
+        eventPublisher.publishEvent(PostDeletedEvent(imageUrls))
     }
 
     @Transactional
@@ -361,7 +370,7 @@ class PostService(
                     timeline.tripWishPlace?.name,
                 createdAt = post.createdAt,
                 likeCount = likeCount,
-                authorMemberId = post.author.member.id,
+                authorMemberId = requireNotNull(post.author.member.id),
                 content = post.content
             )
         }
@@ -393,7 +402,7 @@ class PostService(
             confirmedPlaceName = null,
             createdAt = captured,
             likeCount = likeCount,
-            authorMemberId = post.author.member.id,
+            authorMemberId = requireNotNull(post.author.member.id),
             content = post.content
         )
     }

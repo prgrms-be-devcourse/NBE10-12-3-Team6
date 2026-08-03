@@ -7,4 +7,6 @@ interface PostReminderRepository :
     JpaRepository<PostReminder, Long> {
 
     fun existsByPostId(postId: Long): Boolean
+
+    fun deleteAllByPostId(postId: Long): Long
 }

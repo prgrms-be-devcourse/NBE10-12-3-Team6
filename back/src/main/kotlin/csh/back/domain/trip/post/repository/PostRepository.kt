@@ -30,6 +30,8 @@ interface PostRepository : JpaRepository<Post, Long> {
         """
         SELECT p
         FROM Post p
+        JOIN FETCH p.author a
+        JOIN FETCH a.member
         LEFT JOIN FETCH p.timeline t
         LEFT JOIN FETCH t.tripWishPlace
         WHERE p.author IN :members
@@ -46,6 +48,8 @@ interface PostRepository : JpaRepository<Post, Long> {
         """
         SELECT p
         FROM Post p
+        JOIN FETCH p.author a
+        JOIN FETCH a.member
         LEFT JOIN FETCH p.timeline t
         LEFT JOIN FETCH t.tripWishPlace
         WHERE p.author IN :members

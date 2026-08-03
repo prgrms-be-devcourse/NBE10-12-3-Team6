@@ -33,4 +33,6 @@ interface PostLikeRepository : JpaRepository<PostLike, Long> {
         postId: Long,
         tripMemberId: Long
     ): Long
+
+    fun deleteAllByPostId(postId: Long): Long
 }

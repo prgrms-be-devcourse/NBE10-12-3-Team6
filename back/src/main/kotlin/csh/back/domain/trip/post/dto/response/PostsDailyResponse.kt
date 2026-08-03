@@ -26,7 +26,7 @@ data class PostsDailyResponse(
         val createdAt: LocalDateTime?,
         @field:Schema(description = "게시글의 전체 좋아요 수", example = "3")
         val likeCount: Long,
-        val authorMemberId: Long? = null,
+        val authorMemberId: Long,
         val content: String? = null
     ) {
         companion object {
@@ -47,7 +47,7 @@ data class PostsDailyResponse(
                     confirmedPlaceName = timeline?.tripWishPlace?.name,
                     createdAt = post.createdAt,
                     likeCount = likeCount,
-                    authorMemberId = post.author.member.id,
+                    authorMemberId = requireNotNull(post.author.member.id),
                     content = post.content
                 )
             }
