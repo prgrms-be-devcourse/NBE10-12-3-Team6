@@ -41,6 +41,41 @@ class MailService(
         }
     }
 
+    // 비밀번호 재설정 링크 이메일 — 링크는 프론트의 재설정 페이지 URL
+    fun sendPasswordResetEmail(to: String, resetLink: String, ttlMinutes: Long) {
+        sendHtmlEmail(
+            to = to,
+            subject = "[Triplog] 비밀번호 재설정 안내",
+            contentHtml = buildPasswordResetContent(resetLink, ttlMinutes),
+        )
+    }
+
+    private fun buildPasswordResetContent(resetLink: String, ttlMinutes: Long) = """
+        <p style="margin:0 0 8px;color:#333333;font-size:18px;font-weight:600;">비밀번호 재설정</p>
+        <p style="margin:0 0 24px;color:#888888;font-size:14px;line-height:1.6;">
+          아래 버튼을 눌러 새 비밀번호를 설정해 주세요.<br>
+          이 링크는 <strong>${ttlMinutes}분</strong> 후 만료됩니다.
+        </p>
+
+        <div style="text-align:center;margin-bottom:32px;">
+          <a href="$resetLink"
+             style="display:inline-block;padding:14px 32px;background-color:#4A90E2;color:#ffffff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600;">
+            비밀번호 재설정
+          </a>
+        </div>
+
+        <p style="margin:0 0 8px;color:#aaaaaa;font-size:12px;line-height:1.6;">
+          버튼이 열리지 않으면 아래 주소를 브라우저에 붙여 넣어 주세요.
+        </p>
+        <p style="margin:0 0 24px;color:#4A90E2;font-size:12px;word-break:break-all;">
+          $resetLink
+        </p>
+
+        <p style="margin:0;padding:16px;background-color:#fff3cd;border-radius:8px;color:#856404;font-size:13px;line-height:1.6;">
+          ⚠️ 본인이 요청하지 않았다면 이 메일을 무시해 주세요. 계정은 안전합니다.
+        </p>
+    """.trimIndent()
+
     // 공용 레이아웃(헤더/푸터/테두리)으로 본문 콘텐츠 감싸기
     private fun wrapWithLayout(contentHtml: String) = """
         <!DOCTYPE html>

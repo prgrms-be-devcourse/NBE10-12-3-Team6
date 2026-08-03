@@ -60,6 +60,10 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // 429 락아웃 응답 처리용 — 서버가 내려준 retryAfterSeconds를 담고 매초 감소
+  const [lockoutSecondsLeft, setLockoutSecondsLeft] = useState(0);
+  // 401 응답의 remainingAttempts 힌트 — 실제 회원의 비번 오류일 때만 채워짐 (미존재 이메일은 null)
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
   const [emailCodeSent, setEmailCodeSent] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
@@ -87,6 +91,9 @@ export default function LoginPage() {
     setAuthTransition(transition);
     setMode(nextMode);
     setError("");
+    // 모드 전환 시 락아웃/실패 힌트도 함께 초기화 — 이전 화면 상태가 다음 폼에 남는 것 방지
+    setLockoutSecondsLeft(0);
+    setRemainingAttempts(null);
     setEmail(""); setPassword(""); setPasswordConfirm(""); setName("");
     resetEmailVerification();
   };
@@ -98,6 +105,16 @@ export default function LoginPage() {
     }, 1000);
     return () => clearInterval(id);
   }, [verificationSecondsLeft]);
+
+  // 락아웃 카운트다운 — 429 응답 시 lockoutSecondsLeft를 서버 값으로 초기화한 뒤 매초 감소
+  // 0에 도달하면 재로그인 버튼이 다시 활성화됨 (아래 로그인 버튼 disabled 조건 참고)
+  useEffect(() => {
+    if (lockoutSecondsLeft <= 0) return;
+    const id = setInterval(() => {
+      setLockoutSecondsLeft(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [lockoutSecondsLeft]);
 
   const isValidEmailFormat = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
@@ -243,8 +260,22 @@ export default function LoginPage() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body?.message ?? "이메일 또는 비밀번호가 올바르지 않아요.");
+        // 429 락아웃 — retryAfterSeconds로 카운트다운 상태만 세팅하고 종료 (별도 UI에서 초 단위 렌더)
+        if (res.status === 429 && typeof body?.retryAfterSeconds === "number") {
+          setLockoutSecondsLeft(body.retryAfterSeconds);
+          setRemainingAttempts(null);
+          setError("");
+          return;
+        }
+        // 401 자격증명 오류 — 실제 회원이면 remainingAttempts로 남은 시도 힌트 세팅
+        //   (미존재 이메일 케이스는 remainingAttempts가 응답에 없어서 null 유지 → 힌트 미노출)
+        setRemainingAttempts(typeof body?.remainingAttempts === "number" ? body.remainingAttempts : null);
+        setError(body?.message ?? "이메일 또는 비밀번호가 올바르지 않아요.");
+        return;
       }
+      // 성공 경로 진입 — 락아웃/힌트 상태 리셋
+      setLockoutSecondsLeft(0);
+      setRemainingAttempts(null);
       const authHeader = res.headers.get("authorization");
       if (authHeader) {
         const parts = authHeader.split(" ");
@@ -448,7 +479,15 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="text-sm font-semibold mb-1.5 block">비밀번호</label>
+            {/* 라벨 우측에 남은 시도 힌트를 함께 배치 — 사용자가 비번 입력 지점에서 바로 확인 가능 */}
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-semibold">비밀번호</label>
+              {remainingAttempts !== null && remainingAttempts > 0 && lockoutSecondsLeft === 0 && (
+                <span className="text-xs text-gray-500 tabular-nums">
+                  남은 시도 {remainingAttempts}회 / 총 5회
+                </span>
+              )}
+            </div>
             <input
               className="w-full p-3.5 bg-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-300"
               placeholder="비밀번호를 입력해주세요"
@@ -460,14 +499,30 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && <p className="text-sm text-red-500 font-semibold">{error}</p>}
+          {/* 락아웃 중이면 카운트다운을 서버 메시지 대신 직접 렌더 (매초 갱신) */}
+          {lockoutSecondsLeft > 0 ? (
+            <p className="text-sm text-red-500 font-semibold">
+              계정이 잠겼어요. <span className="tabular-nums">{lockoutSecondsLeft}</span>초 후 다시 시도해 주세요.
+            </p>
+          ) : error ? (
+            <p className="text-sm text-red-500 font-semibold">{error}</p>
+          ) : null}
 
           <button
             onClick={handleLogin}
-            disabled={!email.trim() || !password.trim() || loading}
+            // 락아웃 중에는 카운트다운이 0에 도달할 때까지 재시도 차단
+            disabled={!email.trim() || !password.trim() || loading || lockoutSecondsLeft > 0}
             className="w-full py-4 rounded-2xl bg-blue-500 text-white font-semibold text-base mt-2 disabled:opacity-40"
           >
             {loading ? "로그인 중..." : "로그인하기"}
+          </button>
+
+          {/* 비밀번호 재설정 진입점 — 이메일 링크 방식으로 새 비번 발급 */}
+          <button
+            onClick={() => router.push("/forgot-password")}
+            className="text-sm text-gray-500 text-center underline"
+          >
+            비밀번호를 잊으셨나요?
           </button>
 
           <button

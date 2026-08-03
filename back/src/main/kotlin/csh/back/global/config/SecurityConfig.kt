@@ -56,6 +56,8 @@ class SecurityConfig(
                     "/api/v1/auth/login",
                     "/api/v1/auth/check_email",
                     "/api/v1/auth/verify_email",
+                    // 비밀번호 재설정 요청/검증/확정 — 인증 없이 접근 가능해야 함 (잊어버렸으니 로그인 못 함)
+                    "/api/v1/auth/password-reset/**",
                     "/uploadedimages/**",
                     "/actuator/prometheus",
                     "/oauth2/authorization/**",

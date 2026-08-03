@@ -2,6 +2,9 @@ package csh.back.global.exception
 
 import csh.back.domain.member.exception.EmailVerificationException
 import csh.back.domain.member.exception.ExistingMemberException
+import csh.back.domain.member.exception.InvalidCredentialsException
+import csh.back.domain.member.exception.InvalidResetTokenException
+import csh.back.domain.member.exception.LoginLockedException
 import csh.back.domain.trip.group.exception.NonMemberException
 import csh.back.domain.trip.group.exception.NotFoundException
 import csh.back.domain.trip.group.settings.exception.InvalidFreeTimeMinutesException
@@ -92,6 +95,26 @@ class GlobalExeptionHandler {
     fun handleMailCooldown(e: MailCooldownException): ResponseEntity<ErrorResponse> {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
             .body(ErrorResponse(429, e.message))
+    }
+
+    @ExceptionHandler(InvalidCredentialsException::class)
+    fun handleInvalidCredentials(e: InvalidCredentialsException): ResponseEntity<ErrorResponse> {
+        // remainingAttempts는 실제 회원의 비번 오류일 때만 채워짐 (미존재 이메일 케이스는 null 유지)
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(ErrorResponse(401, e.message, remainingAttempts = e.remainingAttempts))
+    }
+
+    @ExceptionHandler(LoginLockedException::class)
+    fun handleLoginLocked(e: LoginLockedException): ResponseEntity<ErrorResponse> {
+        // retryAfterSeconds를 body에 포함 → 프론트가 초 단위 카운트다운에 사용
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .body(ErrorResponse(429, e.message, retryAfterSeconds = e.retryAfterSeconds))
+    }
+
+    @ExceptionHandler(InvalidResetTokenException::class)
+    fun handleInvalidResetToken(e: InvalidResetTokenException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, e.message))
     }
 
     @ExceptionHandler(InvalidFreeTimeMinutesException::class)

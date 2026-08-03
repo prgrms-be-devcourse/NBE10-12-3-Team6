@@ -1,9 +1,12 @@
 package csh.back.domain.member.entity
 
 import csh.back.global.entity.BaseEntity
+import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
+import java.time.Duration
+import java.time.LocalDateTime
 
 @Entity
 @Table(
@@ -16,10 +19,44 @@ import jakarta.persistence.UniqueConstraint
 // Java는 기본값을 인식 못해 3인자 생성자가 없어 컴파일 에러 발생 → Java 테스트 코드 호환용
 class Member @JvmOverloads constructor(
     val email: String,
-    val password: String,
+    // 재설정 시 갱신되므로 var. 도메인 메서드(updatePassword)를 통해서만 변경할 것.
+    var password: String,
     val name: String,
     // 소셜 로그인 식별자 (A-lite 방식): 이메일 대신 provider+providerId 조합으로 소셜 회원 조회
     // email/password 컬럼을 nullable로 전환하지 않고, 카카오 가입 시 placeholder 값으로 채움
     val provider: String = "LOCAL",   // "LOCAL" | "KAKAO"
     val providerId: String? = null,   // 카카오 회원번호 (소셜 로그인만 사용, 일반 회원은 null)
-) : BaseEntity()
+) : BaseEntity() {
+
+    // 브루트포스 방어용 연속 실패 카운트 — 성공 또는 비밀번호 재설정 시 0으로 리셋
+    @Column(name = "failed_login_count", nullable = false)
+    var failedLoginCount: Int = 0
+        protected set
+
+    // 락 해제 시각. null 또는 과거면 로그인 가능
+    @Column(name = "locked_until")
+    var lockedUntil: LocalDateTime? = null
+        protected set
+
+    fun isLocked(now: LocalDateTime = LocalDateTime.now()): Boolean =
+        lockedUntil?.isAfter(now) == true
+
+    // 임계값 도달 시 lockedUntil 세팅. 임계값 미만이면 카운트만 증가.
+    fun registerLoginFailure(threshold: Int, lockDuration: Duration, now: LocalDateTime = LocalDateTime.now()) {
+        failedLoginCount += 1
+        if (failedLoginCount >= threshold) {
+            lockedUntil = now.plus(lockDuration)
+        }
+    }
+
+    fun resetLoginFailures() {
+        failedLoginCount = 0
+        lockedUntil = null
+    }
+
+    // 비밀번호 재설정 성공 시 호출 — 락도 함께 해제 (정상 소유자 검증됨)
+    fun updatePassword(newHashedPassword: String) {
+        password = newHashedPassword
+        resetLoginFailures()
+    }
+}

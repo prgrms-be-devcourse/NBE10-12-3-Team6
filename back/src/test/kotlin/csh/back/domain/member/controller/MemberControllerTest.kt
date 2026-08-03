@@ -1,6 +1,8 @@
 package csh.back.domain.member.controller
 
+import csh.back.domain.member.repository.MemberRepository
 import csh.back.domain.member.repository.RefreshTokenRepository
+import csh.back.domain.member.service.LoginAttemptTracker
 import csh.back.global.jwt.CookieNames
 import csh.back.global.mail.EmailCooldownGuard
 import csh.back.global.mail.MailService
@@ -21,6 +23,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.ResultActions
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers.print
@@ -37,6 +40,11 @@ class MemberControllerTest {
     @Autowired
     private lateinit var refreshTokenRepository: RefreshTokenRepository
 
+    // 락아웃 시나리오에서 실패 카운트/락 상태를 DB 레벨에서 리셋하기 위해 주입 —
+    // MemberService.login()은 REQUIRES_NEW 트랜잭션으로 카운트를 커밋하므로 회원마다 격리 필요
+    @Autowired
+    private lateinit var memberRepository: MemberRepository
+
     // login()이 notifyIfNewDevice()를 호출하고, 그 안에서 Redis(EmailCooldownGuard)와 SMTP(MailService)를 사용.
     // MemberControllerTest는 알림 동작이 아닌 로그인/로그아웃 HTTP 동작을 검증하므로 인프라 의존성 차단.
     @MockitoBean
@@ -52,6 +60,11 @@ class MemberControllerTest {
     @AfterEach
     fun cleanup() {
         refreshTokenRepository.deleteAll()
+        // 락아웃 상태가 다음 테스트에 leak되지 않도록 admin 계정의 카운트/락을 초기화
+        memberRepository.findByEmail("admin@admin.com").ifPresent { member ->
+            member.resetLoginFailures()
+            memberRepository.save(member)
+        }
     }
 
     @Test
@@ -158,7 +171,7 @@ class MemberControllerTest {
     }
 
     @Test
-    @DisplayName("로그인 - 존재하지 않는 이메일")
+    @DisplayName("로그인 - 존재하지 않는 이메일 (계정 열거 방지로 비번 오류와 동일 401 응답)")
     fun t6() {
         mvc.perform(
             post("$BASE_URL/login")
@@ -172,11 +185,12 @@ class MemberControllerTest {
         ).andDo(print())
             .andExpect(handler().handlerType(MemberController::class.java))
             .andExpect(handler().methodName("login"))
-            .andExpect(status().isInternalServerError())
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.message").value("이메일 또는 비밀번호가 올바르지 않습니다."))
     }
 
     @Test
-    @DisplayName("로그인 - 비밀번호 불일치")
+    @DisplayName("로그인 - 비밀번호 불일치 (401 + 동일 메시지)")
     fun t7() {
         mvc.perform(
             post("$BASE_URL/login")
@@ -190,7 +204,8 @@ class MemberControllerTest {
         ).andDo(print())
             .andExpect(handler().handlerType(MemberController::class.java))
             .andExpect(handler().methodName("login"))
-            .andExpect(status().isInternalServerError())
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.message").value("이메일 또는 비밀번호가 올바르지 않습니다."))
     }
 
     @Test
@@ -318,5 +333,85 @@ class MemberControllerTest {
         then(mailService).shouldHaveNoInteractions()
         // 로그인 자체는 정상 완료 — RefreshToken row가 생성됨
         assertThat(refreshTokenRepository.count()).isEqualTo(1L)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 로그인 락아웃 시나리오 (5회 실패 → 5분 락)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // 잘못된 비밀번호로 로그인 시도 — 반환 타입 명시하지 않으면 Kotlin이 Unit으로 추론해 andExpect 체이닝 불가
+    private fun attemptWrongPasswordLogin(): ResultActions =
+        mvc.perform(
+            post("$BASE_URL/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"email": "admin@admin.com", "password": "wrongpassword"}""")
+        )
+
+    @Test
+    @DisplayName("로그인 - 4회 실패까지는 아직 락 안 걸림 (임계값=5)")
+    fun t15() {
+        // 4회 반복 실패 — 임계값 미만이라 매번 401
+        repeat(LoginAttemptTracker.FAILURE_THRESHOLD - 1) {
+            attemptWrongPasswordLogin().andExpect(status().isUnauthorized())
+        }
+
+        // 5회째 정상 비밀번호로 로그인하면 성공 + 카운트 리셋
+        mvc.perform(
+            post("$BASE_URL/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"email": "admin@admin.com", "password": "1234"}""")
+        ).andExpect(status().isOk())
+
+        val member = memberRepository.findByEmail("admin@admin.com").get()
+        assertThat(member.failedLoginCount).isEqualTo(0)
+        assertThat(member.lockedUntil).isNull()
+    }
+
+    @Test
+    @DisplayName("로그인 - 5회째 실패에서 즉시 429 락아웃 (다음 요청까지 기다리지 않음)")
+    fun t16() {
+        // 4회는 401 (Invalid Credentials + remainingAttempts)
+        repeat(LoginAttemptTracker.FAILURE_THRESHOLD - 1) {
+            attemptWrongPasswordLogin().andExpect(status().isUnauthorized())
+        }
+
+        // 5회째: 임계값 도달 → 이 요청부터 곧바로 429 반환 (UX 개선)
+        attemptWrongPasswordLogin()
+            .andExpect(status().isTooManyRequests())
+            .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("계정이 잠겼습니다")))
+            .andExpect(jsonPath("$.retryAfterSeconds").isNumber())
+
+        // 락 상태에서 정상 비밀번호를 넣어도 여전히 429
+        mvc.perform(
+            post("$BASE_URL/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"email": "admin@admin.com", "password": "1234"}""")
+        ).andExpect(status().isTooManyRequests())
+
+        val member = memberRepository.findByEmail("admin@admin.com").get()
+        assertThat(member.failedLoginCount).isGreaterThanOrEqualTo(LoginAttemptTracker.FAILURE_THRESHOLD)
+        assertThat(member.lockedUntil).isNotNull()
+    }
+
+    @Test
+    @DisplayName("로그인 - 락아웃 만료 후 재시도 성공")
+    fun t17() {
+        // 5회 실패로 락 걸기
+        repeat(LoginAttemptTracker.FAILURE_THRESHOLD) {
+            attemptWrongPasswordLogin()
+        }
+
+        // 실제로 5분 기다리지 않고 도메인 메서드로 락 해제 (시간 조작보다 안전한 방식)
+        // — 락 만료의 최종 상태(카운트/lockedUntil 초기화)를 그대로 재현
+        val member = memberRepository.findByEmail("admin@admin.com").get()
+        member.resetLoginFailures()
+        memberRepository.save(member)
+
+        // 정상 로그인 성공
+        mvc.perform(
+            post("$BASE_URL/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"email": "admin@admin.com", "password": "1234"}""")
+        ).andExpect(status().isOk())
     }
 }
