@@ -7,6 +7,7 @@ import csh.back.domain.member.entity.Member
 import csh.back.domain.member.entity.RefreshToken
 import csh.back.domain.member.exception.ExistingMemberException
 import csh.back.domain.member.repository.MemberRepository
+import csh.back.domain.presence.service.PresenceService
 import csh.back.domain.member.repository.RefreshTokenRepository
 import csh.back.global.jwt.JwtUtil
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -21,6 +22,7 @@ class MemberService(
     private val refreshTokenRepository: RefreshTokenRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtUtil: JwtUtil,
+    private val presenceService: PresenceService,
     private val newDeviceLoginNotificationService: NewDeviceLoginNotificationService,
 ) {
     @Transactional
@@ -61,7 +63,7 @@ class MemberService(
         return LoginResult(LoginResponseDto.from(member), accessToken, refreshToken.token)
     }
 
-    @Transactional
+
     fun findOrCreateKakaoMember(kakaoId: String, nickname: String): Member {
         return memberRepository.findByProviderAndProviderId("KAKAO", kakaoId)
             .orElseGet {
@@ -101,6 +103,13 @@ class MemberService(
 
     @Transactional
     fun logout(refreshToken: String) {
+정        // deleteByToken 이후엔 member 참조가 사라지므로 먼저 memberId를 뽑아둔다
+        val memberId = refreshTokenRepository.findByTokenWithMember(refreshToken)
+            .map { it.member.id!! }
+            .orElse(null)
         refreshTokenRepository.deleteByToken(refreshToken)
+
+        // 로그아웃 시 열려있는 SSE 연결을 즉시 종료해 presence를 online 상태로 남기지 않음
+        memberId?.let { presenceService.disconnectAll(it) }
     }
 }
