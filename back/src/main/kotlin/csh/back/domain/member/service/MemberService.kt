@@ -103,7 +103,7 @@ class MemberService(
 
     @Transactional
     fun logout(refreshToken: String) {
-정        // deleteByToken 이후엔 member 참조가 사라지므로 먼저 memberId를 뽑아둔다
+        // deleteByToken 이후엔 member 참조가 사라지므로 먼저 memberId를 뽑아둔다
         val memberId = refreshTokenRepository.findByTokenWithMember(refreshToken)
             .map { it.member.id!! }
             .orElse(null)
