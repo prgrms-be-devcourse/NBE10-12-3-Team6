@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "../store";
-import { Avatar, formatDate, apiFetch, useAuthGuard, API_BASE } from "../lib";
+import { formatDate, apiFetch, useAuthGuard, API_BASE } from "../lib";
 import { useTripOwnerStore } from "../stores/tripOwnerStore";
 import AnimatedBottomSheet from "../components/AnimatedBottomSheet";
 import HomeBottomNavigation from "../components/HomeBottomNavigation";
@@ -458,9 +458,6 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [resultAnimationKey, setResultAnimationKey] = useState(0);
   const [hasSearched, setHasSearched] = useState(false);
-  const [showLogout, setShowLogout] = useState(false);
-  const [confirmLogout, setConfirmLogout] = useState(false);
-
   const tripTitleRef = useRef<HTMLInputElement>(null);
   const [showCreate, setShowCreate] = useState(false);
   useEffect(() => { if (showCreate) setTimeout(() => tripTitleRef.current?.focus(), 50); }, [showCreate]);
@@ -525,9 +522,6 @@ export default function HomePage() {
     localStorage.removeItem("pendingInviteCode");
     clearOwnerId();
     const initialLoadFrame = requestAnimationFrame(() => {
-      if (new URLSearchParams(window.location.search).get("panel") === "profile") {
-        setShowLogout(true);
-      }
       void getInit();
     });
 
@@ -561,21 +555,6 @@ export default function HomePage() {
     } catch (e) {
       console.error("[여행 만들기 실패]", e);
     }
-  };
-
-  const handleLogout = () => {
-    // 백엔드에 로그아웃 통보 (fire-and-forget) — 서버가 refreshToken 무효화 + presence 정리를 수행.
-    // apiFetch가 헤더 조립을 동기 실행 후 fetch를 시작하므로, 이 직후 localStorage.clear() 해도
-    // 요청은 이미 accessToken을 담아 나간다. await하지 않아 UX 지연 없음.
-    apiFetch(`${API_BASE}/api/v1/auth/logout`, { method: "POST" }).catch((e) => {
-      console.error("[로그아웃 API 실패]", e);
-    });
-    // 클라이언트 상태 정리 — 반드시 accessToken 제거해서 PresenceHeartbeat 재접속을 차단
-    localStorage.clear();
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("triplog-logout"));
-    }
-    router.replace("/");
   };
 
   return (
@@ -720,67 +699,7 @@ export default function HomePage() {
         </AnimatedBottomSheet>
       )}
 
-      <HomeBottomNavigation
-        activeTab={showLogout ? "profile" : "home"}
-        onHome={() => {
-          setShowLogout(false);
-          setConfirmLogout(false);
-        }}
-        onProfile={() => {
-          setShowLogout(true);
-          setConfirmLogout(false);
-        }}
-      />
-
-      {showLogout && (
-        <AnimatedBottomSheet
-          onClose={() => {
-            setShowLogout(false);
-            setConfirmLogout(false);
-          }}
-          className="px-5 pb-6"
-        >
-          {(close) => (
-            <>
-              <div className="home-logout-body">
-                {confirmLogout ? (
-                  <div className="home-logout-confirm-item rounded-2xl bg-gray-50 p-5 mb-4 text-center">
-                    <p className="font-bold">정말 로그아웃하시겠습니까?</p>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl bg-gray-50 p-4 mb-4">
-                    <p className="text-sm text-gray-500 mb-3">현재 계정</p>
-                    <div className="flex items-center gap-3">
-                      <Avatar user={{ ...currentUser, name: currentUser.name || "사용자" }} size={42} />
-                      <p className="font-bold">{currentUser.name || "사용자"}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className={`home-logout-actions ${confirmLogout ? "is-confirming" : ""}`}>
-                <button
-                  type="button"
-                  onClick={close}
-                  disabled={!confirmLogout}
-                  aria-hidden={!confirmLogout}
-                  tabIndex={confirmLogout ? 0 : -1}
-                  className="home-logout-cancel-action py-4 rounded-2xl bg-gray-100 text-gray-700 font-bold active:opacity-80"
-                >
-                  취소
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmLogout ? handleLogout : () => setConfirmLogout(true)}
-                  className="home-logout-main-action py-4 rounded-2xl bg-red-500 text-white font-bold active:opacity-80"
-                >
-                  로그아웃
-                </button>
-              </div>
-            </>
-          )}
-        </AnimatedBottomSheet>
-      )}
+      <HomeBottomNavigation activeTab="home" />
     </div>
   );
 }

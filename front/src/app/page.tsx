@@ -337,12 +337,6 @@ export default function LoginPage() {
             로그인하기
           </button>
           <button
-            onClick={() => changeMode("signup", "forward")}
-            className="w-full py-4 rounded-2xl bg-gray-100 text-gray-800 font-semibold text-base active:opacity-80"
-          >
-            회원가입
-          </button>
-          <button
             type="button"
             onClick={handleKakaoLogin}
             className="relative w-full py-4 rounded-2xl bg-[#FEE500] text-[#191919] font-semibold text-base active:opacity-80"
@@ -353,6 +347,13 @@ export default function LoginPage() {
               </svg>
             </span>
             카카오로 로그인하기
+          </button>
+          <button
+            type="button"
+            onClick={() => changeMode("signup", "forward")}
+            className="mt-1 text-center text-sm text-gray-500 underline active:opacity-70"
+          >
+            계정이 없으신가요? 회원가입
           </button>
         </div>
       </div>
