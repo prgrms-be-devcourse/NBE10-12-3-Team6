@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64" fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 이메일 헤더 배경(#4A90E2)과 동일한 색을 바닥에 깔아서 qlmanage가 알파를 없애도 흰 stroke이 살아 보이게 함 -->
+  <rect width="64" height="64" fill="#4A90E2"/>
+  <path d="M23 18v-3.5C23 9.8 26.8 6 31.5 6h1C37.2 6 41 9.8 41 14.5V18" stroke-width="4"/>
+  <path d="M17 25c0-5 4-9 9-9h12c5 0 9 4 9 9v24c0 5-4 9-9 9H26c-5 0-9-4-9-9V25Z" stroke-width="4"/>
+  <path d="M17 32h-3c-2.2 0-4 1.8-4 4v10c0 2.2 1.8 4 4 4h3" stroke-width="4"/>
+  <path d="M47 32h3c2.2 0 4 1.8 4 4v10c0 2.2-1.8 4-4 4h-3" stroke-width="4"/>
+  <path d="M24 38h16v9c0 3.3-2.7 6-6 6h-4c-3.3 0-6-2.7-6-6v-9Z" stroke-width="4"/>
+  <path d="M25 28h14" stroke-width="4"/>
+</svg>
