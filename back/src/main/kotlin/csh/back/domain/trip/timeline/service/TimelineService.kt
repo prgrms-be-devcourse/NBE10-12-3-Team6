@@ -1,12 +1,13 @@
 package csh.back.domain.trip.timeline.service
 
-import csh.back.domain.trip.group.entity.TripGroup
-import csh.back.domain.trip.group.repository.TripGroupRepository
 import csh.back.domain.trip.event.dto.TripEvent
 import csh.back.domain.trip.event.enums.TripEventType
 import csh.back.domain.trip.event.service.TripEventService
+import csh.back.domain.trip.group.entity.TripGroup
+import csh.back.domain.trip.group.exception.NonMemberException
+import csh.back.domain.trip.group.exception.NotFoundException
+import csh.back.domain.trip.group.repository.TripGroupRepository
 import csh.back.domain.trip.member.repository.TripMemberRepository
-import csh.back.domain.trip.member.validator.TripMemberValidator
 import csh.back.domain.trip.place.entity.TripPlace
 import csh.back.domain.trip.place.repository.TripPlaceRepository
 import csh.back.domain.trip.timeline.dto.request.TimelineAllCreateRequest
@@ -36,7 +37,6 @@ class TimelineService(
     private val tripPlaceRepository: TripPlaceRepository,
     private val voteService: VoteService,
     private val tripEventService: TripEventService,
-    private val tripMemberValidator: TripMemberValidator,
     private val entityManager: EntityManager,
     private val voteRepository: VoteRepository,
     private val timelineFreeTimeService: TimelineFreeTimeService,
@@ -68,7 +68,7 @@ class TimelineService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.TIMELINE_CREATED,
-                message = "${savedTimeline.dayNumber}일차에 시간 구간이 추가되었습니다.",
+                message = "${savedTimeline.dayNumber}일차 시간 구간 추가",
                 tripGroupId = tripGroupId,
                 actorMemberId = memberId,
                 dayNumber = savedTimeline.dayNumber,
@@ -114,7 +114,7 @@ class TimelineService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.TIMELINE_BATCH_CREATED,
-                message = "${request.dayNumber}일차 시간 구간이 등록되었습니다.",
+                message = "${request.dayNumber}일차 시간 구간 추가",
                 tripGroupId = tripGroupId,
                 actorMemberId = memberId,
                 dayNumber = request.dayNumber,
@@ -192,7 +192,7 @@ class TimelineService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.TIMELINE_TIME_UPDATED,
-                message = "${timeline.dayNumber}일차 시간 구간의 시간이 변경되었습니다.",
+                message = "${timeline.dayNumber}일차 시간 구간 시간 변경",
                 tripGroupId = tripGroupId,
                 actorMemberId = memberId,
                 dayNumber = timeline.dayNumber,
@@ -217,7 +217,7 @@ class TimelineService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.TIMELINE_DELETED,
-                message = "${dayNumber}일차 시간 구간이 삭제되었습니다.",
+                message = "${dayNumber}일차 시간 구간 삭제",
                 tripGroupId = tripGroupId,
                 actorMemberId = memberId,
                 dayNumber = dayNumber,
@@ -231,7 +231,7 @@ class TimelineService(
         memberId: Long,
         voteId: Long,
     ): VoteConfirmResponse {
-        tripMemberValidator.validMember(tripGroupId, memberId)
+        validateTripMember(tripGroupId, memberId)
         voteService.lockPendingVote(voteId)
 
         val countMap: Map<Long, Long> = voteService.voteCount(voteId)
@@ -251,7 +251,7 @@ class TimelineService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.TIMELINE_PLACE_CONFIRMED,
-                message = "${timeline.dayNumber}일차 시간 구간에 ${tripWishPlace.name} 장소가 확정되었습니다.",
+                message = "${timeline.dayNumber}일차 시간 구간 ${tripWishPlace.name} 장소 확정",
                 tripGroupId = tripGroupId,
                 actorMemberId = memberId,
                 dayNumber = timeline.dayNumber,
@@ -280,7 +280,7 @@ class TimelineService(
             tripEventService.publishAfterCommit(
                 TripEvent(
                     eventType = TripEventType.VOTE_EXPIRED,
-                    message = "${timeline.dayNumber}일차 시간 구간의 투표가 종료되었습니다.",
+                    message = "${timeline.dayNumber}일차 시간 구간 투표 종료",
                     tripGroupId = requireNotNull(timeline.tripGroup.id),
                     actorMemberId = null,
                     dayNumber = timeline.dayNumber,
@@ -306,7 +306,7 @@ class TimelineService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.TIMELINE_PLACE_CONFIRMED,
-                message = "${timeline.dayNumber}일차 시간 구간에 ${tripWishPlace.name} 장소가 확정되었습니다.",
+                message = "${timeline.dayNumber}일차 시간 구간 ${tripWishPlace.name} 장소 확정",
                 tripGroupId = requireNotNull(timeline.tripGroup.id),
                 actorMemberId = null,
                 dayNumber = timeline.dayNumber,
@@ -394,37 +394,43 @@ class TimelineService(
     private fun lockTripGroup(tripGroupId: Long) {
         tripGroupRepository.findByIdWithLock(tripGroupId)
             .orElseThrow {
-                IllegalArgumentException("여행 모임을 찾을 수 없습니다.")
+                NotFoundException("존재하지 않는 모임입니다.")
             }
     }
 
     private fun findTripGroup(tripGroupId: Long): TripGroup =
         tripGroupRepository.findById(tripGroupId)
             .orElseThrow {
-                IllegalArgumentException("여행 모임을 찾을 수 없습니다.")
+                NotFoundException("존재하지 않는 모임입니다.")
             }
 
     private fun validateTripMember(tripGroupId: Long, memberId: Long) {
+        if (!tripGroupRepository.existsById(tripGroupId)) {
+            throw NotFoundException("존재하지 않는 모임입니다.")
+        }
+
         val isMember = tripMemberRepository
             .existsByTripGroupIdAndMemberId(tripGroupId, memberId)
 
-        require(isMember) {
-            "여행 모임 멤버만 접근할 수 있습니다."
+        if (!isMember) {
+            throw NonMemberException("해당 모임의 멤버가 아닙니다.")
         }
     }
 
     private fun findTimeline(tripGroupId: Long, timelineId: Long): Timeline =
         timelineRepository.findByIdAndTripGroupId(timelineId, tripGroupId)
             .orElseThrow {
-                IllegalArgumentException("타임라인을 찾을 수 없습니다.")
+                NotFoundException("존재하지 않는 타임라인입니다.")
             }
 
     private fun validateTripAdmin(tripGroupId: Long, memberId: Long) {
+        validateTripMember(tripGroupId, memberId)
+
         val isAdmin = tripMemberRepository
             .existsByTripGroupIdAndMemberIdAndIsAdminTrue(tripGroupId, memberId)
 
-        require(isAdmin) {
-            "여행 모임 방장만 접근할 수 있습니다."
+        if (!isAdmin) {
+            throw NonMemberException("여행 모임 방장만 접근할 수 있습니다.")
         }
     }
 

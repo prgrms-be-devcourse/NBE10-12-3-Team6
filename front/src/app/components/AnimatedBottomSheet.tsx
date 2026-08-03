@@ -88,6 +88,20 @@ export default function AnimatedBottomSheet({
       <div
         className={`sheet-panel relative w-full max-w-md max-h-[calc(100%_-_0.75rem)] rounded-t-3xl ${closing ? "is-closing" : ""} ${className}`}
       >
+        <div className="sheet-collapse-control sticky top-0 z-20 flex h-8 shrink-0 items-center justify-center">
+          <button
+            type="button"
+            onClick={close}
+            aria-label="탭뷰 닫기"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500"
+          >
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="m6 9 6 6 6-6" />
+              </svg>
+            </span>
+          </button>
+        </div>
         {children(close)}
       </div>
     </div>,

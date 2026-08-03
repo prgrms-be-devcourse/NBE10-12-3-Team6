@@ -1,6 +1,8 @@
 package csh.back.domain.trip.event.controller
 
 import csh.back.domain.trip.event.service.TripEventService
+import csh.back.domain.trip.group.exception.NonMemberException
+import csh.back.domain.trip.group.exception.NotFoundException
 import csh.back.domain.trip.group.support.WithMockLoginUser
 import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -66,7 +68,7 @@ class TripEventV1ControllerTest {
             .andReturn()
 
         val responseBody = String(completedResult.response.contentAsByteArray, UTF_8)
-        assertTrue(responseBody.contains("여행방 변경 알림 연결이 완료되었습니다."))
+        assertTrue(responseBody.contains("여행방 변경 알림 연결 완료"))
 
         Mockito.verify(tripEventService).subscribe(TRIP_GROUP_ID, MEMBER_ID)
     }
@@ -83,12 +85,42 @@ class TripEventV1ControllerTest {
         Mockito.verifyNoInteractions(tripEventService)
     }
 
+    @Test
+    @DisplayName("존재하지 않는 여행방의 SSE 구독은 404를 반환한다")
+    @WithMockLoginUser(id = MEMBER_ID)
+    fun rejectsMissingTripGroup() {
+        Mockito.doThrow(NotFoundException("존재하지 않는 모임입니다."))
+            .`when`(tripEventService)
+            .subscribe(TRIP_GROUP_ID, MEMBER_ID)
+
+        mvc.perform(
+            get(BASE_URL, TRIP_GROUP_ID)
+                .accept(MediaType.TEXT_EVENT_STREAM),
+        )
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    @DisplayName("여행방 비멤버의 SSE 구독은 403을 반환한다")
+    @WithMockLoginUser(id = MEMBER_ID)
+    fun rejectsNonMember() {
+        Mockito.doThrow(NonMemberException("해당 모임의 멤버가 아닙니다."))
+            .`when`(tripEventService)
+            .subscribe(TRIP_GROUP_ID, MEMBER_ID)
+
+        mvc.perform(
+            get(BASE_URL, TRIP_GROUP_ID)
+                .accept(MediaType.TEXT_EVENT_STREAM),
+        )
+            .andExpect(status().isForbidden)
+    }
+
     private fun completedConnectedEmitter(): SseEmitter =
         SseEmitter().apply {
             send(
                 SseEmitter.event()
                     .name("CONNECTED")
-                    .data("여행방 변경 알림 연결이 완료되었습니다."),
+                    .data("여행방 변경 알림 연결 완료"),
             )
             complete()
         }

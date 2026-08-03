@@ -16,6 +16,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers.print
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
@@ -263,5 +264,33 @@ class MemberControllerTest {
                 .cookie(Cookie(CookieNames.ACCESS_TOKEN, accessToken))
         ).andDo(print())
             .andExpect(status().isOk())
+    }
+
+    @Test
+    @DisplayName("현재 로그인 회원 조회 - 카카오 로그인과 동일한 쿠키 인증")
+    fun t12() {
+        val loginResult = mvc.perform(
+            post("$BASE_URL/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"email": "admin@admin.com", "password": "1234"}""")
+        ).andReturn()
+
+        mvc.perform(
+            get("$BASE_URL/me")
+                .cookie(
+                    loginResult.response.getCookie(CookieNames.ACCESS_TOKEN)!!,
+                    loginResult.response.getCookie(CookieNames.REFRESH_TOKEN)!!,
+                )
+        ).andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").isNumber())
+            .andExpect(jsonPath("$.data.email").value("admin@admin.com"))
+            .andExpect(jsonPath("$.data.name").value("admin"))
+    }
+
+    @Test
+    @DisplayName("현재 로그인 회원 조회 - 인증 쿠키가 없으면 403")
+    fun t13() {
+        mvc.perform(get("$BASE_URL/me"))
+            .andExpect(status().isForbidden())
     }
 }

@@ -11,11 +11,17 @@ data class PostResponse(
     val timelineId: Long?,
     @field:Schema(description = "게시글 타입", example = "IMAGE")
     val type: String?,
+    @field:Schema(description = "업로드 당시 원본 파일명", example = "IMG_1234.JPG", nullable = true)
+    val originalFilename: String? = null,
     @field:Schema(description = "이미지 URL", example = "https://example.com/images/post1.jpg", nullable = true)
     val contentUrl: String?,
+    @field:Schema(description = "일반 모드 목록용 WebP 이미지 URL", nullable = true)
+    val normalContentUrl: String? = contentUrl,
+    @field:Schema(description = "데이터 절약 모드용 WebP 이미지 URL", nullable = true)
+    val dataSaverContentUrl: String? = normalContentUrl ?: contentUrl,
     @field:Schema(description = "게시글 내용", example = "부산 여행 시작!")
     val content: String?,
-    @field:Schema(description = "게시글의 전체 좋아요 수",example = "3")
+    @field:Schema(description = "게시글의 전체 좋아요 수", example = "3")
     val likeCount: Long
 ) {
     companion object {
@@ -24,7 +30,12 @@ data class PostResponse(
             id = post.id,
             timelineId = post.timeline?.id,
             type = post.type,
+            originalFilename = post.originalFilename,
             contentUrl = post.contentUrl,
+            normalContentUrl = post.normalContentUrl ?: post.contentUrl,
+            dataSaverContentUrl = post.dataSaverContentUrl
+                ?: post.normalContentUrl
+                ?: post.contentUrl,
             content = post.content,
             likeCount = likeCount
         )

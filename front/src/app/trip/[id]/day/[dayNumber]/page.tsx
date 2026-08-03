@@ -3,7 +3,7 @@
 import { useState, useEffect, type MouseEvent, type ReactNode } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowClockwise, Clock, Minus, PencilSimple, Plus, X } from "@phosphor-icons/react";
+import { ArrowClockwise, Clock, Minus, PencilSimple, Plus } from "@phosphor-icons/react";
 import { useStore, Trip, TripDay, ActivityBlock, PlanTheme, uid } from "../../../../store";
 import { timeText, durationText, apiFetch, useAuthGuard, API_BASE } from "../../../../lib";
 import AnimatedBottomSheet from "../../../../components/AnimatedBottomSheet";
@@ -103,21 +103,11 @@ function TimePickerSheet({
     <AnimatedBottomSheet
       onClose={onClose}
       overlayClassName="bg-black/35"
-      className="overflow-y-auto px-5 pt-4 pb-6"
+      className="overflow-y-auto px-5 pb-6"
     >
       {(close) => (
         <>
-        <div className="flex items-center gap-3 mb-4">
-          <p className="font-bold flex-1">{title}</p>
-          <button
-            type="button"
-            onClick={close}
-            className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600"
-            aria-label="닫기"
-          >
-            <X size={18} weight="bold" />
-          </button>
-        </div>
+        <span className="sr-only">{title}</span>
 
         <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-2xl mb-4">
           {[
@@ -597,7 +587,7 @@ export default function DayPlanPage() {
   }, [latestEvent, dayNum]);
 
   if (!trip || dayIdx < 0) return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex min-h-[100dvh] items-center justify-center">
       <p className="text-gray-400 text-sm">불러오는 중...</p>
     </div>
   );
@@ -864,8 +854,8 @@ export default function DayPlanPage() {
   };
 
   return (
-    <div className={`timeline-day-page flex flex-col h-screen ${isLeavingDay ? "trip-page-exit" : ""}`}>
-      <div className="flex items-center gap-3 px-4 pt-12 pb-2">
+    <div className={`timeline-day-page flex h-[100dvh] flex-col ${isLeavingDay ? "trip-page-exit" : ""}`}>
+      <div className="app-safe-header flex items-center gap-3 px-4 pb-2">
         <button onClick={() => leaveDayWithTransition(() => router.back())} aria-label="뒤로가기" className="trip-header-icon-button w-10 h-10 rounded-full flex items-center justify-center">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

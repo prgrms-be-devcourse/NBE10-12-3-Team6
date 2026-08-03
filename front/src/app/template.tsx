@@ -18,7 +18,7 @@ export default function Template({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className={`${skipAnimation ? "" : "app-route-transition"} min-h-screen`}>
+    <div className={`${skipAnimation ? "" : "app-route-transition"} min-h-[100dvh]`}>
       {children}
     </div>
   );

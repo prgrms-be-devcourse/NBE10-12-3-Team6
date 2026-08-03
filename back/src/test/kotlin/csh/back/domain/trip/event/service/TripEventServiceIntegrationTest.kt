@@ -2,6 +2,8 @@ package csh.back.domain.trip.event.service
 
 import csh.back.domain.trip.event.dto.TripEvent
 import csh.back.domain.trip.event.enums.TripEventType
+import csh.back.domain.trip.group.exception.NonMemberException
+import csh.back.domain.trip.group.exception.NotFoundException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -67,12 +69,22 @@ class TripEventServiceIntegrationTest {
         assertEquals(60L * 60L * 1000L, emitter.timeout)
         assertEquals(1, emitter.events.size)
         assertEquals("CONNECTED", emitter.events.single().name)
-        assertTrue(emitter.events.single().protocolText.contains("여행방 변경 알림 연결이 완료되었습니다."))
+        assertTrue(emitter.events.single().protocolText.contains("여행방 변경 알림 연결 완료"))
 
-        val exception = assertThrows<IllegalArgumentException> {
+        val exception = assertThrows<NonMemberException> {
             tripEventService.subscribe(TRIP_GROUP_ID, NON_MEMBER_ID)
         }
-        assertEquals("여행 모임 멤버만 접근할 수 있습니다.", exception.message)
+        assertEquals("해당 모임의 멤버가 아닙니다.", exception.message)
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 여행방은 SSE를 구독할 수 없다")
+    fun rejectsMissingTripGroup() {
+        val exception = assertThrows<NotFoundException> {
+            tripEventService.subscribe(MISSING_TRIP_GROUP_ID, MEMBER_ID)
+        }
+
+        assertEquals("존재하지 않는 모임입니다.", exception.message)
     }
 
     @Test
@@ -257,6 +269,7 @@ class TripEventServiceIntegrationTest {
         const val MEMBER_ID = 1L
         const val OTHER_MEMBER_ID = 3L
         const val NON_MEMBER_ID = 2L
+        const val MISSING_TRIP_GROUP_ID = 999L
     }
 }
 

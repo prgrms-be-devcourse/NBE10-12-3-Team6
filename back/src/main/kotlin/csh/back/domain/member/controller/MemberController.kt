@@ -4,6 +4,7 @@ import csh.back.domain.member.dto.request.CheckEmailDtp
 import csh.back.domain.member.dto.request.LoginRequestDto
 import csh.back.domain.member.dto.request.MemberRequestDto
 import csh.back.domain.member.dto.request.VerifyEmailDto
+import csh.back.domain.member.dto.response.AuthFilterDto
 import csh.back.domain.member.dto.response.LoginResponseDto
 import csh.back.domain.member.dto.response.MemberResponseDto
 import csh.back.domain.member.service.EmailVerificationService
@@ -19,7 +20,9 @@ import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseCookie
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.CookieValue
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -77,6 +80,13 @@ class MemberController(
 
         return ResponseData(200, result.userInfo)
     }
+
+    @Operation(summary = "현재 로그인 회원 조회")
+    @GetMapping("/me")
+    fun me(
+        @AuthenticationPrincipal member: AuthFilterDto,
+    ): ResponseData<LoginResponseDto> =
+        ResponseData(200, memberService.getLoginUser(member.id))
 
     @Operation(summary = "로그아웃")
     @PostMapping("/logout")

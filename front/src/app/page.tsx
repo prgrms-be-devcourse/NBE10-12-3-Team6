@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "./store";
 import { API_BASE } from "./lib";
+import { clearStoredAuthentication, rememberCookieAuthentication } from "./authStorage";
 
 type Mode = "landing" | "login" | "signup";
 type AuthTransition = "forward" | "back" | "swap";
@@ -170,6 +171,53 @@ export default function LoginPage() {
     return () => cancelAnimationFrame(firstFrame);
   }, [mode]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("oauth") !== "success") return;
+
+    let cancelled = false;
+    let welcomeTimer: ReturnType<typeof setTimeout> | undefined;
+    let homeTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const completeKakaoLogin = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/auth/me`, {
+          credentials: "include",
+        });
+        if (!res.ok) {
+          throw new Error("카카오 로그인 정보를 확인하지 못했습니다.");
+        }
+
+        const body = await res.json();
+        if (cancelled) return;
+
+        window.history.replaceState({}, "", window.location.pathname);
+        rememberCookieAuthentication();
+        login(body.data?.name, body.data?.id);
+        setAuthTransition("forward");
+        setMode("login");
+        setLoginAnim(true);
+        welcomeTimer = setTimeout(() => setWelcomeVisible(true), 500);
+        homeTimer = setTimeout(() => router.replace("/home"), 2200);
+      } catch (e: unknown) {
+        if (cancelled) return;
+        window.history.replaceState({}, "", window.location.pathname);
+        clearStoredAuthentication();
+        setAuthTransition("forward");
+        setMode("login");
+        setError(e instanceof Error ? e.message : "카카오 로그인에 실패했습니다.");
+      }
+    };
+
+    void completeKakaoLogin();
+
+    return () => {
+      cancelled = true;
+      if (welcomeTimer) clearTimeout(welcomeTimer);
+      if (homeTimer) clearTimeout(homeTimer);
+    };
+  }, [login, router]);
+
   const showToast = (message: string, onDone?: () => void) => {
     setToast({ message, visible: true });
     setTimeout(() => {
@@ -215,6 +263,10 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleKakaoLogin = () => {
+    window.location.assign(`${API_BASE}/oauth2/authorization/kakao`);
   };
 
   const handleSignup = async () => {
@@ -290,6 +342,18 @@ export default function LoginPage() {
           >
             회원가입
           </button>
+          <button
+            type="button"
+            onClick={handleKakaoLogin}
+            className="relative w-full py-4 rounded-2xl bg-[#FEE500] text-[#191919] font-semibold text-base active:opacity-80"
+          >
+            <span className="absolute left-5 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center" aria-hidden="true">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+                <path d="M12 3C6.48 3 2 6.53 2 10.88c0 2.78 1.83 5.22 4.58 6.62l-1.17 4.08c-.11.38.32.68.65.46l4.93-3.3c.33.03.67.04 1.01.04 5.52 0 10-3.53 10-7.9S17.52 3 12 3Z" />
+              </svg>
+            </span>
+            카카오로 로그인하기
+          </button>
         </div>
       </div>
     );
@@ -298,7 +362,7 @@ export default function LoginPage() {
   // ── 로그인 ────────────────────────────────────────────────────────────────────
   if (mode === "login") {
     return (
-      <div className={`auth-screen-transition auth-${authTransition} relative flex flex-col min-h-screen px-6 overflow-hidden`}>
+      <div className={`auth-screen-transition auth-${authTransition} relative flex min-h-[100dvh] flex-col overflow-hidden px-6`}>
         <Toast message={toast.message} visible={toast.visible} />
 
         {loginAnim && (
@@ -358,7 +422,7 @@ export default function LoginPage() {
             </div>
           </>
         )}
-        <div className="flex items-center gap-3 pt-14 pb-4 border-b border-gray-100">
+        <div className="app-safe-header flex items-center gap-3 border-b border-gray-100 pb-4">
           <button
             onClick={() => changeMode("landing", "back")}
             aria-label="뒤로가기"
@@ -419,7 +483,7 @@ export default function LoginPage() {
 
   // ── 회원가입 ──────────────────────────────────────────────────────────────────
   return (
-    <div className={`auth-screen-transition auth-${authTransition} relative flex flex-col min-h-screen px-6 overflow-hidden`}>
+    <div className={`auth-screen-transition auth-${authTransition} relative flex min-h-[100dvh] flex-col overflow-hidden px-6`}>
       <Toast message={toast.message} visible={toast.visible} />
 
       {loginAnim && (
@@ -481,7 +545,7 @@ export default function LoginPage() {
         </>
       )}
 
-      <div className="flex items-center gap-3 pt-14 pb-4 border-b border-gray-100">
+      <div className="app-safe-header flex items-center gap-3 border-b border-gray-100 pb-4">
         <button
           onClick={() => changeMode("landing", "back")}
           aria-label="뒤로가기"

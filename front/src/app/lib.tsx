@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { User, PlanTheme } from "./store";
+import { clearStoredAuthentication, hasStoredAuthentication } from "./authStorage";
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 
@@ -76,7 +77,7 @@ typeof window !== "undefined"
 export function useAuthGuard() {
   const router = useRouter();
   useEffect(() => {
-    if (!localStorage.getItem("accessToken")) {
+    if (!hasStoredAuthentication()) {
       router.replace("/");
     }
   }, []);
@@ -100,8 +101,7 @@ export async function apiFetch(
   };
   const res = await fetch(input, { ...init, headers, credentials: "include" });
   if (res.status === 401) {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+    clearStoredAuthentication();
     window.location.replace("/");
   }
   return res;
@@ -142,7 +142,7 @@ export function PageHeader({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 pt-12 pb-2 px-4">
+    <div className="app-safe-header flex items-center gap-3 px-4 pb-2">
       {onBack ? (
         <button onClick={onBack} className="text-blue-500 p-1 -ml-1">
           <svg

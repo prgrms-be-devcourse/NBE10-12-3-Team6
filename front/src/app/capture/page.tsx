@@ -44,9 +44,9 @@ export default function CapturePage() {
   const item = captureItems[index];
 
   return (
-    <div className="flex flex-col min-h-screen px-4">
+    <div className="flex min-h-[100dvh] flex-col px-4">
       {/* Top bar */}
-      <div className="flex items-center gap-3 pt-12 pb-2">
+      <div className="app-safe-header flex items-center gap-3 pb-2">
         <button onClick={() => router.back()} className="text-blue-500">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -131,8 +131,8 @@ function MemoryDoneView() {
   const router = useRouter();
 
   return (
-    <div className="flex flex-col min-h-screen px-4">
-      <div className="flex items-center gap-3 pt-12 pb-2">
+    <div className="flex min-h-[100dvh] flex-col px-4">
+      <div className="app-safe-header flex items-center gap-3 pb-2">
         <button onClick={() => router.back()} className="text-blue-500">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

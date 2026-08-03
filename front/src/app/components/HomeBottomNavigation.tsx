@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import FixedBottomPortal from "./FixedBottomPortal";
 
 type HomeTab = "home" | "profile" | "settings";
 
@@ -17,7 +18,7 @@ export default function HomeBottomNavigation({
 }: HomeBottomNavigationProps) {
   const router = useRouter();
 
-  return (
+  const navigation = (
     <div
       className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6"
       style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
@@ -78,4 +79,6 @@ export default function HomeBottomNavigation({
       </div>
     </div>
   );
+
+  return <FixedBottomPortal>{navigation}</FixedBottomPortal>;
 }
