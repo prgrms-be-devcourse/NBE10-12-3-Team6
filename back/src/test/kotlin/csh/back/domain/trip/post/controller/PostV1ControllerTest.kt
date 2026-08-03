@@ -7,6 +7,7 @@ import csh.back.domain.trip.post.dto.response.PostCursorResponse
 import csh.back.domain.trip.post.dto.response.PostResponse
 import csh.back.domain.trip.post.dto.response.PostTimelineResponse
 import csh.back.domain.trip.post.dto.response.PostsDailyResponse
+import csh.back.domain.trip.post.like.dto.response.PostLikeResponse
 import csh.back.domain.trip.post.like.service.PostLikeService
 import csh.back.domain.trip.post.service.PostService
 import org.junit.jupiter.api.DisplayName
@@ -26,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers.print
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
@@ -327,6 +329,97 @@ class PostV1ControllerTest {
             MEMBER_ID,
             1
         )
+    }
+
+    @Test
+    @DisplayName("게시글 좋아요")
+    @WithMockLoginUser(id = MEMBER_ID)
+    fun likePost() {
+        // 좋아요 직후 상태: liked=true, likeCount 1 증가
+        val response = PostLikeResponse(
+            postId = POST_ID,
+            liked = true,
+            likeCount = 1L
+        )
+
+        `when`(
+            postLikeService.like(TRIP_GROUP_ID, POST_ID, MEMBER_ID)
+        ).thenReturn(response)
+
+        mvc.perform(
+            post("$BASE_URL/{postId}/likes", TRIP_GROUP_ID, POST_ID)
+        )
+            .andDo(print())
+            .andExpect(handler().handlerType(PostV1Controller::class.java))
+            .andExpect(handler().methodName("likePost"))
+            .andExpect(status().isOk)
+            // 컨트롤러가 ResponseData(200, ...)로 감싸므로 statusCode/data 경로 검증
+            .andExpect(jsonPath("$.statusCode").value(200))
+            .andExpect(jsonPath("$.data.postId").value(POST_ID))
+            .andExpect(jsonPath("$.data.liked").value(true))
+            .andExpect(jsonPath("$.data.likeCount").value(1))
+
+        verify(postLikeService).like(TRIP_GROUP_ID, POST_ID, MEMBER_ID)
+    }
+
+    @Test
+    @DisplayName("게시글 좋아요 취소")
+    @WithMockLoginUser(id = MEMBER_ID)
+    fun unlikePost() {
+        // 좋아요 취소 직후 상태: liked=false, likeCount 감소
+        val response = PostLikeResponse(
+            postId = POST_ID,
+            liked = false,
+            likeCount = 0L
+        )
+
+        `when`(
+            postLikeService.unlike(TRIP_GROUP_ID, POST_ID, MEMBER_ID)
+        ).thenReturn(response)
+
+        mvc.perform(
+            delete("$BASE_URL/{postId}/likes", TRIP_GROUP_ID, POST_ID)
+        )
+            .andDo(print())
+            .andExpect(handler().handlerType(PostV1Controller::class.java))
+            .andExpect(handler().methodName("unlikePost"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.statusCode").value(200))
+            .andExpect(jsonPath("$.data.postId").value(POST_ID))
+            .andExpect(jsonPath("$.data.liked").value(false))
+            .andExpect(jsonPath("$.data.likeCount").value(0))
+
+        verify(postLikeService).unlike(TRIP_GROUP_ID, POST_ID, MEMBER_ID)
+    }
+
+    @Test
+    @DisplayName("게시글 좋아요 상태 조회")
+    @WithMockLoginUser(id = MEMBER_ID)
+    fun getPostLikeStatus() {
+        // 이미 좋아요 눌러둔 상태를 가정 (liked=true, likeCount=3)
+        val response = PostLikeResponse(
+            postId = POST_ID,
+            liked = true,
+            likeCount = 3L
+        )
+
+        `when`(
+            postLikeService.getStatus(TRIP_GROUP_ID, POST_ID, MEMBER_ID)
+        ).thenReturn(response)
+
+        mvc.perform(
+            get("$BASE_URL/{postId}/likes", TRIP_GROUP_ID, POST_ID)
+        )
+            .andDo(print())
+            .andExpect(handler().handlerType(PostV1Controller::class.java))
+            .andExpect(handler().methodName("getPostLikeStatus"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.statusCode").value(200))
+            .andExpect(jsonPath("$.data.postId").value(POST_ID))
+            .andExpect(jsonPath("$.data.liked").value(true))
+            .andExpect(jsonPath("$.data.likeCount").value(3))
+
+        verify(postLikeService).getStatus(TRIP_GROUP_ID, POST_ID, MEMBER_ID)
     }
 
     @Test
