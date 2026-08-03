@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Sparkle } from "@phosphor-icons/react";
 import HomeBottomNavigation from "../components/HomeBottomNavigation";
+import ReminderNotificationSettings from "../components/ReminderNotificationSettings";
 import { useAuthGuard } from "../lib";
 import {
   PhotoDataPreference,
@@ -295,6 +296,8 @@ export default function SettingsPage() {
             (사진을 터치하여 확장되었을 때 사용되는 예상치는 포함되지 않는 수치)
           </p>
         </section>
+
+        <ReminderNotificationSettings />
 
       </main>
 

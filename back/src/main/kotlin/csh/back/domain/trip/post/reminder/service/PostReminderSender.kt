@@ -80,7 +80,7 @@ class PostReminderSender(
                 title = "1년 전 여행을 기억하시나요?",
                 body = createMessageBody(post),
                 targetUrl =
-                    "/trips/$tripGroupId/posts/$postId",
+                    "/trip/$tripGroupId/timeline?from=reminder&postId=$postId",
                 postId = postId
             )
 

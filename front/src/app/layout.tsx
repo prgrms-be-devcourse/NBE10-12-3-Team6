@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import MobileKeyboardFocusGuard from "./components/MobileKeyboardFocusGuard";
 import PresenceHeartbeat from "./components/PresenceHeartbeat";
+import PushNotificationSync from "./components/PushNotificationSync";
 import { TripLogProvider } from "./store";
 
 export const metadata: Metadata = {
@@ -74,6 +75,7 @@ export default function RootLayout({
         <TripLogProvider>
           <MobileKeyboardFocusGuard />
           <PresenceHeartbeat />
+          <PushNotificationSync />
           <div className="triplog-app-shell w-full max-w-md bg-white relative overflow-x-clip" style={{ minHeight: "100dvh" }}>
             {children}
           </div>
