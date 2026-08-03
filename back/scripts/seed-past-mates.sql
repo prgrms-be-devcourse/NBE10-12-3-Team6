@@ -20,6 +20,25 @@
 -- password 모두 '1234' (BCrypt)
 -- ============================================================================
 
+-- ============ 0. admin(dev@example.com) 보장 ============
+-- 배경:
+--   spring.sql.init은 (defer-datasource-initialization=true여도) Hibernate DDL 직후에 실행되고,
+--   admin을 만드는 DevAccountInitData(ApplicationRunner)는 그 이후에 돈다.
+--   → 첫 앱 기동 시 이 시점엔 admin이 없어서 아래 trip_groups의
+--     (SELECT id FROM members WHERE email='dev@example.com') 서브쿼리가 NULL을 반환,
+--     member_id NOT NULL/FK 위반으로 전량 실패 → 결과적으로 지난 메이트 0명이 된다.
+-- 대응:
+--   여기서 admin을 idempotent하게 미리 삽입한다.
+--   - 이미 있으면(2회차 이후 실행 등) WHERE NOT EXISTS로 스킵.
+--   - 비밀번호 해시는 다른 시드 계정들과 동일한 BCrypt('1234').
+--   - DevAccountInitData는 existsByEmail 체크가 있어 우리가 먼저 넣어도 안전하게 스킵됨.
+INSERT INTO members (email, password, name, created_at, updated_at)
+SELECT 'dev@example.com',
+       '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq',
+       '개발자1',
+       CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'dev@example.com');
+
 -- ============ 1. 친구 회원 20명 ============
 INSERT INTO members (email, password, name, created_at, updated_at) VALUES
 ('kim.sumin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '김수민', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
