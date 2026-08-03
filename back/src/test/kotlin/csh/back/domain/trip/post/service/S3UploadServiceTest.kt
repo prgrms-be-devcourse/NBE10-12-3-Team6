@@ -3,6 +3,7 @@ package csh.back.domain.trip.post.service
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.model.PutObjectRequest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -10,6 +11,7 @@ import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.doThrow
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
@@ -85,6 +87,20 @@ class S3UploadServiceTest {
         verify(amazonS3).deleteObject(BUCKET, "posts/original/original.jpg")
         verify(amazonS3).deleteObject(BUCKET, "posts/normal/normal.webp")
         verify(amazonS3).deleteObject(BUCKET, "posts/data-saver/data-saver.webp")
+    }
+
+    @Test
+    @DisplayName("S3 객체 삭제 실패를 호출자에게 전달한다")
+    fun propagateDeleteFailure() {
+        val imageUrl =
+            "https://storage.example.com/$BUCKET/posts/original/original.jpg"
+        doThrow(IllegalStateException("S3 delete failed"))
+            .`when`(amazonS3)
+            .deleteObject(BUCKET, "posts/original/original.jpg")
+
+        assertThrows(IllegalStateException::class.java) {
+            service.deleteImages(imageUrl)
+        }
     }
 
     private fun encodedImage(value: String) = PostImageProcessor.EncodedImage(

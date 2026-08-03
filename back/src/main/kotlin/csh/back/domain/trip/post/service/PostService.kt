@@ -161,12 +161,12 @@ class PostService(
             tripGroupId,
             postId
         )
-        postRepository.delete(post)
         s3UploadService.deleteImages(
             post.contentUrl,
             post.normalContentUrl,
             post.dataSaverContentUrl
         )
+        postRepository.delete(post)
     }
 
     @Transactional
@@ -360,7 +360,9 @@ class PostService(
                 confirmedPlaceName =
                     timeline.tripWishPlace?.name,
                 createdAt = post.createdAt,
-                likeCount = likeCount
+                likeCount = likeCount,
+                authorMemberId = post.author.member.id,
+                content = post.content
             )
         }
 
@@ -390,7 +392,9 @@ class PostService(
                 ),
             confirmedPlaceName = null,
             createdAt = captured,
-            likeCount = likeCount
+            likeCount = likeCount,
+            authorMemberId = post.author.member.id,
+            content = post.content
         )
     }
 
