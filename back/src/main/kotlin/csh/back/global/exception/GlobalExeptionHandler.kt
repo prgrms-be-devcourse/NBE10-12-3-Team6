@@ -3,7 +3,6 @@ package csh.back.global.exception
 import csh.back.domain.member.exception.EmailVerificationException
 import csh.back.domain.member.exception.ExistingMemberException
 import csh.back.domain.member.exception.InvalidCredentialsException
-import csh.back.domain.member.exception.InvalidResetTokenException
 import csh.back.domain.member.exception.LoginLockedException
 import csh.back.domain.trip.group.exception.NonMemberException
 import csh.back.domain.trip.group.exception.NotFoundException
@@ -109,12 +108,6 @@ class GlobalExeptionHandler {
         // retryAfterSeconds를 body에 포함 → 프론트가 초 단위 카운트다운에 사용
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
             .body(ErrorResponse(429, e.message, retryAfterSeconds = e.retryAfterSeconds))
-    }
-
-    @ExceptionHandler(InvalidResetTokenException::class)
-    fun handleInvalidResetToken(e: InvalidResetTokenException): ResponseEntity<ErrorResponse> {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(ErrorResponse(400, e.message))
     }
 
     @ExceptionHandler(InvalidFreeTimeMinutesException::class)

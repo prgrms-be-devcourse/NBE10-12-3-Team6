@@ -517,14 +517,6 @@ export default function LoginPage() {
             {loading ? "로그인 중..." : "로그인하기"}
           </button>
 
-          {/* 비밀번호 재설정 진입점 — 이메일 링크 방식으로 새 비번 발급 */}
-          <button
-            onClick={() => router.push("/forgot-password")}
-            className="text-sm text-gray-500 text-center underline"
-          >
-            비밀번호를 잊으셨나요?
-          </button>
-
           <button
             onClick={() => changeMode("signup", "swap")}
             className="text-sm text-gray-500 text-center underline"
