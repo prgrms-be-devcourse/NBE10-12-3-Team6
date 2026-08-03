@@ -31,13 +31,15 @@ html {
 }
 
 body:has(.home-page),
-body:has(.settings-page) {
+body:has(.settings-page),
+body:has(.account-page) {
   height: 100dvh;
   overflow: hidden;
 }
 
 body:has(.home-page) .triplog-app-shell,
-body:has(.settings-page) .triplog-app-shell {
+body:has(.settings-page) .triplog-app-shell,
+body:has(.account-page) .triplog-app-shell {
   height: 100dvh;
   min-height: 0 !important;
   overflow: hidden;
@@ -510,6 +512,145 @@ textarea,
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.account-page {
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.account-password-stack {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--background);
+}
+
+.account-password-background,
+.account-password-page {
+  position: absolute;
+  inset: 0;
+}
+
+.account-password-background {
+  z-index: 0;
+}
+
+.account-password-page {
+  z-index: 50;
+  background: var(--background);
+}
+
+.account-password-page.trip-page-transition {
+  animation: accountPasswordSlideIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.account-password-page.trip-page-exit {
+  pointer-events: none;
+  animation: accountPasswordSlideOut 0.42s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes accountPasswordSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes accountPasswordSlideOut {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.home-bottom-navigation-root.is-returning {
+  pointer-events: none;
+  animation: accountNavigationReturn 0.2s ease-out 0.22s both;
+}
+
+.home-bottom-navigation-root.is-returning * {
+  pointer-events: none !important;
+}
+
+@keyframes accountNavigationReturn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.account-logout-panel {
+  overflow: hidden;
+}
+
+.account-logout-summary {
+  transition: background-color 0.2s ease;
+}
+
+.account-logout-summary:active {
+  background-color: rgba(254, 226, 226, 0.55);
+}
+
+.account-logout-default-label,
+.account-logout-confirm-label {
+  transition:
+    opacity 0.24s ease,
+    transform 0.34s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 0.24s;
+}
+
+.account-logout-confirm-label {
+  color: var(--foreground);
+  opacity: 0;
+  transform: translateY(8px);
+  visibility: hidden;
+}
+
+.account-logout-panel.is-confirming .account-logout-default-label {
+  opacity: 0;
+  transform: translateY(-8px);
+  visibility: hidden;
+}
+
+.account-logout-panel.is-confirming .account-logout-confirm-label {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  transition-delay: 0.08s, 0.08s, 0s;
+}
+
+.account-logout-actions-reveal {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.account-logout-actions-inner {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition:
+    opacity 0.22s ease,
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.account-logout-panel.is-confirming .account-logout-actions-reveal {
+  max-height: 80px;
+}
+
+.account-logout-panel.is-confirming .account-logout-actions-inner {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .home-content {
@@ -1408,6 +1549,7 @@ textarea,
   .photo-page-transition,
   .trip-page-transition,
   .trip-page-exit,
+  .account-password-page.trip-page-exit,
   .auth-screen-transition,
   .auth-landing-brand,
   .auth-landing-actions,
@@ -1461,6 +1603,13 @@ textarea,
   .trip-floating-tab-indicator,
   .trip-floating-tab-button,
   .trip-floating-tab-icon {
+    transition: none;
+  }
+
+  .account-logout-default-label,
+  .account-logout-confirm-label,
+  .account-logout-actions-reveal,
+  .account-logout-actions-inner {
     transition: none;
   }
 }

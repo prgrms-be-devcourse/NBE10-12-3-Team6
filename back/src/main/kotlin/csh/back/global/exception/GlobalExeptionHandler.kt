@@ -3,6 +3,8 @@ package csh.back.global.exception
 import csh.back.domain.member.exception.EmailVerificationException
 import csh.back.domain.member.exception.ExistingMemberException
 import csh.back.domain.member.exception.InvalidCredentialsException
+import csh.back.domain.member.exception.InvalidPasswordException
+import csh.back.domain.member.exception.KakaoMemberPasswordChangeException
 import csh.back.domain.member.exception.LoginLockedException
 import csh.back.domain.trip.group.exception.NonMemberException
 import csh.back.domain.trip.group.exception.NotFoundException
@@ -132,6 +134,18 @@ class GlobalExeptionHandler {
     fun handleTripAlreadyStarted(e: TripAlreadyStartedException): ResponseEntity<ErrorResponse> {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(ErrorResponse(400, e.message))
+    }
+
+    @ExceptionHandler(InvalidPasswordException::class)
+    fun handleInvalidPassword(e: InvalidPasswordException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, e.message))
+    }
+
+    @ExceptionHandler(KakaoMemberPasswordChangeException::class)
+    fun handleKakaoMemberPasswordChange(e: KakaoMemberPasswordChangeException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ErrorResponse(403, e.message))
     }
 
     @ExceptionHandler(RuntimeException::class)

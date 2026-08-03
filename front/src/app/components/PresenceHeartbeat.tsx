@@ -41,6 +41,10 @@ export default function PresenceHeartbeat() {
           headers: { Accept: "text/event-stream" },
           signal: controller.signal,
         });
+        if (response.status === 401 || response.status === 403) {
+          console.warn("[presence] 인증 만료 — SSE 재연결 중단, 재로그인 필요");
+          return;
+        }
         if (!response.ok || !response.body) throw new Error("presence SSE 연결 실패");
 
         console.log(`[presence] SSE 연결됨 userId=${userId} name=${userName}`);

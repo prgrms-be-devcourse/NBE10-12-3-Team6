@@ -85,8 +85,7 @@ dependencies {
     testCompileOnly("org.projectlombok:lombok")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testAnnotationProcessor("org.projectlombok:lombok")
-
-
+    implementation("com.google.firebase:firebase-admin:9.10.0")
 
 
     // QFile 생성 및 가져오기

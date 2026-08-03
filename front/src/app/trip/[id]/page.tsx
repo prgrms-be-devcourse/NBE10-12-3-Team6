@@ -655,7 +655,27 @@ interface DayTimelineItem {
   endTime: string;
   confirmedPlaceName?: string | null;
   category?: string | null;
+  isFreeTime?: boolean;
 }
+
+const visibleTimelineItemsForDay = (
+  day: TripDay,
+  items: DayTimelineItem[],
+): DayTimelineItem[] => {
+  const plannedItems = items.filter(item => !item.isFreeTime);
+  if (plannedItems.length > 0) return plannedItems;
+
+  return [
+    {
+      timelineId: -day.dayNumber,
+      startTime: `${day.date}T00:00:00`,
+      endTime: `${day.date}T23:59:00`,
+      confirmedPlaceName: "자유시간",
+      category: "기타",
+      isFreeTime: true,
+    },
+  ];
+};
 
 interface DayFreeTimeSetting {
   dayNumber: number;
@@ -1450,7 +1470,10 @@ export default function TripDetailPage() {
               <div className="trip-day-list-scroll flex flex-col gap-3">
                 {trip.days.map(day => {
                   if (tripStatus !== "before") {
-                    const items = allDayTimelines[day.dayNumber] ?? [];
+                    const items = visibleTimelineItemsForDay(
+                      day,
+                      allDayTimelines[day.dayNumber] ?? [],
+                    );
                     return (
                       <div key={day.id} className="shrink-0 p-4 bg-gray-50 rounded-2xl flex flex-col gap-3">
                         <div className="flex items-start justify-between">
@@ -1466,7 +1489,7 @@ export default function TripDetailPage() {
                             {items.map(item => {
                               return (
                                 <div key={item.timelineId} className="flex items-center gap-3 bg-white rounded-xl px-3 py-2.5">
-                                  <span className="text-xs text-gray-400 font-bold shrink-0">{item.startTime.slice(11, 16)}~{item.endTime.slice(11, 16)}</span>
+                                  <span className="text-xs text-gray-400 font-bold shrink-0">{item.startTime.slice(11, 16)} ~ {item.endTime.slice(11, 16)}</span>
                                   {(item.category || item.confirmedPlaceName) && (
                                     <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">{item.category ?? "기타"}</span>
                                   )}

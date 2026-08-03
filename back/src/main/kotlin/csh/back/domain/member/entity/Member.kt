@@ -19,7 +19,8 @@ import java.time.LocalDateTime
 // Java는 기본값을 인식 못해 3인자 생성자가 없어 컴파일 에러 발생 → Java 테스트 코드 호환용
 class Member @JvmOverloads constructor(
     val email: String,
-    // 재설정 시 갱신되므로 var. 도메인 메서드(updatePassword)를 통해서만 변경할 것.
+    // 비밀번호 변경(재설정/현재 비번 확인 후 변경 등) 시 갱신되므로 var.
+    // 원칙적으로 도메인 메서드(updatePassword) 사용, 부득이하게 직접 대입할 때는 반드시 encode 결과만 넣을 것.
     var password: String,
     val name: String,
     // 소셜 로그인 식별자 (A-lite 방식): 이메일 대신 provider+providerId 조합으로 소셜 회원 조회

@@ -7,6 +7,8 @@ import csh.back.domain.member.entity.Member
 import csh.back.domain.member.entity.RefreshToken
 import csh.back.domain.member.exception.ExistingMemberException
 import csh.back.domain.member.exception.InvalidCredentialsException
+import csh.back.domain.member.exception.InvalidPasswordException
+import csh.back.domain.member.exception.KakaoMemberPasswordChangeException
 import csh.back.domain.member.exception.LoginLockedException
 import csh.back.domain.member.repository.MemberRepository
 import csh.back.domain.presence.service.PresenceService
@@ -130,8 +132,25 @@ class MemberService(
     }
 
     @Transactional
+    fun changePassword(memberId: Long, currentPassword: String, newPassword: String) {
+        val member = memberRepository.findById(memberId)
+            .orElseThrow { RuntimeException("존재하지 않는 회원입니다.") }
+
+        if (member.provider == "KAKAO") {
+            throw KakaoMemberPasswordChangeException("카카오 로그인 회원은 비밀번호를 변경할 수 없습니다.")
+        }
+
+        if (!passwordEncoder.matches(currentPassword, member.password)) {
+            throw InvalidPasswordException("현재 비밀번호가 일치하지 않습니다.")
+        }
+
+        member.password = passwordEncoder.encode(newPassword)!!
+        refreshTokenRepository.deleteAllByMember(member)
+    }
+
+    @Transactional
     fun logout(refreshToken: String) {
-        // deleteByToken 이후엔 member 참조가 사라지므로 먼저 memberId를 뽑아둔다
+       // deleteByToken 이후엔 member 참조가 사라지므로 먼저 memberId를 뽑아둔다
         val memberId = refreshTokenRepository.findByTokenWithMember(refreshToken)
             .map { it.member.id!! }
             .orElse(null)

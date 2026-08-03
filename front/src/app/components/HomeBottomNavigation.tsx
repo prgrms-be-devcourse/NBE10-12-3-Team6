@@ -9,19 +9,24 @@ type HomeBottomNavigationProps = {
   activeTab: HomeTab;
   onHome?: () => void;
   onProfile?: () => void;
+  isReturning?: boolean;
 };
 
 export default function HomeBottomNavigation({
   activeTab,
   onHome,
   onProfile,
+  isReturning = false,
 }: HomeBottomNavigationProps) {
   const router = useRouter();
 
   const navigation = (
     <div
-      className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6"
+      className={`home-bottom-navigation-root pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6 ${
+        isReturning ? "is-returning" : ""
+      }`}
       style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      aria-hidden={isReturning || undefined}
     >
       <div className="flex items-center justify-center gap-3">
         <nav
@@ -64,7 +69,7 @@ export default function HomeBottomNavigation({
 
         <button
           type="button"
-          onClick={onProfile ?? (() => router.push("/home?panel=profile"))}
+          onClick={onProfile ?? (() => router.push("/account"))}
           className="home-profile-floating-button pointer-events-auto"
           aria-label="내 정보"
           aria-current={activeTab === "profile" ? "page" : undefined}
