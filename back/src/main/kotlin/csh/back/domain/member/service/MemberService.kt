@@ -31,6 +31,7 @@ class MemberService(
     private val presenceService: PresenceService,
     private val newDeviceLoginNotificationService: NewDeviceLoginNotificationService,
     private val loginAttemptTracker: LoginAttemptTracker,
+    private val recoveryCodeGenerator: RecoveryCodeGenerator,
 ) {
     @Transactional
     fun signUp(email: String, password: String, name: String): MemberResponseDto {
@@ -38,16 +39,21 @@ class MemberService(
             throw ExistingMemberException("이미 사용 중인 이메일입니다.")
         }
 
+        // recovery code 생성 → 응답에 raw 노출용으로 보관, 저장은 BCrypt 해시만
+        // (이 시점 이후 서버는 원본 코드를 다시 재현할 수 없음 = 유저가 반드시 이번 응답을 저장해야 함)
+        val rawRecoveryCode = recoveryCodeGenerator.generate()
+        val recoveryCodeHash = passwordEncoder.encode(rawRecoveryCode)!!
+
         val member = memberRepository.save(
             Member(
                 email = email,
                 // Spring Framework 7.x에서 PasswordEncoder.encode()가 @Nullable로 선언돼 !! 필요
                 password = passwordEncoder.encode(password)!!,
                 name = name,
-            )
+            ).apply { assignRecoveryCodeHash(recoveryCodeHash) }
         )
 
-        return MemberResponseDto.from(member)
+        return MemberResponseDto.fromSignup(member, rawRecoveryCode)
     }
 
     // RefreshToken row를 INSERT하므로 쓰기 트랜잭션 필요 (클래스 레벨 readOnly 오버라이드)

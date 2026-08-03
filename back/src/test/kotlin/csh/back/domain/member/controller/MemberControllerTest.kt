@@ -68,7 +68,7 @@ class MemberControllerTest {
     }
 
     @Test
-    @DisplayName("회원가입 - 정상")
+    @DisplayName("회원가입 - 정상 + 응답에 6자리 recovery code (첫자리 0 아님, 대문자+숫자) 포함")
     fun t1() {
         mvc.perform(
             post("$BASE_URL/signup")
@@ -87,6 +87,8 @@ class MemberControllerTest {
             .andExpect(jsonPath("$.statusCode").value(201))
             .andExpect(jsonPath("$.data.email").value("newuser@test.com"))
             .andExpect(jsonPath("$.data.name").value("테스트유저"))
+            // recovery code: 6자리, 첫자리 0 제외 (1-9, A-Z), 나머지 (0-9, A-Z)
+            .andExpect(jsonPath("$.data.recoveryCode").value(org.hamcrest.Matchers.matchesPattern("^[1-9A-Z][0-9A-Z]{5}$")))
     }
 
     @Test

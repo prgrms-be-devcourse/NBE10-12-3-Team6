@@ -29,6 +29,14 @@ class Member @JvmOverloads constructor(
     val providerId: String? = null,   // 카카오 회원번호 (소셜 로그인만 사용, 일반 회원은 null)
 ) : BaseEntity() {
 
+    // 회원가입 시 발급된 recovery code의 BCrypt 해시.
+    //   - raw 코드는 가입 응답에 1회만 노출되고 서버에 저장하지 않음 → 이후 서버도 원본 모름.
+    //   - nullable: 카카오 회원은 recovery code 없음(비번 자체가 없어 재설정 개념도 없음) + 마이그레이션 유예를 위해 허용.
+    //   - length=60: BCrypt 해시 고정 길이
+    @Column(name = "recovery_code_hash", nullable = true, length = 60)
+    var recoveryCodeHash: String? = null
+        protected set
+
     // 브루트포스 방어용 연속 실패 카운트 — 성공 또는 비밀번호 재설정 시 0으로 리셋
     @Column(name = "failed_login_count", nullable = false)
     var failedLoginCount: Int = 0
@@ -59,5 +67,10 @@ class Member @JvmOverloads constructor(
     fun updatePassword(newHashedPassword: String) {
         password = newHashedPassword
         resetLoginFailures()
+    }
+
+    // recovery code 최초 발급/재발급 시 호출 — 반드시 BCrypt 해시만 전달할 것 (raw 저장 금지)
+    fun assignRecoveryCodeHash(newHash: String) {
+        recoveryCodeHash = newHash
     }
 }

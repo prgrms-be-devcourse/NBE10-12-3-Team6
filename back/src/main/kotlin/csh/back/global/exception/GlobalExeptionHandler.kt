@@ -4,6 +4,8 @@ import csh.back.domain.member.exception.EmailVerificationException
 import csh.back.domain.member.exception.ExistingMemberException
 import csh.back.domain.member.exception.InvalidCredentialsException
 import csh.back.domain.member.exception.InvalidPasswordException
+import csh.back.domain.member.exception.InvalidResetCredentialsException
+import csh.back.domain.member.exception.InvalidResetTokenException
 import csh.back.domain.member.exception.KakaoMemberPasswordChangeException
 import csh.back.domain.member.exception.LoginLockedException
 import csh.back.domain.trip.group.exception.NonMemberException
@@ -146,6 +148,20 @@ class GlobalExeptionHandler {
     fun handleKakaoMemberPasswordChange(e: KakaoMemberPasswordChangeException): ResponseEntity<ErrorResponse> {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(ErrorResponse(403, e.message))
+    }
+
+    // 비로그인 재설정 verify-code 실패 (이메일/코드 불일치 통합)
+    @ExceptionHandler(InvalidResetCredentialsException::class)
+    fun handleInvalidResetCredentials(e: InvalidResetCredentialsException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, e.message))
+    }
+
+    // 비로그인 재설정 apply 실패 (verificationToken 만료/무효/재사용)
+    @ExceptionHandler(InvalidResetTokenException::class)
+    fun handleInvalidResetToken(e: InvalidResetTokenException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, e.message))
     }
 
     @ExceptionHandler(RuntimeException::class)
