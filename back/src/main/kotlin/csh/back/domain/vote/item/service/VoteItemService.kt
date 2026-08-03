@@ -1,5 +1,6 @@
 package csh.back.domain.vote.item.service
 
+import csh.back.domain.trip.chat.service.ChatService
 import csh.back.domain.trip.member.validator.TripMemberValidator
 import csh.back.domain.trip.event.dto.TripEvent
 import csh.back.domain.trip.event.enums.TripEventType
@@ -24,6 +25,7 @@ class VoteItemService(
     private val tripMemberValidator: TripMemberValidator,
     private val tripEventService: TripEventService,
     private val voteItemInsertExecutor: VoteItemInsertExecutor,
+    private val chatService: ChatService,
 ) {
 
     @Transactional
@@ -59,7 +61,7 @@ class VoteItemService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.VOTE_PARTICIPATION_UPDATED,
-                message = "${vote.timeline.dayNumber}일차 시간 구간 투표 현황 변경",
+                message = "${vote.timeline.dayNumber}일차 ${vote.timeline.startTime.hour}시 투표 현황 변경",
                 tripGroupId = tripGroupId,
                 actorMemberId = memberId,
                 dayNumber = vote.timeline.dayNumber,
@@ -68,6 +70,7 @@ class VoteItemService(
                 tripPlaceId = tripPlaceId,
             ),
         )
+        chatService.recordSystemMessage(tripGroupId, "${vote.timeline.dayNumber}일차 ${vote.timeline.startTime.hour}시 투표 현황 변경")
         return response
     }
 

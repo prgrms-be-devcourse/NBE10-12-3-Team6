@@ -1,6 +1,7 @@
 package csh.back.domain.trip.group.service
 
 import csh.back.domain.member.repository.MemberRepository
+import csh.back.domain.trip.chat.service.ChatService
 import csh.back.domain.trip.event.dto.TripEvent
 import csh.back.domain.trip.event.enums.TripEventType
 import csh.back.domain.trip.event.service.TripEventService
@@ -30,6 +31,7 @@ class TripGroupService(
     private val memberRepository: MemberRepository,
     private val tripEventService: TripEventService,
     private val tripGroupSettingsRepository: TripGroupSettingsRepository,
+    private val chatService: ChatService,
 ) {
 
     @Transactional(readOnly = true)
@@ -102,6 +104,7 @@ class TripGroupService(
                 actorMemberId = ownerId,
             ),
         )
+        chatService.recordSystemMessage(tripId, "여행방 정보 변경")
         return TripGroupResponse.from(group)
     }
 

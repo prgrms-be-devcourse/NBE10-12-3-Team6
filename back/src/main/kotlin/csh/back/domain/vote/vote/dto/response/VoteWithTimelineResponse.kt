@@ -17,8 +17,18 @@ data class VoteWithTimelineResponse(
         fun of(timeline: Timeline, vote: Vote?): VoteWithTimelineResponse {
             val tripPlace = timeline.tripWishPlace
             val confirmedPlaceName = tripPlace?.name ?: ""
+            if (vote == null) {
+                return VoteWithTimelineResponse(
+                    null,
+                    timeline.id,
+                    timeline.startTime,
+                    confirmedPlaceName,
+                    "투표 없음",
+                    false,
+                )
+            }
             return VoteWithTimelineResponse(
-                vote!!.id,
+                vote.id,
                 timeline.id,
                 timeline.startTime,
                 confirmedPlaceName,

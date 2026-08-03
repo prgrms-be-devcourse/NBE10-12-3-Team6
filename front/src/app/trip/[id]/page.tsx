@@ -404,7 +404,7 @@ function AddCandidateSheet({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: selected.place_name,
-          category: selected.category_group_name || undefined,
+          category: selected.category_group_name || "",
           address: selected.road_address_name || selected.address_name,
           kakaoPlaceId: Number(selected.id),
           kakaoMapUrl: selected.place_url,
