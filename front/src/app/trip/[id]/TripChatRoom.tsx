@@ -22,6 +22,16 @@ interface ChatMessagePage {
   hasNext: boolean;
 }
 
+interface ChatReadStatus {
+  memberId: number;
+  lastReadMessageId: number;
+}
+
+interface ChatReadStatusPage {
+  totalMemberCount: number;
+  statuses: ChatReadStatus[];
+}
+
 const SEND_TIMEOUT_MS = 8000;
 const READ_DEBOUNCE_MS = 1000;
 const SYSTEM_GROUP_GAP_MS = 5000;
@@ -34,6 +44,18 @@ type RenderItem =
 function formatTime(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function countUnread(
+  readStatuses: Record<number, number>,
+  currentUserId: number,
+  totalMemberCount: number,
+  messageId: number,
+): number {
+  const readCount = Object.entries(readStatuses).filter(
+    ([memberId, lastReadMessageId]) => Number(memberId) !== currentUserId && lastReadMessageId >= messageId,
+  ).length;
+  return Math.max(totalMemberCount - 1 - readCount, 0);
 }
 
 function mergeAscending(prev: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
@@ -85,6 +107,8 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
   const [pendingContent, setPendingContent] = useState<string | null>(null);
   const [sendFailed, setSendFailed] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [readStatuses, setReadStatuses] = useState<Record<number, number>>({});
+  const [totalMemberCount, setTotalMemberCount] = useState(0);
 
   const listRef = useRef<HTMLDivElement | null>(null);
   const clientRef = useRef<Client | null>(null);
@@ -147,13 +171,26 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await apiFetch(`${API_BASE}/api/v1/trips/${tripGroupId}/chat/messages?size=30`);
+      const [res, readRes] = await Promise.all([
+        apiFetch(`${API_BASE}/api/v1/trips/${tripGroupId}/chat/messages?size=30`),
+        apiFetch(`${API_BASE}/api/v1/trips/${tripGroupId}/chat/read-statuses`),
+      ]);
       const body = await res.json();
       const page: ChatMessagePage = body.data;
       if (cancelled) return;
       const ascending = [...page.messages].reverse();
       setMessages(prev => mergeAscending(prev, ascending));
       setHasMoreOlder(page.hasNext);
+      const readBody = await readRes.json();
+      const readPage: ChatReadStatusPage = readBody.data;
+      if (!cancelled) {
+        setTotalMemberCount(readPage.totalMemberCount);
+        setReadStatuses(prev => {
+          const next = { ...prev };
+          for (const s of readPage.statuses) next[s.memberId] = Math.max(next[s.memberId] ?? 0, s.lastReadMessageId);
+          return next;
+        });
+      }
       if (ascending.length > 0) {
         const lastId = ascending[ascending.length - 1].id;
         lastReceivedIdRef.current = lastId;
@@ -181,6 +218,13 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
     client.onConnect = () => {
       client.subscribe(`/sub/trips/${tripGroupId}/chat`, (frame: IMessage) => {
         appendMessage(JSON.parse(frame.body));
+      });
+      client.subscribe(`/sub/trips/${tripGroupId}/chat/read`, (frame: IMessage) => {
+        const status: ChatReadStatus = JSON.parse(frame.body);
+        setReadStatuses(prev => ({
+          ...prev,
+          [status.memberId]: Math.max(prev[status.memberId] ?? 0, status.lastReadMessageId),
+        }));
       });
       client.subscribe("/user/queue/errors", () => {
         pendingRef.current = null;
@@ -318,7 +362,13 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
               >
                 {m.content}
               </div>
-              <span className="mt-0.5 px-1 text-[10px] text-gray-300">{formatTime(m.createdAt)}</span>
+              <span className="mt-0.5 flex items-center gap-1 px-1 text-[10px] text-gray-300">
+                {m.senderId === currentUser.id &&
+                  countUnread(readStatuses, currentUser.id, totalMemberCount, m.id) > 0 && (
+                    <span>안읽음 {countUnread(readStatuses, currentUser.id, totalMemberCount, m.id)}</span>
+                  )}
+                {formatTime(m.createdAt)}
+              </span>
             </div>
           );
         })}

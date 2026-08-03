@@ -145,6 +145,27 @@ class ChatV1ControllerTest {
         assertThat(result.response.contentAsString).contains(tripGroup.id.toString())
     }
 
+    @Test
+    @DisplayName("읽음 상태 조회 시 읽음 처리한 멤버의 lastReadMessageId가 반환된다")
+    @WithMockMember(id = 1L, email = "admin@admin.com")
+    fun findReadStatusesReturnsMemberStatuses() {
+        val owner = memberRepository.findById(1L).orElseThrow()
+        val message = saveMessage(owner, "읽음 상태 대상 메시지")
+
+        mvc.perform(
+            put("$BASE_URL/trips/${tripGroup.id}/chat/read")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"lastReadMessageId": ${message.id}}"""),
+        ).andExpect(status().isOk)
+
+        mvc.perform(get("$BASE_URL/trips/${tripGroup.id}/chat/read-statuses"))
+            .andExpect(handler().methodName("findReadStatuses"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.totalMemberCount").value(1))
+            .andExpect(jsonPath("$.data.statuses[0].memberId").value(owner.id))
+            .andExpect(jsonPath("$.data.statuses[0].lastReadMessageId").value(message.id))
+    }
+
     private companion object {
         const val BASE_URL = "/api/v1"
     }

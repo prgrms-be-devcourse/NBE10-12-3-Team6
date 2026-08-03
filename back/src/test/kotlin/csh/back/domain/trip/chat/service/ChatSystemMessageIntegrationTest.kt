@@ -279,7 +279,7 @@ class ChatSystemMessageIntegrationTest {
 
         timelineService.confirmVote(tripGroup.id!!, owner.id!!, vote.id!!)
 
-        assertSingleSystemMessage("1일차 시간 구간 ${place.name} 장소 확정")
+        assertSingleSystemMessage("1일차 9시 ${place.name} 확정!")
     }
 
     @Test
@@ -332,7 +332,7 @@ class ChatSystemMessageIntegrationTest {
 
         timelineService.expireAndConfirmBySystem(vote.id!!)
 
-        assertSingleSystemMessage("1일차 시간 구간 ${place.name} 장소 확정")
+        assertSingleSystemMessage("1일차 9시 ${place.name} 확정!")
     }
 
     @Test
@@ -380,6 +380,6 @@ class ChatSystemMessageIntegrationTest {
 
         voteItemService.saveVoteItem(tripGroup.id!!, owner.id!!, vote.id!!, place.id!!)
 
-        assertSingleSystemMessage("1일차 시간 구간 투표 현황 변경")
+        assertSingleSystemMessage("1일차 9시 투표 현황 변경")
     }
 }

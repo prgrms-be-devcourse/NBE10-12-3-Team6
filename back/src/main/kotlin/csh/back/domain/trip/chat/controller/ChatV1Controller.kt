@@ -3,6 +3,7 @@ package csh.back.domain.trip.chat.controller
 import csh.back.domain.member.dto.response.AuthFilterDto
 import csh.back.domain.trip.chat.dto.request.ChatReadRequest
 import csh.back.domain.trip.chat.dto.response.ChatMessagePageResponse
+import csh.back.domain.trip.chat.dto.response.ChatReadStatusPageResponse
 import csh.back.domain.trip.chat.service.ChatService
 import csh.back.global.annotation.ApiV1
 import csh.back.global.dto.ResponseData
@@ -62,4 +63,14 @@ class ChatV1Controller(
     fun findUnreadCounts(
         @AuthenticationPrincipal member: AuthFilterDto,
     ): ResponseData<Map<Long, Long>> = ResponseData(200, chatService.getUnreadCounts(member.id))
+
+    @Operation(summary = "멤버별 채팅 읽음 상태 및 전체 인원 조회 (메시지별 안읽은 사람 수 표시용)")
+    @GetMapping("/{tripGroupId}/chat/read-statuses")
+    fun findReadStatuses(
+        @PathVariable tripGroupId: Long,
+        @AuthenticationPrincipal member: AuthFilterDto,
+    ): ResponseData<ChatReadStatusPageResponse> = ResponseData(
+        200,
+        chatService.getReadStatuses(tripGroupId, member.id),
+    )
 }

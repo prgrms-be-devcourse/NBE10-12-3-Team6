@@ -3,6 +3,8 @@ package csh.back.domain.trip.chat.service
 import csh.back.domain.member.repository.MemberRepository
 import csh.back.domain.trip.chat.dto.response.ChatMessagePageResponse
 import csh.back.domain.trip.chat.dto.response.ChatMessageResponse
+import csh.back.domain.trip.chat.dto.response.ChatReadStatusPageResponse
+import csh.back.domain.trip.chat.dto.response.ChatReadStatusResponse
 import csh.back.domain.trip.chat.entity.TripChatMessage
 import csh.back.domain.trip.chat.entity.TripChatReadStatus
 import csh.back.domain.trip.chat.enums.MessageType
@@ -10,6 +12,7 @@ import csh.back.domain.trip.chat.exception.InvalidChatContentException
 import csh.back.domain.trip.chat.repository.TripChatMessageRepository
 import csh.back.domain.trip.chat.repository.TripChatReadStatusRepository
 import csh.back.domain.trip.group.repository.TripGroupRepository
+import csh.back.domain.trip.member.repository.TripMemberRepository
 import csh.back.domain.trip.member.validator.TripMemberValidator
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
@@ -24,6 +27,7 @@ class ChatService(
     private val tripChatReadStatusRepository: TripChatReadStatusRepository,
     private val tripGroupRepository: TripGroupRepository,
     private val memberRepository: MemberRepository,
+    private val tripMemberRepository: TripMemberRepository,
     private val tripMemberValidator: TripMemberValidator,
     private val messagingTemplate: SimpMessagingTemplate,
 ) {
@@ -89,12 +93,23 @@ class ChatService(
                 val member = memberRepository.findById(memberId).orElseThrow(::RuntimeException)
                 tripChatReadStatusRepository.save(TripChatReadStatus(tripGroup = tripGroup, member = member))
             }
+        val before = readStatus.lastReadMessageId
         readStatus.updateLastReadMessageId(lastReadMessageId)
+        if (readStatus.lastReadMessageId > before) {
+            broadcastReadStatusAfterCommit(tripGroupId, ChatReadStatusResponse(memberId, readStatus.lastReadMessageId))
+        }
     }
 
     fun getUnreadCounts(memberId: Long): Map<Long, Long> {
         val tripGroupIds = tripGroupRepository.findAllByMemberId(memberId).mapNotNull { it.id }
         return tripChatMessageRepository.countUnreadByMember(memberId, tripGroupIds, UNREAD_COUNT_CAP)
+    }
+
+    fun getReadStatuses(tripGroupId: Long, memberId: Long): ChatReadStatusPageResponse {
+        tripMemberValidator.validMember(tripGroupId, memberId)
+        val totalMemberCount = tripMemberRepository.findByTripGroupId(tripGroupId).size
+        val statuses = tripChatReadStatusRepository.findAllByTripGroupId(tripGroupId).map { ChatReadStatusResponse.from(it) }
+        return ChatReadStatusPageResponse(totalMemberCount, statuses)
     }
 
     private fun toPageResponse(messages: List<TripChatMessage>, size: Int): ChatMessagePageResponse {
@@ -107,18 +122,26 @@ class ChatService(
     }
 
     private fun broadcastAfterCommit(tripGroupId: Long, response: ChatMessageResponse) {
+        sendAfterCommit("/sub/trips/$tripGroupId/chat", response)
+    }
+
+    private fun broadcastReadStatusAfterCommit(tripGroupId: Long, response: ChatReadStatusResponse) {
+        sendAfterCommit("/sub/trips/$tripGroupId/chat/read", response)
+    }
+
+    private fun sendAfterCommit(destination: String, payload: Any) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(
                 object : TransactionSynchronization {
                     override fun afterCommit() {
-                        messagingTemplate.convertAndSend("/sub/trips/$tripGroupId/chat", response)
+                        messagingTemplate.convertAndSend(destination, payload)
                     }
                 },
             )
             return
         }
 
-        messagingTemplate.convertAndSend("/sub/trips/$tripGroupId/chat", response)
+        messagingTemplate.convertAndSend(destination, payload)
     }
 
     private companion object {

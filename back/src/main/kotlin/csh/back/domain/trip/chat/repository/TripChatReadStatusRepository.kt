@@ -6,4 +6,5 @@ import java.util.Optional
 
 interface TripChatReadStatusRepository : JpaRepository<TripChatReadStatus, Long> {
     fun findByTripGroupIdAndMemberId(tripGroupId: Long, memberId: Long): Optional<TripChatReadStatus>
+    fun findAllByTripGroupId(tripGroupId: Long): List<TripChatReadStatus>
 }

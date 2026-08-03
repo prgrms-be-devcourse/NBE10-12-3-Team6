@@ -257,7 +257,7 @@ class TimelineService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.TIMELINE_PLACE_CONFIRMED,
-                message = "${timeline.dayNumber}일차 시간 구간 ${tripWishPlace.name} 장소 확정",
+                message = "${timeline.dayNumber}일차 ${timeline.startTime.hour}시 ${tripWishPlace.name} 확정!",
                 tripGroupId = tripGroupId,
                 actorMemberId = memberId,
                 dayNumber = timeline.dayNumber,
@@ -266,7 +266,7 @@ class TimelineService(
                 tripPlaceId = confirmPlaceId,
             ),
         )
-        chatService.recordSystemMessage(tripGroupId, "${timeline.dayNumber}일차 시간 구간 ${tripWishPlace.name} 장소 확정")
+        chatService.recordSystemMessage(tripGroupId, "${timeline.dayNumber}일차 ${timeline.startTime.hour}시 ${tripWishPlace.name} 확정!")
 
         return VoteConfirmResponse.of(
             VoteStatus.CONFIRMED.nickname,
@@ -314,7 +314,7 @@ class TimelineService(
         tripEventService.publishAfterCommit(
             TripEvent(
                 eventType = TripEventType.TIMELINE_PLACE_CONFIRMED,
-                message = "${timeline.dayNumber}일차 시간 구간 ${tripWishPlace.name} 장소 확정",
+                message = "${timeline.dayNumber}일차 ${timeline.startTime.hour}시 ${tripWishPlace.name} 확정!",
                 tripGroupId = requireNotNull(timeline.tripGroup.id),
                 actorMemberId = null,
                 dayNumber = timeline.dayNumber,
@@ -323,7 +323,7 @@ class TimelineService(
                 tripPlaceId = voteTimelineResponse.confirmPlaceId,
             ),
         )
-        chatService.recordSystemMessage(requireNotNull(timeline.tripGroup.id), "${timeline.dayNumber}일차 시간 구간 ${tripWishPlace.name} 장소 확정")
+        chatService.recordSystemMessage(requireNotNull(timeline.tripGroup.id), "${timeline.dayNumber}일차 ${timeline.startTime.hour}시 ${tripWishPlace.name} 확정!")
     }
 
     private fun selectWinner(candidateIds: List<Long>): Long =

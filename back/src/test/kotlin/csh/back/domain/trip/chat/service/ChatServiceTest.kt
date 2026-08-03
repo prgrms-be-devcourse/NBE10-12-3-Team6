@@ -179,6 +179,58 @@ class ChatServiceTest {
     }
 
     @Test
+    @DisplayName("markAsRead는 값이 전진하면 read 채널로 브로드캐스트한다")
+    fun markAsReadBroadcastsWhenAdvanced() {
+        chatService.markAsRead(tripGroup.id!!, sender.id!!, 5L)
+
+        then(messagingTemplate).should()
+            .convertAndSend(
+                ArgumentMatchers.eq("/sub/trips/${tripGroup.id}/chat/read"),
+                ArgumentMatchers.any(Any::class.java),
+            )
+    }
+
+    @Test
+    @DisplayName("markAsRead는 값이 전진하지 않으면 read 채널로 브로드캐스트하지 않는다")
+    fun markAsReadDoesNotBroadcastWhenNotAdvanced() {
+        chatService.markAsRead(tripGroup.id!!, sender.id!!, 100L)
+        org.mockito.Mockito.clearInvocations(messagingTemplate)
+
+        chatService.markAsRead(tripGroup.id!!, sender.id!!, 10L)
+
+        then(messagingTemplate).should(org.mockito.Mockito.never())
+            .convertAndSend(
+                ArgumentMatchers.eq("/sub/trips/${tripGroup.id}/chat/read"),
+                ArgumentMatchers.any(Any::class.java),
+            )
+    }
+
+    @Test
+    @DisplayName("getReadStatuses는 트립 멤버 전원의 읽음 상태를 반환한다")
+    fun getReadStatusesReturnsAllMemberStatuses() {
+        val other = memberRepository.save(Member("chat-other-${System.nanoTime()}@test.com", "pw", "동료"))
+        tripMemberRepository.save(TripMember(member = other, tripGroup = tripGroup, isAdmin = false))
+        chatService.markAsRead(tripGroup.id!!, sender.id!!, 7L)
+        chatService.markAsRead(tripGroup.id!!, other.id!!, 3L)
+
+        val response = chatService.getReadStatuses(tripGroup.id!!, sender.id!!)
+
+        assertThat(response.totalMemberCount).isEqualTo(2)
+        assertThat(response.statuses).hasSize(2)
+        assertThat(response.statuses.associate { it.memberId to it.lastReadMessageId })
+            .isEqualTo(mapOf(sender.id!! to 7L, other.id!! to 3L))
+    }
+
+    @Test
+    @DisplayName("getReadStatuses는 여행 멤버가 아니면 예외가 발생한다")
+    fun getReadStatusesThrowsWhenNotMember() {
+        val outsider = memberRepository.save(Member("chat-outsider2-${System.nanoTime()}@test.com", "pw", "외부인"))
+
+        assertThatThrownBy { chatService.getReadStatuses(tripGroup.id!!, outsider.id!!) }
+            .isInstanceOf(RuntimeException::class.java)
+    }
+
+    @Test
     @DisplayName("getUnreadCounts는 유저가 속한 모든 여행의 unread 개수를 반환한다")
     fun getUnreadCountsReturnsCountsForAllTrips() {
         repeat(3) { chatService.sendMessage(tripGroup.id!!, sender.id!!, "msg-$it") }
