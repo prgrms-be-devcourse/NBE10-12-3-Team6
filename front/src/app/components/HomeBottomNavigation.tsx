@@ -64,7 +64,7 @@ export default function HomeBottomNavigation({
 
         <button
           type="button"
-          onClick={onProfile ?? (() => router.push("/home?panel=profile"))}
+          onClick={onProfile ?? (() => router.push("/account"))}
           className="home-profile-floating-button pointer-events-auto"
           aria-label="내 정보"
           aria-current={activeTab === "profile" ? "page" : undefined}

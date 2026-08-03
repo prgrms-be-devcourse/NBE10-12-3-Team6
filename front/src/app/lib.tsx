@@ -31,12 +31,27 @@ export function colorStyle(color: string) {
 
 export function Avatar({ user, size = 36 }: { user: User; size?: number }) {
   const c = colorStyle(user.color);
+  const iconSize = Math.max(18, Math.round(size * 0.5));
   return (
     <div
-      className="rounded-full flex items-center justify-center font-bold text-sm shrink-0"
+      className="rounded-full flex items-center justify-center shrink-0"
       style={{ width: size, height: size, background: c.bg, color: c.text }}
     >
-      {user.name[0]}
+      <svg
+        aria-hidden="true"
+        width={iconSize}
+        height={iconSize}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M15.75 7.75a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.75 19.25a7.25 7.25 0 0 1 14.5 0"
+        />
+      </svg>
     </div>
   );
 }
