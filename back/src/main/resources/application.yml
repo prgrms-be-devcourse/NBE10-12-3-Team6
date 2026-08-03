@@ -64,3 +64,7 @@ cors:
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000/}
+firebase: #다른 테스트를 위해 실행시 파이어베이스 값을 임시로 false로 설정, 파이어베이스 테스트 시 true로 변경해야함
+  #슬랙에 업로드된 사용자용 키를 활성화하는거라 개별적으로 환경 변수를 등록해줘야함
+  # ex) FIREBASE_ENABLED=true;GOOGLE_APPLICATION_CREDENTIALS=C:\{개별 설정 경로}\notification-firebase-adminsdk.json
+  enabled: ${FIREBASE_ENABLED:true}

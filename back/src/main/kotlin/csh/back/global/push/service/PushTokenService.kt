@@ -10,8 +10,10 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 @Transactional(readOnly = true)
 class PushTokenService(
-    private val pushTokenRepository: PushTokenRepository,
-    private val memberRepository: MemberRepository
+    private val pushTokenRepository:
+    PushTokenRepository,
+    private val memberRepository:
+    MemberRepository
 ) {
 
     @Transactional
@@ -20,27 +22,32 @@ class PushTokenService(
         token: String,
         platform: DevicePlatform
     ) {
-        val normalizedToken = token.trim()
+        val normalizedToken =
+            token.trim()
 
         require(normalizedToken.isNotEmpty()) {
             "FCM 토큰은 비어 있을 수 없습니다."
         }
 
-        val member = memberRepository.findById(memberId)
-            .orElseThrow {
-                IllegalArgumentException(
-                    "회원을 찾을 수 없습니다."
-                )
-            }
+        val member =
+            memberRepository
+                .findById(memberId)
+                .orElseThrow {
+                    IllegalArgumentException(
+                        "회원을 찾을 수 없습니다."
+                    )
+                }
 
         val existingToken =
-            pushTokenRepository.findByToken(normalizedToken)
+            pushTokenRepository
+                .findByToken(normalizedToken)
 
         if (existingToken != null) {
-            existingToken.updateOwnerAndActivate(
-                member = member,
-                platform = platform
-            )
+            existingToken
+                .updateOwnerAndActivate(
+                    member = member,
+                    platform = platform
+                )
             return
         }
 
@@ -58,11 +65,16 @@ class PushTokenService(
         memberId: Long,
         token: String
     ) {
+        val normalizedToken =
+            token.trim()
+
         val pushToken =
-            pushTokenRepository.findByTokenAndMemberId(
-                token = token.trim(),
-                memberId = memberId
-            ) ?: return
+            pushTokenRepository
+                .findByTokenAndMemberId(
+                    token = normalizedToken,
+                    memberId = memberId
+                )
+                ?: return
 
         pushToken.deactivate()
     }
@@ -71,14 +83,20 @@ class PushTokenService(
         memberId: Long
     ): List<PushToken> {
         return pushTokenRepository
-            .findAllByMemberIdAndActiveTrue(memberId)
+            .findAllByMemberIdAndActiveTrue(
+                memberId
+            )
     }
 
     @Transactional
     fun deactivate(
         token: String
     ) {
-        pushTokenRepository.findByToken(token)
+        val normalizedToken =
+            token.trim()
+
+        pushTokenRepository
+            .findByToken(normalizedToken)
             ?.deactivate()
     }
 }
