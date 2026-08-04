@@ -9,8 +9,10 @@ import TripChatRoom from "./TripChatRoom";
 
 export default function TripChatRoomButton({
   className = "",
+  refreshKey,
 }: {
   className?: string;
+  refreshKey?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -31,9 +33,12 @@ export default function TripChatRoomButton({
       void loadUnreadCount();
     });
     return () => cancelAnimationFrame(frame);
-  }, [id]);
+  }, [id, refreshKey]);
 
-  const handleOpen = () => setIsOpen(true);
+  const handleOpen = () => {
+    setIsOpen(true);
+    setUnreadCount(0);
+  };
 
   const handleClose = () => {
     setIsOpen(false);

@@ -175,9 +175,9 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
         apiFetch(`${API_BASE}/api/v1/trips/${tripGroupId}/chat/messages?size=30`),
         apiFetch(`${API_BASE}/api/v1/trips/${tripGroupId}/chat/read-statuses`),
       ]);
+      if (cancelled || !res.ok || !readRes.ok) return;
       const body = await res.json();
       const page: ChatMessagePage = body.data;
-      if (cancelled) return;
       const ascending = [...page.messages].reverse();
       setMessages(prev => mergeAscending(prev, ascending));
       setHasMoreOlder(page.hasNext);

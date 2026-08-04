@@ -1410,7 +1410,7 @@ export default function TripDetailPage() {
               pendingLabel="새로 참여한 여행 멤버 동기화"
               positionClass="trip-room-header-action-2"
             />
-            <TripChatRoomButton className="trip-room-header-control trip-room-header-action-1 absolute z-10" />
+            <TripChatRoomButton refreshKey={tab} className="trip-room-header-control trip-room-header-action-1 absolute z-10" />
             <button
               onClick={() => setShowInvite(true)}
               aria-label="초대 링크"
@@ -1430,7 +1430,7 @@ export default function TripDetailPage() {
               pendingLabel="변경된 후보 장소 동기화"
               positionClass="trip-room-header-action-1"
             />
-            <TripChatRoomButton className="trip-room-header-control trip-room-header-action-0 absolute z-10" />
+            <TripChatRoomButton refreshKey={tab} className="trip-room-header-control trip-room-header-action-0 absolute z-10" />
           </>
         ) : tab === "vote" ? (
           <>
@@ -1441,7 +1441,7 @@ export default function TripDetailPage() {
               pendingLabel="변경된 투표 목록 동기화"
               positionClass="trip-room-header-action-1"
             />
-            <TripChatRoomButton className="trip-room-header-control trip-room-header-action-0 absolute z-10" />
+            <TripChatRoomButton refreshKey={tab} className="trip-room-header-control trip-room-header-action-0 absolute z-10" />
           </>
         ) : tab === "timeline" && tripStatus === "during" ? (
           <Link
