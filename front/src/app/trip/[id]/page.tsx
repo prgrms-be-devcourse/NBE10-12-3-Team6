@@ -961,6 +961,7 @@ export default function TripDetailPage() {
   const [voteDefaultMenuClosing, setVoteDefaultMenuClosing] = useState(false);
   const [isAnonymousVoteDefault, setIsAnonymousVoteDefault] = useState(true);
   const voteDefaultMenuCloseTimerRef = useRef<number | null>(null);
+  const voteDefaultMenuRef = useRef<HTMLDivElement>(null);
   const trip = trips.find(t => t.id === id);
 
   useEffect(() => {
@@ -970,6 +971,21 @@ export default function TripDetailPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!showVoteDefaultMenu) return;
+    const handleOutsidePointerDown = (event: Event) => {
+      if (!voteDefaultMenuRef.current?.contains(event.target as Node)) {
+        closeVoteDefaultMenu();
+      }
+    };
+    document.addEventListener("mousedown", handleOutsidePointerDown);
+    document.addEventListener("touchstart", handleOutsidePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsidePointerDown);
+      document.removeEventListener("touchstart", handleOutsidePointerDown);
+    };
+  }, [showVoteDefaultMenu]);
 
   const closeVoteDefaultMenu = () => {
     if (!showVoteDefaultMenu || voteDefaultMenuClosing) return;
@@ -984,6 +1000,7 @@ export default function TripDetailPage() {
   };
 
   const toggleVoteDefaultMenu = () => {
+    if (tripStatus !== "before") return;
     if (voteDefaultMenuClosing) return;
     if (showVoteDefaultMenu) {
       closeVoteDefaultMenu();
@@ -995,6 +1012,7 @@ export default function TripDetailPage() {
   };
 
   const toggleAnonymousVoteDefault = async () => {
+    if (tripStatus !== "before") return;
     const previous = isAnonymousVoteDefault;
     const next = !previous;
     setIsAnonymousVoteDefault(next);
@@ -1584,24 +1602,21 @@ export default function TripDetailPage() {
               <div className="flex items-center justify-between gap-3">
                 <p className="font-semibold">일차별 투표</p>
                 {isHost && (
-                  <div className="relative shrink-0">
+                  <div ref={voteDefaultMenuRef} className="relative shrink-0">
                     <button
                       type="button"
                       onClick={toggleVoteDefaultMenu}
+                      disabled={tripStatus !== "before"}
                       aria-expanded={showVoteDefaultMenu && !voteDefaultMenuClosing}
                       aria-haspopup="true"
                       aria-label="방장 투표 설정 열기"
-                      title="방장 투표 설정"
-                      className={`host-badge ${showVoteDefaultMenu ? "is-open" : ""} flex h-10 w-10 items-center justify-center rounded-full border`}
+                      title={tripStatus === "before" ? "방장 투표 설정" : "여행 시작 전에만 변경할 수 있어요"}
+                      className={`host-badge ${showVoteDefaultMenu ? "is-open" : ""} flex h-10 w-10 items-center justify-center rounded-full border disabled:cursor-not-allowed disabled:opacity-50`}
                     >
                       <CrownSimple size={19} weight="bold" />
                     </button>
                     {showVoteDefaultMenu && (
-                      <>
-                        <FixedBottomPortal>
-                          <div className="fixed inset-0 z-40" onClick={closeVoteDefaultMenu} />
-                        </FixedBottomPortal>
-                        <div className={`host-menu ${voteDefaultMenuClosing ? "is-closing" : ""} absolute right-0 top-12 z-50 w-52 rounded-2xl border p-2 shadow-xl`}>
+                      <div className={`host-menu ${voteDefaultMenuClosing ? "is-closing" : ""} absolute right-0 top-12 z-50 w-52 rounded-2xl border p-2 shadow-xl`}>
                           <div
                             className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5"
                             style={{
@@ -1635,7 +1650,6 @@ export default function TripDetailPage() {
                             </button>
                           </div>
                         </div>
-                      </>
                     )}
                   </div>
                 )}

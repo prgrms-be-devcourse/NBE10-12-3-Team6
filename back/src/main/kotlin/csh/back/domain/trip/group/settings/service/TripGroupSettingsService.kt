@@ -116,6 +116,7 @@ class TripGroupSettingsService(
     ): TripGroupSettingsResponse {
         validateTripAdmin(tripGroupId, memberId)
         val tripGroup = findTripGroup(tripGroupId)
+        validateBeforeTripStart(tripGroup, "여행 시작일부터 익명 투표 설정을 변경할 수 없습니다.")
         val settings = findOrCreateSettings(tripGroup)
         settings.isAnonymousVote = isAnonymousVote
         voteRepository.updateIsAnonymousByTripGroupIdAndStatus(tripGroupId, isAnonymousVote, VoteStatus.PENDING)
@@ -164,11 +165,12 @@ class TripGroupSettingsService(
         }
     }
 
-    private fun validateBeforeTripStart(tripGroup: TripGroup) {
+    private fun validateBeforeTripStart(
+        tripGroup: TripGroup,
+        message: String = "여행 시작일부터 자유시간 범위를 변경할 수 없습니다.",
+    ) {
         if (!isBeforeTripStart(tripGroup)) {
-            throw TripGroupSettingsLockedException(
-                "여행 시작일부터 자유시간 범위를 변경할 수 없습니다.",
-            )
+            throw TripGroupSettingsLockedException(message)
         }
     }
 
