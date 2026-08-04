@@ -20,11 +20,20 @@ type PastMate = {
   name: string;
   travelCount: number;
   latestTravelDate: string;
+  // 가장 최근 함께한 여행방 이름. 백엔드가 상관 서브쿼리로 채움.
+  // 극단 케이스(방이 없는 경우) 대비 optional로 선언.
+  latestGroupName?: string | null;
 };
 
 function formatPastMateDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// "여행방이름 (2026.06)" 형태로 조합. 방 이름이 없으면 날짜만.
+function formatPastMateLabel(mate: PastMate): string {
+  const date = formatPastMateDate(mate.latestTravelDate);
+  return mate.latestGroupName ? `${mate.latestGroupName} (${date})` : date;
 }
 
 function PastMatesInvitePanel({
@@ -241,7 +250,7 @@ function PastMatesInvitePanel({
                     )}
                   </div>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    최근 함께한 여행 {formatPastMateDate(mate.latestTravelDate)}
+                    최근 함께한 여행 {formatPastMateLabel(mate)}
                   </p>
                 </div>
                 {alreadyMember && (
