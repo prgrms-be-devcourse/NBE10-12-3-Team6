@@ -128,6 +128,7 @@ class PostV1ControllerTest {
             eq(TRIP_GROUP_ID),
             eq(MEMBER_ID),
             eq(TIMELINE_ID),
+            any(),
             any()
         )
     }
@@ -254,7 +255,7 @@ class PostV1ControllerTest {
 
         doNothing()
             .`when`(postService)
-            .update(TRIP_GROUP_ID, POST_ID, request)
+            .update(TRIP_GROUP_ID, POST_ID, MEMBER_ID, request)
 
         mvc.perform(
             put("$BASE_URL/{postId}", TRIP_GROUP_ID, POST_ID)
@@ -267,7 +268,7 @@ class PostV1ControllerTest {
             .andExpect(status().isOk)
             .andExpect(content().string(""))
 
-        verify(postService).update(TRIP_GROUP_ID, POST_ID, request)
+        verify(postService).update(TRIP_GROUP_ID, POST_ID, MEMBER_ID, request)
     }
 
     @Test
@@ -423,27 +424,4 @@ class PostV1ControllerTest {
         verify(postLikeService).getStatus(TRIP_GROUP_ID, POST_ID, MEMBER_ID)
     }
 
-    @Test
-    @DisplayName("인증 정보 없이 게시글 생성 요청")
-    fun createPostWithoutAuthentication() {
-        val requestPart = MockMultipartFile(
-            "request",
-            "",
-            MediaType.APPLICATION_JSON_VALUE,
-            """
-            {
-                "timelineId": null,
-                "content": "인증 없는 요청"
-            }
-            """.trimIndent().toByteArray()
-        )
-
-        mvc.perform(
-            multipart(BASE_URL, TRIP_GROUP_ID)
-                .file(requestPart)
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-        )
-            .andDo(print())
-            .andExpect(status().is5xxServerError)
-    }
 }

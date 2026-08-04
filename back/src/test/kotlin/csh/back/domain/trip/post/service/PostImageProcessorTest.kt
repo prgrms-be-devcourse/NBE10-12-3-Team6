@@ -64,6 +64,23 @@ class PostImageProcessorTest {
         }
     }
 
+    @Test
+    @DisplayName("빈 이미지 파일을 거부한다")
+    fun rejectEmptyFile() {
+        val file = MockMultipartFile(
+            "image",
+            "empty.png",
+            "image/png",
+            byteArrayOf()
+        )
+
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            processor.createVariants(file)
+        }
+
+        assertEquals("업로드된 이미지가 없습니다.", exception.message)
+    }
+
     private fun createPng(width: Int, height: Int): MockMultipartFile {
         val source = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
         source.createGraphics().apply {
