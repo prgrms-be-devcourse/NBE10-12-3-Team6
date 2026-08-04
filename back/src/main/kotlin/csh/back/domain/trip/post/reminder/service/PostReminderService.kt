@@ -15,10 +15,10 @@ class PostReminderService(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional(readOnly = true)
-    fun sendOneYearAgoPostReminders(
+    fun sendOneWeekAgoPostReminders(
         today: LocalDate = LocalDate.now()
     ) {
-        val targetDate = today.minusYears(1)
+        val targetDate = today.minusWeeks(1)
         val startAt = targetDate.atStartOfDay()
         val endAt = targetDate
             .plusDays(1)
