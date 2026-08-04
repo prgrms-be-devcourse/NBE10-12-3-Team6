@@ -663,6 +663,41 @@ export default function HomePage() {
   const [selectedDeleteIds, setSelectedDeleteIds] = useState<Set<number>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
+  // 팀원 공용 삭제 확인 모달(.delete-confirm-backdrop / .delete-confirm-card) 애니메이션 상태.
+  // 패턴은 trip/[id]/timeline/page.tsx의 사진 삭제 모달과 동일:
+  //   mount → 다음 frame에 is-open 클래스 부여로 fade-in 시작
+  //   close → is-open 제거 + is-closing 부여 → 220ms 뒤 unmount
+  const [confirmMounted, setConfirmMounted] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmClosing, setConfirmClosing] = useState(false);
+
+  useEffect(() => {
+    if (!confirmMounted) {
+      setConfirmOpen(false);
+      return;
+    }
+    setConfirmClosing(false);
+    setConfirmOpen(false);
+    const frame = window.requestAnimationFrame(() => setConfirmOpen(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [confirmMounted]);
+
+  const openDeleteConfirm = () => {
+    if (selectedDeleteIds.size === 0 || confirmMounted) return;
+    setConfirmMounted(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (!confirmMounted || confirmClosing || bulkDeleting) return;
+    setConfirmOpen(false);
+    setConfirmClosing(true);
+    // globals.css의 .delete-confirm-backdrop.is-closing transition-duration(220ms)에 맞춰 unmount.
+    window.setTimeout(() => {
+      setConfirmMounted(false);
+      setConfirmClosing(false);
+    }, 220);
+  };
+
   // "방장 + 여행 시작 전날까지 남음"만 삭제 가능. 백엔드 DELETE_ALLOWED_DAYS_BEFORE_START=1과 일치.
   // 홈 목록 API가 이미 startDate/ownerId를 다 주므로 별도 API 없이 프론트에서 필터.
   const isDeletableTrip = (t: ApiTrip): boolean => {
@@ -688,10 +723,8 @@ export default function HomePage() {
     });
   };
 
-  const handleBulkDelete = async () => {
+  const performBulkDelete = async () => {
     if (selectedDeleteIds.size === 0 || bulkDeleting) return;
-    const count = selectedDeleteIds.size;
-    if (!window.confirm(`선택한 ${count}개 모임방을 삭제할까요?\n삭제 후에는 되돌릴 수 없어요.`)) return;
     setBulkDeleting(true);
     try {
       const res = await apiFetch(`${API_BASE}/api/v1/trips/bulk-delete`, {
@@ -700,7 +733,7 @@ export default function HomePage() {
         body: JSON.stringify({ ids: Array.from(selectedDeleteIds) }),
       });
       if (!res.ok) {
-        // 403/404는 apiFetch가 이미 처리, 여기 도달했다면 400/500. 사용자에게만 알리고 상태 복구.
+        // 403/404는 apiFetch가 이미 처리, 여기 도달했다면 400/500. 상태 복구만.
         setBulkDeleting(false);
         return;
       }
@@ -709,7 +742,14 @@ export default function HomePage() {
       setTrips(nextTrips);
       loadTrips(nextTrips);
       setSelectedDeleteIds(new Set());
-      setShowDeleteSheet(false);
+      // 확인 모달을 먼저 닫고(애니 시작), 그 뒤 하단 시트도 닫는다.
+      setConfirmOpen(false);
+      setConfirmClosing(true);
+      window.setTimeout(() => {
+        setConfirmMounted(false);
+        setConfirmClosing(false);
+        setShowDeleteSheet(false);
+      }, 220);
     } catch (e) {
       console.error("[모임방 다중 삭제 실패]", e);
     } finally {
@@ -955,20 +995,69 @@ export default function HomePage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleBulkDelete}
+                  onClick={openDeleteConfirm}
                   disabled={selectedDeleteIds.size === 0 || bulkDeleting}
                   className="flex-1 rounded-2xl bg-red-500 py-4 text-sm font-bold text-white active:opacity-80 disabled:opacity-40"
                 >
-                  {bulkDeleting
-                    ? "삭제 중..."
-                    : selectedDeleteIds.size > 0
-                      ? `${selectedDeleteIds.size}개 삭제`
-                      : "삭제"}
+                  {selectedDeleteIds.size > 0 ? `${selectedDeleteIds.size}개 삭제` : "삭제"}
                 </button>
               </div>
             </div>
           )}
         </AnimatedBottomSheet>
+      )}
+
+      {confirmMounted && (
+        <div
+          className={`delete-confirm-backdrop fixed inset-0 z-[120] flex items-center justify-center bg-black/55 px-5 ${
+            confirmOpen ? "is-open" : ""
+          } ${confirmClosing ? "is-closing" : ""}`}
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="delete-trips-title"
+          aria-describedby="delete-trips-description"
+          onClick={closeDeleteConfirm}
+        >
+          <div
+            className="delete-confirm-card w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-5 shadow-2xl"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-500">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14H6L5 6M10 11v5M14 11v5" />
+                </svg>
+              </div>
+              <h2 id="delete-trips-title" className="text-lg font-bold text-gray-900">
+                선택한 {selectedDeleteIds.size}개 모임방을 삭제할까요?
+              </h2>
+              <p id="delete-trips-description" className="mt-2 text-sm leading-6 text-gray-500">
+                모임방과 관련된 정보가 함께 삭제되며
+                <br />
+                삭제 후에는 되돌릴 수 없습니다.
+              </p>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                autoFocus
+                onClick={closeDeleteConfirm}
+                disabled={bulkDeleting}
+                className="rounded-2xl bg-gray-100 py-3.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void performBulkDelete()}
+                disabled={bulkDeleting}
+                className="rounded-2xl bg-red-500 py-3.5 text-sm font-semibold text-white transition-[background-color,transform] hover:bg-red-600 active:scale-[0.98] disabled:opacity-50"
+              >
+                {bulkDeleting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <HomeBottomNavigation activeTab="home" />
