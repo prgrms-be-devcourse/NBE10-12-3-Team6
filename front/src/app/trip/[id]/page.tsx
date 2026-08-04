@@ -600,27 +600,29 @@ function TripCandidatePoolCard({ trip, onUpdate, tripStatus }: { trip: Trip; onU
       )}
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteTargetId(null)}>
-          <div className="bg-white rounded-2xl shadow-xl p-6 mx-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
-            <p className="font-bold text-base">후보 장소 삭제</p>
-            <p className="text-sm text-gray-600">&apos;{deleteTarget.placeName}&apos;을(를) 삭제하시겠습니까?</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setDeleteTargetId(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-600"
-              >
-                취소
-              </button>
-              <button
-                onClick={confirmDeleteCandidate}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
-                style={{ background: "#fee2e2", color: "#dc2626" }}
-              >
-                삭제
-              </button>
+        <FixedBottomPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteTargetId(null)}>
+            <div className="bg-white rounded-2xl shadow-xl p-6 mx-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+              <p className="font-bold text-base">후보 장소 삭제</p>
+              <p className="text-sm text-gray-600">&apos;{deleteTarget.placeName}&apos;을(를) 삭제하시겠습니까?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDeleteTargetId(null)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-600"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={confirmDeleteCandidate}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                  style={{ background: "#fee2e2", color: "#dc2626" }}
+                >
+                  삭제
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </FixedBottomPortal>
       )}
 
       {showAdd && (
@@ -1596,7 +1598,9 @@ export default function TripDetailPage() {
                     </button>
                     {showVoteDefaultMenu && (
                       <>
-                        <div className="fixed inset-0 z-40" onClick={closeVoteDefaultMenu} />
+                        <FixedBottomPortal>
+                          <div className="fixed inset-0 z-40" onClick={closeVoteDefaultMenu} />
+                        </FixedBottomPortal>
                         <div className={`host-menu ${voteDefaultMenuClosing ? "is-closing" : ""} absolute right-0 top-12 z-50 w-52 rounded-2xl border p-2 shadow-xl`}>
                           <div
                             className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5"
