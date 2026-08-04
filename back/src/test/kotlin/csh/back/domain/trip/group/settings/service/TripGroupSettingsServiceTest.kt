@@ -6,6 +6,7 @@ import csh.back.domain.trip.group.entity.TripGroup
 import csh.back.domain.trip.group.exception.NonMemberException
 import csh.back.domain.trip.group.repository.TripGroupRepository
 import csh.back.domain.trip.group.settings.entity.TripGroupSettings
+import csh.back.domain.trip.group.settings.exception.TripGroupSettingsLockedException
 import csh.back.domain.trip.group.settings.repository.TripGroupSettingsRepository
 import csh.back.domain.trip.member.entity.TripMember
 import csh.back.domain.trip.member.repository.TripMemberRepository
@@ -112,6 +113,27 @@ class TripGroupSettingsServiceTest {
 
         assertThat(response.isAnonymousVote).isFalse()
         assertThat(tripGroupSettingsRepository.findByTripGroupId(tripGroup.id!!).orElseThrow().isAnonymousVote).isFalse()
+    }
+
+    @Test
+    @DisplayName("updateAnonymousVote - 여행 시작 후에는 예외 발생")
+    fun updateAnonymousVoteAfterTripStartLocked() {
+        val startedTripGroup = tripGroupRepository.save(
+            TripGroup(
+                owner = owner,
+                name = "시작된여행",
+                region = "제주",
+                nights = 1,
+                joinCode = "SETTINGS-JOIN-STARTED-${System.nanoTime()}",
+                startDate = LocalDate.of(2020, 1, 1),
+                endDate = LocalDate.of(2020, 1, 2),
+            ),
+        )
+        tripMemberRepository.save(TripMember(member = owner, tripGroup = startedTripGroup, isAdmin = true))
+
+        assertThatThrownBy { tripGroupSettingsService.updateAnonymousVote(startedTripGroup.id!!, owner.id!!, false) }
+            .isInstanceOf(TripGroupSettingsLockedException::class.java)
+            .hasMessage("여행 시작일부터 익명 투표 설정을 변경할 수 없습니다.")
     }
 
     @Test

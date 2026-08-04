@@ -231,6 +231,27 @@ class TripGroupSettingsV1ControllerTest {
         assertThat(saved.isAnonymousVote).isFalse()
     }
 
+    @Test
+    @DisplayName("여행 시작일부터 익명 투표 설정을 수정할 수 없다")
+    @WithMockMember
+    fun rejectUpdateAnonymousVoteFromTripStartDate() {
+        val startedTripId = createTrip(SEOUL_TODAY)
+
+        mvc.perform(
+            patch("$BASE_URL/trips/$startedTripId/settings")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                        "isAnonymousVote": false
+                    }
+                    """.trimIndent(),
+                ),
+        )
+            .andExpect(status().isConflict)
+            .andExpect(jsonPath("$.message").value("여행 시작일부터 익명 투표 설정을 변경할 수 없습니다."))
+    }
+
     private companion object {
         const val BASE_URL = "/api/v1"
         val SEOUL_TODAY: LocalDate = LocalDate.now(ZoneId.of("Asia/Seoul"))
