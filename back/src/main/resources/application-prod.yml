@@ -1,4 +1,15 @@
 spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-authentication-method: none
+            authorization-grant-type: authorization_code
+            redirect-uri: "https://triplog6.duckdns.org/login/oauth2/code/kakao"
+            scope:
+              - profile_nickname
   datasource:
     url: jdbc:mysql://mysql:3306/triplog?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
     username: triplog
