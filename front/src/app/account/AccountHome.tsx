@@ -45,14 +45,20 @@ export default function AccountHome({
     return () => controller.abort();
   }, [router]);
 
-  const handleLogout = () => {
-    apiFetch(`${API_BASE}/api/v1/auth/logout`, { method: "POST" }).catch(error => {
+  const handleLogout = async () => {
+    // 반드시 await: 서버가 Set-Cookie로 access/refresh 쿠키를 만료(maxAge=0)시키는 응답을 받고 나서
+    // 이동해야 middleware가 "아직 인증 쿠키 있음"으로 오판하고 /home으로 튕기는 것을 막을 수 있음.
+    try {
+      await apiFetch(`${API_BASE}/api/v1/auth/logout`, { method: "POST" });
+    } catch (error) {
       console.error("[로그아웃 API 실패]", error);
-    });
+    }
 
     localStorage.clear();
     window.dispatchEvent(new Event("triplog-logout"));
-    router.replace("/");
+    // router.replace 대신 하드 네비게이션 사용: 방금 만료시킨 쿠키 상태가 브라우저 저장소에 확실히 반영된
+    // 뒤에 새 요청을 나가게 하기 위함(SPA 라우팅은 상황에 따라 쿠키 갱신 타이밍이 미묘하게 어긋날 수 있음).
+    window.location.replace("/");
   };
 
   const displayName = account?.name || currentUser.name || "사용자";
