@@ -30,8 +30,8 @@ class VoteItemService(
 
     @Transactional
     fun saveVoteItem(tripGroupId: Long, memberId: Long, voteId: Long, tripPlaceId: Long): VoteUserSaveResponseDto {
-        log.info("장소 아이디 값 : {}", tripPlaceId.toString())
-        log.info("투표 아이디 값 : {}", voteId.toString())
+        log.debug("장소 아이디 값 : {}", tripPlaceId.toString())
+        log.debug("투표 아이디 값 : {}", voteId.toString())
         tripMemberValidator.validMember(tripGroupId, memberId)
 
         val vote = voteRepository.findById(voteId).orElseThrow(::RuntimeException)

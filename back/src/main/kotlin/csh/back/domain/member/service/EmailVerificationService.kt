@@ -36,7 +36,7 @@ class EmailVerificationService(
         emailCooldownGuard.check(COOLDOWN_PURPOSE, email)
 
         val code = (100_000..999_999).random().toString()
-        log.info("이메일 인증 코드 발급: {}", code)
+        log.debug("이메일 인증 코드 발급: {}", code)
         // 인증 코드를 Redis에 저장 (5분 TTL)
         redisTemplate.opsForValue().set(
             "$CODE_KEY_PREFIX$email",
