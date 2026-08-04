@@ -64,14 +64,14 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
           NEXT_PUBLIC_API_BASE: ${{ secrets.NEXT_PUBLIC_API_BASE }}
         run: |
-          echo "KAKAO_REST_API_KEY=$(printf '%s' "$KAKAO_REST_API_KEY" | tr -d '\r\n')" > .env
-          echo "NEXT_PUBLIC_FIREBASE_API_KEY=$(printf '%s' "$NEXT_PUBLIC_FIREBASE_API_KEY" | tr -d '\r\n')" >> .env
-          echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(printf '%s' "$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN" | tr -d '\r\n')" >> .env
-          echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=$(printf '%s' "$NEXT_PUBLIC_FIREBASE_PROJECT_ID" | tr -d '\r\n')" >> .env
-          echo "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=$(printf '%s' "$NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET" | tr -d '\r\n')" >> .env
-          echo "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$(printf '%s' "$NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID" | tr -d '\r\n')" >> .env
-          echo "NEXT_PUBLIC_FIREBASE_APP_ID=$(printf '%s' "$NEXT_PUBLIC_FIREBASE_APP_ID" | tr -d '\r\n')" >> .env
-          echo "NEXT_PUBLIC_API_BASE=$(printf '%s' "$NEXT_PUBLIC_API_BASE" | tr -d '\r\n')" >> .env
+          echo "KAKAO_REST_API_KEY=$(printf '%s' "$KAKAO_REST_API_KEY" | tr -d '\r\n')" > front/.env
+          echo "NEXT_PUBLIC_FIREBASE_API_KEY=$(printf '%s' "$NEXT_PUBLIC_FIREBASE_API_KEY" | tr -d '\r\n')" >> front/.env
+          echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(printf '%s' "$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN" | tr -d '\r\n')" >> front/.env
+          echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=$(printf '%s' "$NEXT_PUBLIC_FIREBASE_PROJECT_ID" | tr -d '\r\n')" >> front/.env
+          echo "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=$(printf '%s' "$NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET" | tr -d '\r\n')" >> front/.env
+          echo "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$(printf '%s' "$NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID" | tr -d '\r\n')" >> front/.env
+          echo "NEXT_PUBLIC_FIREBASE_APP_ID=$(printf '%s' "$NEXT_PUBLIC_FIREBASE_APP_ID" | tr -d '\r\n')" >> front/.env
+          echo "NEXT_PUBLIC_API_BASE=$(printf '%s' "$NEXT_PUBLIC_API_BASE" | tr -d '\r\n')" >> front/.env
 
       # [4] ghcr.io 로그인 (GITHUB_TOKEN은 Actions에서 자동 발급, 별도 등록 불필요)
       - name: 🍏 Login to GitHub Container Registry
@@ -109,8 +109,9 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ubuntu
           key: ${{ secrets.KEY }}
-          source: .env
+          source: front/.env
           target: ${{ env.TARGET_DIR }}
+          strip_components: 1
 
       # [9] SSH로 서버에 접속하여 ghcr.io에서 이미지 pull 후 컨테이너 교체
       #     --restart unless-stopped: 서버 재부팅 시 컨테이너 자동 재시작
@@ -129,7 +130,7 @@ jobs:
             docker run -d \
               --name $CONTAINER_NAME \
               --restart unless-stopped \
-              --env-file .env \
+              --env-file $TARGET_DIR/.env \
               -p $HOST_PORT:$CONTAINER_PORT \
               $IMAGE_NAME:$VERSION
             docker image prune -f
@@ -146,4 +147,4 @@ jobs:
       # [10] Actions Runner에 남아있는 임시 파일 삭제
       - name: 🍏 Clean up local temp files
         if: always()
-        run: rm -f .env
+        run: rm -f front/.env
