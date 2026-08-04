@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthGuard } from "../../lib";
+import { API_BASE, apiFetch, useAuthGuard } from "../../lib";
 import AccountHome from "../AccountHome";
 
 export default function PasswordChangePage() {
@@ -13,15 +13,20 @@ export default function PasswordChangePage() {
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [isLeaving, setIsLeaving] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const passwordMismatch = Boolean(
     newPasswordConfirm && newPassword !== newPasswordConfirm,
   );
+  const newPasswordTooShort = Boolean(newPassword && newPassword.length < 8);
   const canSubmit = Boolean(
     currentPassword &&
       newPassword &&
       newPasswordConfirm &&
-      !passwordMismatch,
+      !passwordMismatch &&
+      !newPasswordTooShort &&
+      !isSubmitting,
   );
 
   useEffect(() => {
@@ -41,12 +46,35 @@ export default function PasswordChangePage() {
     );
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
 
-    // TODO: 비밀번호 변경 백엔드 API가 완성되면 이 위치에서 요청합니다.
-    leaveToAccount();
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await apiFetch(`${API_BASE}/api/v1/auth/password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        setErrorMessage(body?.message ?? "비밀번호 변경에 실패했습니다.");
+        return;
+      }
+
+      // 변경 성공 시 서버가 전체 기기 로그아웃 처리하므로 로컬 인증 정보도 삭제 후 로그인 화면으로 이동
+      localStorage.clear();
+      window.dispatchEvent(new Event("triplog-logout"));
+      router.replace("/");
+    } catch {
+      setErrorMessage("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -99,8 +127,17 @@ export default function PasswordChangePage() {
                 value={newPassword}
                 onChange={event => setNewPassword(event.target.value)}
                 placeholder="새로운 비밀번호를 입력해주세요"
-                className="w-full rounded-xl bg-gray-100 p-4 text-base outline-none focus:ring-2 focus:ring-blue-300"
+                className={`w-full rounded-xl bg-gray-100 p-4 text-base outline-none focus:ring-2 ${
+                  newPasswordTooShort
+                    ? "ring-2 ring-red-300 focus:ring-red-300"
+                    : "focus:ring-blue-300"
+                }`}
               />
+              {newPasswordTooShort && (
+                <p className="mt-2 text-xs font-medium text-red-500">
+                  비밀번호는 8자 이상이어야 합니다.
+                </p>
+              )}
             </div>
 
             <div>
@@ -130,12 +167,18 @@ export default function PasswordChangePage() {
             </div>
           </div>
 
+          {errorMessage && (
+            <p className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-500">
+              {errorMessage}
+            </p>
+          )}
+
           <button
             type="submit"
             disabled={!canSubmit}
             className="mb-[max(1.5rem,env(safe-area-inset-bottom))] mt-auto w-full rounded-2xl bg-blue-500 py-4 font-bold text-white disabled:opacity-40"
           >
-            비밀번호 변경
+            {isSubmitting ? "변경 중..." : "비밀번호 변경"}
           </button>
         </form>
         </main>

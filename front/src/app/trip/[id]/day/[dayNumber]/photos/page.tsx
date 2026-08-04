@@ -18,6 +18,7 @@ interface TimelineBlock {
 }
 
 const UPLOAD_MODAL_EXIT_MS = 220;
+const POST_CONTENT_MAX_LENGTH = 20;
 
 
 export default function PhotoUploadPage() {
@@ -35,6 +36,8 @@ export default function PhotoUploadPage() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadModalClosing, setUploadModalClosing] = useState(false);
   const [isLeavingPhotoPage, setIsLeavingPhotoPage] = useState(false);
+  const [content, setContent] = useState("");
+  const [contentError, setContentError] = useState("");
 
   const trip = trips.find(t => t.id === id);
   const dayNum = parseInt(dayNumber);
@@ -128,19 +131,47 @@ export default function PhotoUploadPage() {
       fileInputRef.current?.click();
       return;
     }
+    if (content.length > POST_CONTENT_MAX_LENGTH) {
+      setContentError("20자 까지 입력이 가능합니다.");
+      return;
+    }
+    setContentError("");
     setUploading(true);
     try {
       const form = new FormData();
       form.append("image", selectedFile);
       form.append(
         "request",
-        new Blob([JSON.stringify({ timelineId: currentBlock?.timelineId ?? null })], { type: "application/json" })
+        new Blob([JSON.stringify({
+          timelineId: currentBlock?.timelineId ?? null,
+          content: content.trim() || null,
+        })], { type: "application/json" })
       );
       const res = await apiFetch(`${API_BASE}/api/v1/trips/${id}/posts`, {
         method: "POST",
         body: form,
       });
       if (res.ok) {
+        const responseBody = await res.json();
+        const createdPost = responseBody.data ?? responseBody;
+        const postId = createdPost.id ?? createdPost.postId;
+        const submittedContent = content.trim();
+
+        // 이전 백엔드가 생성 시 content를 누락하더라도 기존 수정 API로 저장을 보장한다.
+        if (submittedContent && createdPost.content !== submittedContent) {
+          if (!postId) throw new Error("생성된 포스트 정보를 확인하지 못했습니다.");
+
+          const updateResponse = await apiFetch(
+            `${API_BASE}/api/v1/trips/${id}/posts/${postId}`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: submittedContent }),
+            }
+          );
+          if (!updateResponse.ok) throw new Error("포스트 내용을 저장하지 못했습니다.");
+        }
+
         setUploadModalClosing(false);
         setShowUploadModal(true);
         return;
@@ -293,6 +324,35 @@ export default function PhotoUploadPage() {
           </>
         )}
       </button>
+
+      {selectedFile && (
+        <div className="shrink-0 pt-3">
+          <div className={`rounded-2xl border bg-white px-4 py-3 transition-colors ${contentError ? "border-red-400" : "border-gray-200 focus-within:border-blue-400"}`}>
+            <textarea
+              value={content}
+              onChange={event => {
+                const nextContent = event.target.value;
+                setContent(nextContent);
+                if (nextContent.length <= POST_CONTENT_MAX_LENGTH) setContentError("");
+              }}
+              rows={2}
+              placeholder="사진과 함께 남길 내용을 입력해 주세요."
+              aria-label="포스트 내용"
+              aria-invalid={!!contentError}
+              aria-describedby={contentError ? "post-content-error" : undefined}
+              className="w-full resize-none bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+            />
+            <p className={`text-right text-xs ${content.length > POST_CONTENT_MAX_LENGTH ? "text-red-500" : "text-gray-400"}`}>
+              {content.length}/{POST_CONTENT_MAX_LENGTH}
+            </p>
+          </div>
+          {contentError && (
+            <p id="post-content-error" className="mt-2 px-1 text-sm font-semibold text-red-500">
+              {contentError}
+            </p>
+          )}
+        </div>
+      )}
 
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">

@@ -99,6 +99,7 @@ class PostV1ControllerTest {
                 eq(TRIP_GROUP_ID),
                 eq(MEMBER_ID),
                 eq(TIMELINE_ID),
+                any(),
                 any()
             )
         ).thenReturn(response)

@@ -18,7 +18,16 @@ interface Post {
   startTime?: string;
   endTime?: string;
   confirmedPlaceName?: string;
+  likeCount: number;
 }
+
+interface PostLikeStatus {
+  postId: number;
+  liked: boolean;
+  likeCount: number;
+}
+
+const POST_CONTENT_MAX_LENGTH = 20;
 
 interface DateGroup {
   date: string;
@@ -111,8 +120,11 @@ export default function TimelinePage() {
   const [activeDots, setActiveDots] = useState<Record<string, number>>({});
   const [editingPostId, setEditingPostId] = useState<number | null>(null);
   const [contentDraft, setContentDraft] = useState("");
+  const [contentEditError, setContentEditError] = useState("");
   const [postActionId, setPostActionId] = useState<number | null>(null);
   const [postActionError, setPostActionError] = useState("");
+  const [likeStatuses, setLikeStatuses] = useState<Record<number, PostLikeStatus>>({});
+  const [likeActionIds, setLikeActionIds] = useState<Set<number>>(new Set());
   const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const listScrollRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -187,6 +199,11 @@ export default function TimelinePage() {
 
   const updatePostContent = async (postId: number) => {
     if (!id || postActionId !== null) return;
+    if (contentDraft.length > POST_CONTENT_MAX_LENGTH) {
+      setContentEditError("20자 까지 입력이 가능합니다.");
+      return;
+    }
+    setContentEditError("");
     setPostActionId(postId);
     setPostActionError("");
     try {
@@ -204,6 +221,7 @@ export default function TimelinePage() {
           : post),
       })));
       setEditingPostId(null);
+      setContentEditError("");
     } catch (error) {
       setPostActionError(error instanceof Error ? error.message : "게시글 내용을 수정하지 못했습니다.");
     } finally {
@@ -234,12 +252,69 @@ export default function TimelinePage() {
     }
   };
 
+  const toggleLike = async (post: Post) => {
+    if (!id || likeActionIds.has(post.postId)) return;
+
+    const current = likeStatuses[post.postId];
+    if (!current) return;
+
+    setLikeActionIds(ids => new Set(ids).add(post.postId));
+    setPostActionError("");
+    try {
+      const response = await apiFetch(
+        `${API_BASE}/api/v1/trips/${id}/posts/${post.postId}/likes`,
+        { method: current.liked ? "DELETE" : "POST" }
+      );
+      if (!response.ok) throw new Error("좋아요 상태를 변경하지 못했습니다.");
+
+      const body = await response.json();
+      const status = (body.data ?? body) as PostLikeStatus;
+      setLikeStatuses(statuses => ({ ...statuses, [post.postId]: status }));
+    } catch (error) {
+      setPostActionError(error instanceof Error ? error.message : "좋아요 상태를 변경하지 못했습니다.");
+    } finally {
+      setLikeActionIds(ids => {
+        const next = new Set(ids);
+        next.delete(post.postId);
+        return next;
+      });
+    }
+  };
+
   useEffect(() => {
     const firstFrame = requestAnimationFrame(() => {
       void loadPostPage(null, true);
     });
     return () => cancelAnimationFrame(firstFrame);
   }, [loadPostPage]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const posts = groups.flatMap(group => group.posts);
+    const missing = posts.filter(post => !likeStatuses[post.postId]);
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(missing.map(async post => {
+      const response = await apiFetch(
+        `${API_BASE}/api/v1/trips/${id}/posts/${post.postId}/likes`
+      );
+      if (!response.ok) throw new Error("좋아요 상태를 불러오지 못했습니다.");
+      const body = await response.json();
+      return (body.data ?? body) as PostLikeStatus;
+    }))
+      .then(statuses => {
+        if (cancelled) return;
+        setLikeStatuses(current => ({
+          ...current,
+          ...Object.fromEntries(statuses.map(status => [status.postId, status])),
+        }));
+      })
+      .catch(error => console.error(error));
+
+    return () => { cancelled = true; };
+  }, [groups, id, likeStatuses]);
 
   useEffect(() => {
     const target = loadMoreRef.current;
@@ -382,13 +457,14 @@ export default function TimelinePage() {
                               <div key={post.postId} className={`rounded-2xl border p-3 flex flex-col gap-2 snap-start basis-full shrink-0 ${borderColor}`}>
                                 <div className="flex items-start justify-between gap-3">
                                   <p className={`text-xs font-semibold ${labelColor}`}>{label}</p>
-                                  {post.authorMemberId === currentUser.id && (
+                                  {Number(post.authorMemberId) === Number(currentUser.id) && (
                                     <div className="flex shrink-0 gap-2 text-xs font-semibold">
                                       <button
                                         type="button"
                                         onClick={() => {
                                           setEditingPostId(post.postId);
                                           setContentDraft(post.content ?? "");
+                                          setContentEditError("");
                                           setPostActionError("");
                                         }}
                                         className="text-blue-500"
@@ -406,7 +482,7 @@ export default function TimelinePage() {
                                     </div>
                                   )}
                                 </div>
-                                <div className="flex items-center justify-center rounded-xl overflow-hidden" style={{ height: "360px" }}>
+                                <div className={`flex items-center justify-center overflow-hidden rounded-xl ${previewSrc ? "h-auto" : "min-h-[360px]"}`}>
                                   {previewSrc ? (
                                     // 원격 S3 URL에 브라우저 표준 lazy loading을 직접 적용한다.
                                     // eslint-disable-next-line @next/next/no-img-element
@@ -416,27 +492,77 @@ export default function TimelinePage() {
                                       loading="lazy"
                                       decoding="async"
                                       draggable={false}
-                                      className="max-w-full max-h-full object-contain cursor-pointer"
+                                      className="h-auto max-h-[360px] w-full object-contain cursor-pointer"
                                       onClick={() => detailSrc && setLightbox(detailSrc)}
                                     />
                                   ) : (
                                     <p className="text-sm text-gray-400">사진을 불러올 수 없습니다.</p>
                                   )}
                                 </div>
+                                <div className="-mt-1 flex min-w-0 items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void toggleLike(post)}
+                                  disabled={!likeStatuses[post.postId] || likeActionIds.has(post.postId)}
+                                  aria-label={likeStatuses[post.postId]?.liked ? "좋아요 취소" : "좋아요"}
+                                  aria-pressed={likeStatuses[post.postId]?.liked ?? false}
+                                  className={`flex w-fit shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                                    likeStatuses[post.postId]?.liked
+                                      ? "text-red-500"
+                                      : "text-gray-500"
+                                  }`}
+                                >
+                                  <svg
+                                    className="h-5 w-5"
+                                    viewBox="0 0 24 24"
+                                    fill={likeStatuses[post.postId]?.liked ? "currentColor" : "none"}
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    aria-hidden="true"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z" />
+                                  </svg>
+                                  <span>{likeStatuses[post.postId]?.likeCount ?? post.likeCount ?? 0}</span>
+                                </button>
+                                {editingPostId !== post.postId && post.content ? (
+                                  <>
+                                    <span className="h-5 w-px shrink-0 bg-gray-300" aria-hidden="true" />
+                                    <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-right text-sm leading-relaxed text-gray-700">
+                                      {post.content}
+                                    </p>
+                                  </>
+                                ) : null}
+                                </div>
                                 {editingPostId === post.postId ? (
                                   <div className="flex flex-col gap-2">
-                                    <textarea
-                                      value={contentDraft}
-                                      onChange={event => setContentDraft(event.target.value)}
-                                      maxLength={1000}
-                                      rows={3}
-                                      placeholder="사진과 함께 남길 내용을 입력하세요."
-                                      className="w-full resize-none rounded-xl border border-gray-200 bg-white p-3 text-sm outline-none focus:border-blue-400"
-                                    />
-                                    <div className="flex justify-end gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => setEditingPostId(null)}
+                                      <textarea
+                                        value={contentDraft}
+                                        onChange={event => {
+                                          const nextContent = event.target.value;
+                                          setContentDraft(nextContent);
+                                          if (nextContent.length <= POST_CONTENT_MAX_LENGTH) setContentEditError("");
+                                        }}
+                                        rows={3}
+                                        placeholder="사진과 함께 남길 내용을 입력하세요."
+                                        aria-invalid={!!contentEditError}
+                                        aria-describedby={contentEditError ? `post-content-edit-error-${post.postId}` : undefined}
+                                        className={`w-full resize-none rounded-xl border bg-white p-3 text-sm outline-none ${contentEditError ? "border-red-400" : "border-gray-200 focus:border-blue-400"}`}
+                                      />
+                                      <div className="flex items-start justify-between gap-3 px-1">
+                                        <p id={`post-content-edit-error-${post.postId}`} className="text-xs font-semibold text-red-500">
+                                          {contentEditError}
+                                        </p>
+                                        <p className={`shrink-0 text-xs ${contentDraft.length > POST_CONTENT_MAX_LENGTH ? "text-red-500" : "text-gray-400"}`}>
+                                          {contentDraft.length}/{POST_CONTENT_MAX_LENGTH}
+                                        </p>
+                                      </div>
+                                      <div className="flex justify-end gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingPostId(null);
+                                            setContentEditError("");
+                                          }}
                                         className="rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-500"
                                       >
                                         취소
@@ -451,8 +577,6 @@ export default function TimelinePage() {
                                       </button>
                                     </div>
                                   </div>
-                                ) : post.content ? (
-                                  <p className="whitespace-pre-wrap break-words text-sm text-gray-700">{post.content}</p>
                                 ) : null}
                               </div>
                             );
