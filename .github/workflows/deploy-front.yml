@@ -109,7 +109,7 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ubuntu
           key: ${{ secrets.KEY }}
-          source: ./front/.env
+          source: .env
           target: ${{ env.TARGET_DIR }}
           strip_components: 1
 
