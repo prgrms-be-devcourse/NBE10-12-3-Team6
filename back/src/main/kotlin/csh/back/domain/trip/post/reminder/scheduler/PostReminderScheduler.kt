@@ -19,9 +19,12 @@ class PostReminderScheduler(
     )
     fun sendOneYearAgoPostReminders() {
         log.info("여행 포스트 1년 리마인드 작업 시작")
+        try {
+            postReminderService.sendOneWeekAgoPostReminders()
 
-        postReminderService.sendOneYearAgoPostReminders()
-
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         log.info("여행 포스트 1년 리마인드 작업 종료")
     }
 }
