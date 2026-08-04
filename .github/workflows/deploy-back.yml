@@ -44,6 +44,9 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       # [3] GitHub Secrets에 등록된 값으로 .env 파일 생성
+      #     - REDIS_HOST=redis: triplog-net 위의 redis 컨테이너 이름을 그대로 호스트명으로 사용
+      #     - FIREBASE_ENABLED=true: FirebaseConfig의 @ConditionalOnProperty 조건을 만족시켜 Bean 등록
+      #     - GOOGLE_APPLICATION_CREDENTIALS: Google SDK 표준 env — FirebaseConfig의 ADC 폴백이 이 값을 읽음
       - name: 🍏 Create .env file from Secrets
         run: |
           echo "SPRING_PROFILES_ACTIVE=prod" > .env
@@ -53,6 +56,22 @@ jobs:
           echo "S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}" >> .env
           echo "S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}" >> .env
           echo "S3_NAMESPACE=${{ secrets.S3_NAMESPACE }}" >> .env
+          echo "KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}" >> .env
+          echo "MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}" >> .env
+          echo "MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}" >> .env
+          echo "REDIS_HOST=redis" >> .env
+          echo "REDIS_PORT=6379" >> .env
+          echo "FIREBASE_ENABLED=true" >> .env
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-key.json" >> .env
+
+      # [3-1] Firebase Admin SDK 자격증명 JSON을 파일로 저장
+      #      - GitHub Secret에는 서비스 계정 JSON 원문을 그대로 저장(FIREBASE_CREDENTIALS_JSON)
+      #      - printf 사용 이유: echo는 백슬래시/개행 해석이 셸마다 달라 JSON이 깨질 수 있음
+      #      - env 매핑을 거치는 이유: `${{ secrets.X }}`를 셸에 직접 박으면 특수문자 escape 이슈 발생
+      - name: 🍏 Create Firebase credentials file
+        env:
+          FIREBASE_CREDENTIALS_JSON: ${{ secrets.FIREBASE_CREDENTIALS_JSON }}
+        run: printf '%s' "$FIREBASE_CREDENTIALS_JSON" > firebase-key.json
 
       # [4] ghcr.io 로그인 (GITHUB_TOKEN은 Actions에서 자동 발급, 별도 등록 불필요)
       - name: 🍏 Login to GitHub Container Registry
@@ -84,14 +103,15 @@ jobs:
           cache-from: type=gha           # 빌드 캐쉬
           cache-to: type=gha,mode=max    # 빌드 캐쉬
 
-      # [8] .env 파일을 서버로 전송
-      - name: 🍏 Copy .env to Oracle Cloud
+      # [8] .env, firebase-key.json 파일을 서버로 전송
+      #     source에 여러 파일을 나열하면 scp-action이 한 번에 target 아래로 복사
+      - name: 🍏 Copy .env and Firebase key to Oracle Cloud
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.HOST }}
           username: ubuntu
           key: ${{ secrets.KEY }}
-          source: .env
+          source: ".env,firebase-key.json"
           target: ${{ env.TARGET_DIR }}
 
       # [9] SSH로 서버에 접속하여 ghcr.io에서 이미지 pull 후 컨테이너 교체
@@ -115,6 +135,7 @@ jobs:
               --restart unless-stopped \
               --env-file $TARGET_DIR/.env \
               -v /home/ubuntu/triplog/uploadedimages:/root/triplog/uploadedimages \
+              -v $TARGET_DIR/firebase-key.json:/app/firebase-key.json:ro \
               -e TZ=Asia/Seoul \
               -p $HOST_PORT:$CONTAINER_PORT \
               $IMAGE_NAME:$VERSION
@@ -131,6 +152,7 @@ jobs:
           CONTAINER_PORT: ${{ env.CONTAINER_PORT }}
           TARGET_DIR: ${{ env.TARGET_DIR }}
 
-      # [10] Actions Runner에 남아있는 임시 파일 삭제
+      # [10] Actions Runner에 남아있는 임시 파일 삭제 — Firebase 자격증명이 러너에 남지 않도록
       - name: 🍏 Clean up local temp files
-        run: rm -f .env
+        if: always()
+        run: rm -f .env firebase-key.json
