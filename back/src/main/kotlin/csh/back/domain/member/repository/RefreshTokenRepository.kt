@@ -28,6 +28,12 @@ interface RefreshTokenRepository : JpaRepository<RefreshToken, Long> {
     @Transactional
     fun deleteAllByMember(member: Member)
 
+    // 비밀번호 변경 시 현재 기기를 제외한 다른 기기 토큰만 삭제
+    @Modifying
+    @Query("DELETE FROM RefreshToken rt WHERE rt.member.id = :memberId AND rt.deviceId <> :deviceId")
+    @Transactional
+    fun deleteByMemberIdAndDeviceIdNot(memberId: Long, deviceId: String)
+
     // 새 기기 로그인 감지용 — 로그인 직전 해당 (member, device) 조합이 이미 알려진 기기인지 확인
     fun existsByMemberIdAndDeviceId(memberId: Long, deviceId: String): Boolean
 }
