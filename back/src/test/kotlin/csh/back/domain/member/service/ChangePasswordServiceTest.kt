@@ -20,6 +20,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
+import java.time.Duration
 import java.util.UUID
 
 @ActiveProfiles("test")
@@ -125,5 +126,23 @@ class ChangePasswordServiceTest {
         assertThatCode {
             memberService.login(testMember.email, NEW_PASSWORD, null, "device-t5")
         }.doesNotThrowAnyException()
+    }
+
+    @Test
+    @DisplayName("t6: 비밀번호 변경 성공 시 failedLoginCount가 0으로, lockedUntil이 null로 초기화된다")
+    fun t6() {
+        // threshold=1로 1회 실패만으로 락아웃되도록 세팅 → failedLoginCount=1, lockedUntil=non-null
+        testMember.registerLoginFailure(threshold = 1, lockDuration = Duration.ofMinutes(30))
+        memberRepository.save(testMember)
+
+        val locked = memberRepository.findById(testMember.id!!).get()
+        assertThat(locked.failedLoginCount).isGreaterThan(0)
+        assertThat(locked.lockedUntil).isNotNull()
+
+        memberService.changePassword(testMember.id!!, ORIGINAL_PASSWORD, NEW_PASSWORD)
+
+        val updated = memberRepository.findById(testMember.id!!).get()
+        assertThat(updated.failedLoginCount).isEqualTo(0)
+        assertThat(updated.lockedUntil).isNull()
     }
 }

@@ -150,7 +150,7 @@ class MemberService(
             throw InvalidPasswordException("현재 비밀번호가 일치하지 않습니다.")
         }
 
-        member.password = passwordEncoder.encode(newPassword)!!
+        member.updatePassword(passwordEncoder.encode(newPassword)!!)
         refreshTokenRepository.deleteAllByMember(member)
     }
 
