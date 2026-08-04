@@ -23,8 +23,8 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/triplog-frontend
-  CONTAINER_NAME: next-frontend
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/triplog-frontend-v2
+  CONTAINER_NAME: next-frontend-v2
   TARGET_DIR: /home/ubuntu/triplog/front
   HOST_PORT: 3000
   CONTAINER_PORT: 3000

@@ -22,8 +22,8 @@ permissions:
   packages: write   # ghcr.io에 이미지 push 권한
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/triplog-backend
-  CONTAINER_NAME: spring-backend
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/triplog-backend-v2
+  CONTAINER_NAME: spring-backend-v2
   TARGET_DIR: /home/ubuntu/triplog/back
   HOST_PORT: 8080
   CONTAINER_PORT: 8080
