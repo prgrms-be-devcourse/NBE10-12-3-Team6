@@ -65,7 +65,7 @@ class ChangePasswordServiceTest {
     @Test
     @DisplayName("t1: 현재 비밀번호가 맞으면 새 비밀번호로 변경된다")
     fun t1() {
-        memberService.changePassword(testMember.id!!, ORIGINAL_PASSWORD, NEW_PASSWORD)
+        memberService.changePassword(testMember.id!!, ORIGINAL_PASSWORD, NEW_PASSWORD, "device-t1")
 
         val updated = memberRepository.findById(testMember.id!!).get()
         assertThat(passwordEncoder.matches(NEW_PASSWORD, updated.password)).isTrue()
@@ -76,7 +76,7 @@ class ChangePasswordServiceTest {
     @DisplayName("t2: 현재 비밀번호가 틀리면 InvalidPasswordException이 발생한다")
     fun t2() {
         assertThatThrownBy {
-            memberService.changePassword(testMember.id!!, "wrongPassword", NEW_PASSWORD)
+            memberService.changePassword(testMember.id!!, "wrongPassword", NEW_PASSWORD, "device-t2")
         }.isInstanceOf(InvalidPasswordException::class.java)
             .hasMessage("현재 비밀번호가 일치하지 않습니다.")
     }
@@ -95,7 +95,7 @@ class ChangePasswordServiceTest {
         )
         try {
             assertThatThrownBy {
-                memberService.changePassword(kakaoMember.id!!, "anyPassword", NEW_PASSWORD)
+                memberService.changePassword(kakaoMember.id!!, "anyPassword", NEW_PASSWORD, "device-t3")
             }.isInstanceOf(KakaoMemberPasswordChangeException::class.java)
                 .hasMessage("카카오 로그인 회원은 비밀번호를 변경할 수 없습니다.")
         } finally {
@@ -104,27 +104,29 @@ class ChangePasswordServiceTest {
     }
 
     @Test
-    @DisplayName("t4: 변경 성공 시 해당 회원의 모든 RefreshToken이 삭제된다 (3개 기기 시뮬레이션)")
+    @DisplayName("t4: 변경 성공 시 현재 기기 토큰은 유지되고 다른 기기 토큰은 삭제된다 (3개 기기 시뮬레이션)")
     fun t4() {
+        val currentDeviceId = "device-0"
         repeat(3) { i ->
             refreshTokenRepository.save(RefreshToken(member = testMember, deviceId = "device-$i"))
         }
         val before = refreshTokenRepository.findAll().filter { it.member.id == testMember.id }
         assertThat(before).hasSize(3)
 
-        memberService.changePassword(testMember.id!!, ORIGINAL_PASSWORD, NEW_PASSWORD)
+        memberService.changePassword(testMember.id!!, ORIGINAL_PASSWORD, NEW_PASSWORD, currentDeviceId)
 
         val after = refreshTokenRepository.findAll().filter { it.member.id == testMember.id }
-        assertThat(after).isEmpty()
+        assertThat(after).hasSize(1)
+        assertThat(after.first().deviceId).isEqualTo(currentDeviceId)
     }
 
     @Test
     @DisplayName("t5: 변경 후 새 비밀번호로 로그인이 가능하다")
     fun t5() {
-        memberService.changePassword(testMember.id!!, ORIGINAL_PASSWORD, NEW_PASSWORD)
+        memberService.changePassword(testMember.id!!, ORIGINAL_PASSWORD, NEW_PASSWORD, "device-t5")
 
         assertThatCode {
-            memberService.login(testMember.email, NEW_PASSWORD, null, "device-t5")
+            memberService.login(testMember.email, NEW_PASSWORD, null, "device-t5-login")
         }.doesNotThrowAnyException()
     }
 
@@ -139,7 +141,7 @@ class ChangePasswordServiceTest {
         assertThat(locked.failedLoginCount).isGreaterThan(0)
         assertThat(locked.lockedUntil).isNotNull()
 
-        memberService.changePassword(testMember.id!!, ORIGINAL_PASSWORD, NEW_PASSWORD)
+        memberService.changePassword(testMember.id!!, ORIGINAL_PASSWORD, NEW_PASSWORD, "device-t6")
 
         val updated = memberRepository.findById(testMember.id!!).get()
         assertThat(updated.failedLoginCount).isEqualTo(0)

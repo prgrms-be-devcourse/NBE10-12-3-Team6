@@ -107,20 +107,15 @@ class MemberController(
         return ResponseData(200, null)
     }
 
-    @Operation(summary = "비밀번호 변경 (로컬 회원 전용, 변경 후 전체 기기 로그아웃)")
+    @Operation(summary = "비밀번호 변경 (로컬 회원 전용, 현재 기기 제외 다른 기기 로그아웃)")
     @PatchMapping("/password")
     fun changePassword(
         @AuthenticationPrincipal member: AuthFilterDto,
         @RequestBody @Valid request: ChangePasswordRequest,
-        response: HttpServletResponse,
+        httpRequest: HttpServletRequest,
     ): ResponseData<Void?> {
-        memberService.changePassword(member.id, request.currentPassword, request.newPassword)
-
-        response.addHeader(HttpHeaders.SET_COOKIE,
-            ResponseCookie.from(CookieNames.ACCESS_TOKEN, "").path("/").maxAge(0).build().toString())
-        response.addHeader(HttpHeaders.SET_COOKIE,
-            ResponseCookie.from(CookieNames.REFRESH_TOKEN, "").path("/").maxAge(0).build().toString())
-
+        val deviceId = httpRequest.getAttribute(CookieNames.DEVICE_ID) as String
+        memberService.changePassword(member.id, request.currentPassword, request.newPassword, deviceId)
         return ResponseData(200, null)
     }
 

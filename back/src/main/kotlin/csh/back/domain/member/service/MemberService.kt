@@ -138,7 +138,7 @@ class MemberService(
     }
 
     @Transactional
-    fun changePassword(memberId: Long, currentPassword: String, newPassword: String) {
+    fun changePassword(memberId: Long, currentPassword: String, newPassword: String, deviceId: String) {
         val member = memberRepository.findById(memberId)
             .orElseThrow { RuntimeException("존재하지 않는 회원입니다.") }
 
@@ -151,7 +151,8 @@ class MemberService(
         }
 
         member.updatePassword(passwordEncoder.encode(newPassword)!!)
-        refreshTokenRepository.deleteAllByMember(member)
+        // 현재 기기는 세션 유지 — 다른 기기의 RefreshToken만 삭제
+        refreshTokenRepository.deleteByMemberIdAndDeviceIdNot(memberId, deviceId)
     }
 
     @Transactional
