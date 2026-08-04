@@ -32,37 +32,89 @@
 --   - 이미 있으면(2회차 이후 실행 등) WHERE NOT EXISTS로 스킵.
 --   - 비밀번호 해시는 다른 시드 계정들과 동일한 BCrypt('1234').
 --   - DevAccountInitData는 existsByEmail 체크가 있어 우리가 먼저 넣어도 안전하게 스킵됨.
-INSERT INTO members (email, password, name, created_at, updated_at)
+--
+-- failed_login_count 반드시 명시:
+--   Member 엔티티의 @Column(nullable = false)만 있고 @ColumnDefault가 없어서 DB에 DEFAULT가 없다.
+--   Kotlin 필드 초기값(= 0)은 애플리케이션 레벨 기본값이라 DDL에는 반영되지 않음.
+--   → INSERT에서 빠뜨리면 NOT NULL 위반으로 실패하고 continue-on-error가 이를 삼켜 admin이 안 만들어진다.
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
 SELECT 'dev@example.com',
        '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq',
        '개발자1',
+       0,
        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'dev@example.com');
 
 -- ============ 1. 친구 회원 20명 ============
 -- failed_login_count: 로그인 실패 카운터 컬럼 (NOT NULL) — seed는 항상 0으로 시작
 -- locked_until: nullable이라 생략 (기본 NULL = 락 안 걸린 상태)
-INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at) VALUES
-('kim.sumin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '김수민', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('lee.jinho@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '이진호', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('park.seoyeon@test.com', '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '박서연', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('choi.youngsu@test.com', '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '최영수', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('jung.haneul@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '정하늘', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('kang.minjun@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '강민준', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('cho.yujin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '조유진', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('yoon.dohyun@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '윤도현', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('lim.chaewon@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '임채원', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('han.jihoon@test.com',   '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '한지훈', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('oh.sea@test.com',       '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '오세아', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('seo.jimin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '서지민', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('hong.junseo@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '홍준서', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('shin.daeun@test.com',   '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '신다은', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('bae.hyunwoo@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '배현우', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('cho.minji@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '조민지', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('yu.garam@test.com',     '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '유가람', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('moon.jiho@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '문지호', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('na.yerin@test.com',     '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '나예린', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('baek.seungwoo@test.com','$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '백승우', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+--
+-- 각 행을 INSERT ... SELECT ... WHERE NOT EXISTS로 개별 삽입:
+--   members.email에 DB 레벨 UNIQUE 제약이 없어(엔티티는 provider+provider_id 조합만 unique)
+--   기존 다중행 VALUES 방식은 재실행/H2 콘솔 반복 실행 시 이메일당 사본이 계속 쌓임.
+--   그러면 후속 트립멤버 INSERT의 (SELECT id FROM members WHERE email='...') 스칼라 서브쿼리가
+--   2행 이상을 반환해 "Scalar subquery contains more than one row" 오류로 전체 실패한다.
+--   → email 조건으로 존재 여부를 먼저 체크해 idempotent하게 만든다.
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'kim.sumin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '김수민', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'kim.sumin@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'lee.jinho@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '이진호', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'lee.jinho@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'park.seoyeon@test.com', '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '박서연', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'park.seoyeon@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'choi.youngsu@test.com', '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '최영수', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'choi.youngsu@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'jung.haneul@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '정하늘', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'jung.haneul@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'kang.minjun@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '강민준', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'kang.minjun@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'cho.yujin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '조유진', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'cho.yujin@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'yoon.dohyun@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '윤도현', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'yoon.dohyun@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'lim.chaewon@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '임채원', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'lim.chaewon@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'han.jihoon@test.com',   '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '한지훈', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'han.jihoon@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'oh.sea@test.com',       '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '오세아', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'oh.sea@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'seo.jimin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '서지민', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'seo.jimin@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'hong.junseo@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '홍준서', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'hong.junseo@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'shin.daeun@test.com',   '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '신다은', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'shin.daeun@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'bae.hyunwoo@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '배현우', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'bae.hyunwoo@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'cho.minji@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '조민지', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'cho.minji@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'yu.garam@test.com',     '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '유가람', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'yu.garam@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'moon.jiho@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '문지호', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'moon.jiho@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'na.yerin@test.com',     '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '나예린', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'na.yerin@test.com');
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at)
+SELECT 'baek.seungwoo@test.com','$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '백승우', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+WHERE NOT EXISTS (SELECT 1 FROM members WHERE email = 'baek.seungwoo@test.com');
 
 -- ============ 2. 여행 11건 (모두 admin이 owner) ============
 -- 날짜 배치: 최근순 정렬 + 같은 날짜 tie 케이스 포함
