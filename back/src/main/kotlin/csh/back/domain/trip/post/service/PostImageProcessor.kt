@@ -9,6 +9,8 @@ import java.io.InputStream
 import javax.imageio.IIOImage
 import javax.imageio.ImageIO
 import javax.imageio.ImageWriteParam
+import kotlin.math.ceil
+import kotlin.math.sqrt
 
 @Component
 class PostImageProcessor {
@@ -29,8 +31,49 @@ class PostImageProcessor {
 
         return PostImageVariants(
             normal = normal,
-            dataSaver = dataSaver
+            dataSaver = dataSaver,
+            dominantColor = extractDominantColor(source)
         )
+    }
+
+    private fun extractDominantColor(source: BufferedImage): String {
+        val sampleStep = ceil(
+            sqrt(
+                source.width.toLong() * source.height /
+                    MAX_DOMINANT_COLOR_SAMPLES.toDouble()
+            )
+        ).toInt().coerceAtLeast(1)
+        val buckets = HashMap<Int, ColorBucket>()
+
+        for (y in 0 until source.height step sampleStep) {
+            for (x in 0 until source.width step sampleStep) {
+                val argb = source.getRGB(x, y)
+                val alpha = argb ushr 24 and 0xFF
+                if (alpha < MIN_VISIBLE_ALPHA) continue
+
+                val red = argb ushr 16 and 0xFF
+                val green = argb ushr 8 and 0xFF
+                val blue = argb and 0xFF
+                val bucketKey =
+                    ((red ushr COLOR_BUCKET_SHIFT) shl 8) or
+                        ((green ushr COLOR_BUCKET_SHIFT) shl 4) or
+                        (blue ushr COLOR_BUCKET_SHIFT)
+                val bucket = buckets.getOrPut(bucketKey) { ColorBucket() }
+
+                bucket.count++
+                bucket.redSum += red
+                bucket.greenSum += green
+                bucket.blueSum += blue
+            }
+        }
+
+        val dominant = buckets.values.maxByOrNull { it.count }
+            ?: return DEFAULT_DOMINANT_COLOR
+        val red = (dominant.redSum / dominant.count).toInt()
+        val green = (dominant.greenSum / dominant.count).toInt()
+        val blue = (dominant.blueSum / dominant.count).toInt()
+
+        return "#%02X%02X%02X".format(red, green, blue)
     }
 
     private fun createVariant(
@@ -140,7 +183,15 @@ class PostImageProcessor {
 
     data class PostImageVariants(
         val normal: EncodedImage,
-        val dataSaver: EncodedImage
+        val dataSaver: EncodedImage,
+        val dominantColor: String = DEFAULT_DOMINANT_COLOR
+    )
+
+    private data class ColorBucket(
+        var count: Long = 0,
+        var redSum: Long = 0,
+        var greenSum: Long = 0,
+        var blueSum: Long = 0
     )
 
     data class EncodedImage(
@@ -157,6 +208,10 @@ class PostImageProcessor {
         private const val MAX_PIXEL_COUNT = 80_000_000L
         private const val NORMAL_QUALITY = 0.90f
         private const val DATA_SAVER_QUALITY = 0.65f
+        private const val MAX_DOMINANT_COLOR_SAMPLES = 4_096L
+        private const val MIN_VISIBLE_ALPHA = 128
+        private const val COLOR_BUCKET_SHIFT = 4
+        private const val DEFAULT_DOMINANT_COLOR = "#111827"
     }
 }
 

@@ -3,8 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "./store";
-import { API_BASE } from "./lib";
-import { clearStoredAuthentication, rememberCookieAuthentication } from "./authStorage";
+import { API_BASE, apiFetch } from "./lib";
+import {
+  clearStoredAuthentication,
+  hasStoredAuthentication,
+  rememberCookieAuthentication,
+} from "./authStorage";
 
 type Mode = "landing" | "login" | "signup";
 type AuthTransition = "forward" | "back" | "swap";
@@ -85,6 +89,7 @@ export default function LoginPage() {
   const [isSignupReveal, setIsSignupReveal] = useState(false);
   const [authTransition, setAuthTransition] = useState<AuthTransition>("forward");
   const [landingVisible, setLandingVisible] = useState(false);
+  const [restoringSession, setRestoringSession] = useState(true);
 
   const resetEmailVerification = () => {
     setEmailCodeSent(false);
@@ -105,6 +110,50 @@ export default function LoginPage() {
     setEmail(""); setPassword(""); setPasswordConfirm(""); setName("");
     resetEmailVerification();
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("oauth") === "success" || !hasStoredAuthentication()) {
+        if (!cancelled) setRestoringSession(false);
+        return;
+      }
+
+      try {
+        const res = await apiFetch(`${API_BASE}/api/v1/auth/me`);
+        if (!res.ok) {
+          if (!cancelled) setRestoringSession(false);
+          return;
+        }
+
+        const body = await res.json().catch(() => ({}));
+        const memberId = Number(body.data?.id);
+        const memberName = typeof body.data?.name === "string" ? body.data.name : "";
+
+        if (!Number.isFinite(memberId) || memberId <= 0) {
+          clearStoredAuthentication();
+          if (!cancelled) setRestoringSession(false);
+          return;
+        }
+
+        if (cancelled) return;
+
+        rememberCookieAuthentication();
+        login(memberName, memberId);
+        router.replace("/home");
+      } catch {
+        if (!cancelled) setRestoringSession(false);
+      }
+    };
+
+    void restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [login, router]);
 
   useEffect(() => {
     if (verificationSecondsLeft <= 0) return;
@@ -359,6 +408,18 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  if (restoringSession) {
+    return (
+      <div
+        className="flex min-h-[100dvh] items-center justify-center"
+        role="status"
+        aria-label="로그인 상태 확인 중"
+      >
+        <span className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-blue-500" />
+      </div>
+    );
+  }
 
   // ── 회원가입 완료 후 recovery code 안내 (최우선 렌더) ─────────────────────────
   // signupRecoveryCode가 세팅되어 있는 동안엔 다른 어떤 mode보다 이 화면이 앞섬 —
