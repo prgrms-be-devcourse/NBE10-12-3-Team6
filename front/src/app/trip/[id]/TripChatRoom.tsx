@@ -311,7 +311,7 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex flex-1 min-h-0 flex-col">
       <div
         ref={listRef}
         onScroll={handleScroll}

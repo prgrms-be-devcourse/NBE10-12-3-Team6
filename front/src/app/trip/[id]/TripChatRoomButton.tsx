@@ -67,7 +67,8 @@ export default function TripChatRoomButton({
       {isOpen && (
         <AnimatedBottomSheet
           onClose={handleClose}
-          className="flex h-[72%] flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]"
+          className="flex flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]"
+          style={{ minHeight: "36%", maxHeight: "72%" }}
         >
           {() => <TripChatRoom tripGroupId={Number(id)} />}
         </AnimatedBottomSheet>
