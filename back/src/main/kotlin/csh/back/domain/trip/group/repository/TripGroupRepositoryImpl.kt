@@ -31,6 +31,9 @@ class TripGroupRepositoryImpl(
             .leftJoin(groupMember).on(groupMember.tripGroup.eq(tripGroup))
             .where(
                 me.member.id.eq(memberId),
+                // @SQLRestriction("deleted_at IS NULL")은 QueryDSL에는 자동 적용되지 않으므로
+                // 여기서 명시적으로 삭제된 방을 제외한다.
+                tripGroup.deletedAt.isNull,
                 keywordSearch(keyword, groupMember),
                 dateSearch(startDate),
             )

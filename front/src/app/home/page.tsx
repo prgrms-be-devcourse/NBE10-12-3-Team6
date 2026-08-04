@@ -12,6 +12,7 @@ import HomeBottomNavigation from "../components/HomeBottomNavigation";
 type ApiTrip = {
   id: number;
   name: string;
+  ownerId?: number;
   region: string;
   nights: number;
   startDate: string;
@@ -442,7 +443,7 @@ function TripCard({
     >
       <div className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-start justify-between mb-3">
-          <div>
+          <div className="min-w-0">
             <p className="font-bold text-base flex items-center gap-1.5">
               {trip.name}
               {unreadCount > 0 && (
@@ -460,6 +461,52 @@ function TripCard({
         <p className="text-xs text-gray-400">{formatDate(trip.startDate)} 시작</p>
       </div>
     </Link>
+  );
+}
+
+// 삭제 모달에서 리스트에 렌더할 "선택 가능한 카드". 실제 라우팅용 <Link>가 아니라 클릭=선택 토글.
+// 카드 전체가 클릭 타겟이라 체크박스는 시각 표시용, 스타일은 선택 시 파란 링으로.
+function DeletableTripRow({
+  trip,
+  selected,
+  onToggle,
+}: {
+  trip: ApiTrip;
+  selected: boolean;
+  onToggle: (id: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(trip.id)}
+      aria-pressed={selected}
+      className={`w-full text-left rounded-2xl border p-4 transition-shadow ${
+        selected
+          ? "border-blue-500 ring-2 ring-blue-200 bg-blue-50"
+          : "border-gray-100 bg-white"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden
+          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+            selected ? "bg-blue-500 border-blue-500" : "border-gray-300 bg-white"
+          }`}
+        >
+          {selected && (
+            <svg className="h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12l5 5 9-11" />
+            </svg>
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-bold text-sm">{trip.name}</p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            {trip.region} · {trip.nights}박 {trip.nights + 1}일 · {formatDate(trip.startDate)} 시작
+          </p>
+        </div>
+      </div>
+    </button>
   );
 }
 
@@ -611,6 +658,65 @@ export default function HomePage() {
     return () => observer.disconnect();
   }, [hasNext, loadingMore, page, keyWord, searchDate]);
 
+  // 삭제 모달 UI 상태. Set으로 관리해 다중 선택 토글이 O(1).
+  const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const [selectedDeleteIds, setSelectedDeleteIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // "방장 + 여행 시작 전날까지 남음"만 삭제 가능. 백엔드 DELETE_ALLOWED_DAYS_BEFORE_START=1과 일치.
+  // 홈 목록 API가 이미 startDate/ownerId를 다 주므로 별도 API 없이 프론트에서 필터.
+  const isDeletableTrip = (t: ApiTrip): boolean => {
+    if (Number(t.ownerId) !== Number(currentUser.id)) return false;
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const tripStart = new Date(t.startDate); tripStart.setHours(0, 0, 0, 0);
+    const daysUntilStart = Math.round((tripStart.getTime() - todayStart.getTime()) / 86400000);
+    return daysUntilStart >= 1;
+  };
+
+  const deletableTrips = trips.filter(isDeletableTrip);
+
+  const openDeleteSheet = () => {
+    setSelectedDeleteIds(new Set());
+    setShowDeleteSheet(true);
+  };
+
+  const toggleDeleteSelection = (tripId: number) => {
+    setSelectedDeleteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(tripId)) next.delete(tripId); else next.add(tripId);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedDeleteIds.size === 0 || bulkDeleting) return;
+    const count = selectedDeleteIds.size;
+    if (!window.confirm(`선택한 ${count}개 모임방을 삭제할까요?\n삭제 후에는 되돌릴 수 없어요.`)) return;
+    setBulkDeleting(true);
+    try {
+      const res = await apiFetch(`${API_BASE}/api/v1/trips/bulk-delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedDeleteIds) }),
+      });
+      if (!res.ok) {
+        // 403/404는 apiFetch가 이미 처리, 여기 도달했다면 400/500. 사용자에게만 알리고 상태 복구.
+        setBulkDeleting(false);
+        return;
+      }
+      // 낙관적 제거: 성공 시 로컬 목록에서 즉시 제거해 재요청 없이 UX 즉시 반영.
+      const nextTrips = trips.filter(t => !selectedDeleteIds.has(t.id));
+      setTrips(nextTrips);
+      loadTrips(nextTrips);
+      setSelectedDeleteIds(new Set());
+      setShowDeleteSheet(false);
+    } catch (e) {
+      console.error("[모임방 다중 삭제 실패]", e);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const handleCreateTrip = async () => {
     if (!tripTitle.trim() || !tripRegion.trim() || !tripDate) return;
     try {
@@ -642,11 +748,25 @@ export default function HomePage() {
     <div className="home-page min-h-[100dvh]">
       <div className="app-safe-header shrink-0 flex items-center justify-between px-4 pb-2">
         <p className="text-3xl font-bold">내 여행</p>
-        <button onClick={() => setShowCreate(true)} aria-label="여행 모임 만들기" className="home-create-button w-10 h-10 flex items-center justify-center rounded-full">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.75} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* 삭제 가능한 방이 하나도 없으면 버튼 자체를 숨겨 UI 노이즈 최소화 */}
+          {deletableTrips.length > 0 && (
+            <button
+              onClick={openDeleteSheet}
+              aria-label="모임방 삭제"
+              className="home-create-button w-10 h-10 flex items-center justify-center rounded-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-7 0v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V7" />
+              </svg>
+            </button>
+          )}
+          <button onClick={() => setShowCreate(true)} aria-label="여행 모임 만들기" className="home-create-button w-10 h-10 flex items-center justify-center rounded-full">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.75} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="home-content px-4 pb-0">
@@ -789,6 +909,64 @@ export default function HomePage() {
               </button>
             </div>
             </>
+          )}
+        </AnimatedBottomSheet>
+      )}
+
+      {showDeleteSheet && (
+        <AnimatedBottomSheet
+          onClose={() => (bulkDeleting ? undefined : setShowDeleteSheet(false))}
+          className="max-h-[80vh] overflow-y-auto"
+        >
+          {() => (
+            <div className="flex flex-col gap-4 px-4 pb-4">
+              <div>
+                <p className="text-lg font-bold">모임방 삭제</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  방장으로 있고 여행 시작 전날까지 남은 모임방만 삭제할 수 있어요.
+                </p>
+              </div>
+
+              {deletableTrips.length === 0 ? (
+                <p className="rounded-2xl bg-gray-50 py-8 text-center text-sm text-gray-400">
+                  삭제 가능한 모임방이 없어요.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {deletableTrips.map(t => (
+                    <DeletableTripRow
+                      key={t.id}
+                      trip={t}
+                      selected={selectedDeleteIds.has(t.id)}
+                      onToggle={toggleDeleteSelection}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteSheet(false)}
+                  disabled={bulkDeleting}
+                  className="flex-1 rounded-2xl border border-gray-200 bg-white py-4 text-sm font-semibold text-gray-600 active:opacity-80 disabled:opacity-40"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={selectedDeleteIds.size === 0 || bulkDeleting}
+                  className="flex-1 rounded-2xl bg-red-500 py-4 text-sm font-bold text-white active:opacity-80 disabled:opacity-40"
+                >
+                  {bulkDeleting
+                    ? "삭제 중..."
+                    : selectedDeleteIds.size > 0
+                      ? `${selectedDeleteIds.size}개 삭제`
+                      : "삭제"}
+                </button>
+              </div>
+            </div>
           )}
         </AnimatedBottomSheet>
       )}

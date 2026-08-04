@@ -10,6 +10,7 @@ import csh.back.domain.member.exception.KakaoMemberPasswordChangeException
 import csh.back.domain.member.exception.LoginLockedException
 import csh.back.domain.trip.group.exception.NonMemberException
 import csh.back.domain.trip.group.exception.NotFoundException
+import csh.back.domain.trip.group.exception.TripDeletionNotAllowedException
 import csh.back.domain.trip.group.settings.exception.InvalidFreeTimeMinutesException
 import csh.back.domain.trip.group.settings.exception.TripGroupSettingsLockedException
 import csh.back.domain.trip.place.exception.DuplicateTripPlaceException
@@ -134,6 +135,12 @@ class GlobalExeptionHandler {
 
     @ExceptionHandler(TripAlreadyStartedException::class)
     fun handleTripAlreadyStarted(e: TripAlreadyStartedException): ResponseEntity<ErrorResponse> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse(400, e.message))
+    }
+
+    @ExceptionHandler(TripDeletionNotAllowedException::class)
+    fun handleTripDeletionNotAllowed(e: TripDeletionNotAllowedException): ResponseEntity<ErrorResponse> {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(ErrorResponse(400, e.message))
     }

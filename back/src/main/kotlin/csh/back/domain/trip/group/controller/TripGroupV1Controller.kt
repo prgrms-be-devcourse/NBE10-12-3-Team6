@@ -1,6 +1,7 @@
 package csh.back.domain.trip.group.controller
 
 import csh.back.domain.member.dto.response.AuthFilterDto
+import csh.back.domain.trip.group.dto.request.TripGroupBulkDeleteRequest
 import csh.back.domain.trip.group.dto.request.TripGroupModifyRequest
 import csh.back.domain.trip.group.dto.request.TripGroupRequest
 import csh.back.domain.trip.group.dto.response.TripGroupDetailResponse
@@ -19,6 +20,7 @@ import jakarta.validation.Valid
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -75,6 +77,28 @@ class TripGroupV1Controller(
         @RequestBody request: TripGroupModifyRequest,
     ): ResponseData<TripGroupResponse> {
         return ResponseData(200, tripGroupService.modifyGroupDetail(tripGroupId, owner.id, request))
+    }
+
+    @Operation(summary = "모임방 삭제 (방장만, 여행 시작 전날까지)")
+    @DeleteMapping("/{tripGroupId}")
+    fun deleteGroup(
+        @PathVariable tripGroupId: Long,
+        @AuthenticationPrincipal owner: AuthFilterDto,
+    ): ResponseData<Void?> {
+        tripGroupService.deleteGroup(tripGroupId, owner.id)
+        return ResponseData(200, null)
+    }
+
+    // POST를 쓰는 이유: DELETE + body 조합이 일부 프록시/CDN에서 body를 잘라 400을 유발.
+    // bulk-delete 라는 액션 이름을 URL에 노출해 의도를 명확히 한다.
+    @Operation(summary = "모임방 다중 삭제 (방장만, 여행 시작 전날까지)")
+    @PostMapping("/bulk-delete")
+    fun bulkDeleteGroups(
+        @Valid @RequestBody request: TripGroupBulkDeleteRequest,
+        @AuthenticationPrincipal owner: AuthFilterDto,
+    ): ResponseData<Map<String, Int>> {
+        val count = tripGroupService.deleteGroups(request.ids, owner.id)
+        return ResponseData(200, mapOf("deletedCount" to count))
     }
 
     @Operation(summary = "지난 메이트를 지정해서 여행방에 초대 (방장만)")
