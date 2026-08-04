@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CSSProperties,
   ReactNode,
   useCallback,
   useEffect,
@@ -21,6 +22,7 @@ type AnimatedBottomSheetProps = {
   className?: string;
   overlayClassName?: string;
   zIndexClassName?: string;
+  style?: CSSProperties;
 };
 
 export default function AnimatedBottomSheet({
@@ -29,6 +31,7 @@ export default function AnimatedBottomSheet({
   className = "",
   overlayClassName = "bg-black/40",
   zIndexClassName = "z-50",
+  style,
 }: AnimatedBottomSheetProps) {
   const [closing, setClosing] = useState(false);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
@@ -87,6 +90,7 @@ export default function AnimatedBottomSheet({
       />
       <div
         className={`sheet-panel relative w-full max-w-md max-h-[calc(100%_-_0.75rem)] rounded-t-3xl ${closing ? "is-closing" : ""} ${className}`}
+        style={style}
       >
         <div className="sheet-collapse-control sticky top-0 z-20 flex h-8 shrink-0 items-center justify-center">
           <button
