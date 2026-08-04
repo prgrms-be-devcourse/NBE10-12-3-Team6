@@ -111,7 +111,6 @@ jobs:
           key: ${{ secrets.KEY }}
           source: .env
           target: ${{ env.TARGET_DIR }}
-          strip_components: 1
 
       # [9] SSH로 서버에 접속하여 ghcr.io에서 이미지 pull 후 컨테이너 교체
       #     --restart unless-stopped: 서버 재부팅 시 컨테이너 자동 재시작
