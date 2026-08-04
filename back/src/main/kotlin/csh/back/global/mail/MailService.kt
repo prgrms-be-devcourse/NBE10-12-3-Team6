@@ -8,7 +8,6 @@ import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.mail.javamail.MimeMessageHelper
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
-import java.util.Base64
 
 @Service
 class MailService(
@@ -21,27 +20,17 @@ class MailService(
         private const val FROM_DISPLAY_NAME = "Triplog"
         // 이메일 헤더 아이콘 리소스 경로 (src/main/resources/static/mail/ 하위 → classpath: static/mail/...)
         private const val ICON_CLASSPATH = "static/mail/triplog-icon.png"
-    }
-
-    // 이메일 헤더 아이콘을 classpath에서 읽어 base64 data URI로 캐싱.
-    // 왜 URL이 아닌 data URI인가:
-    //   외부 URL(jsdelivr 등)은 리포지토리 push + 브랜치 머지가 되어야 수신자의 이메일 클라이언트가 fetch 가능.
-    //   data URI는 이미지 바이트를 HTML에 통째로 임베드해 외부 요청 자체가 없음 → 로컬 개발 중에도 정상 렌더.
-    // by lazy:
-    //   첫 이메일 발송 시점에 한 번만 파일 IO + base64 인코딩. 이후 발송에서는 캐시된 문자열 재사용.
-    // ClassPathResource:
-    //   JAR로 빌드/배포된 후에도 동일하게 리소스에 접근 가능 (파일시스템 경로 아님)
-    private val iconDataUri: String by lazy {
-        val bytes = ClassPathResource(ICON_CLASSPATH).inputStream.use { it.readBytes() }
-        "data:image/png;base64,${Base64.getEncoder().encodeToString(bytes)}"
+        // HTML의 <img src="cid:..."> 참조자. addInline() 등록 이름과 반드시 동일해야 함.
+        private const val ICON_CID = "triplog-icon"
     }
 
     // @Async: mailExecutor 풀에서 실행, 호출 스레드는 즉시 반환
     @Async("mailExecutor")
     fun sendHtmlEmail(to: String, subject: String, contentHtml: String) {
         val message: MimeMessage = mailSender.createMimeMessage()
-        // false: 멀티파트 아님, UTF-8: 한글 깨짐 방지
-        val helper = MimeMessageHelper(message, false, "UTF-8")
+        // multipart=true: HTML 본문 + 인라인 이미지(아이콘)를 함께 담기 위해 필수.
+        // false로 두면 addInline() 호출 시 IllegalStateException.
+        val helper = MimeMessageHelper(message, true, "UTF-8")
 
         // 수신자 메일함에 "Triplog <계정>" 로 표시
         helper.setFrom(fromAddress, FROM_DISPLAY_NAME)
@@ -49,6 +38,14 @@ class MailService(
         helper.setSubject(subject)
         // true: HTML 형식으로 전송
         helper.setText(wrapWithLayout(contentHtml), true)
+
+        // 아이콘을 cid 인라인 첨부로 붙임.
+        // 왜 data URI가 아닌 cid인가:
+        //   Gmail은 보안(피싱/XSS 방지) 정책상 <img src="data:..."> 를 프록시 리라이팅 과정에서 제거함
+        //   → 수신자에게 아이콘이 아예 안 보임(Naver·다음은 관대해서 렌더됨).
+        //   cid 인라인은 이미지 바이트를 메일 자체에 첨부하고 <img src="cid:xxx">로 참조하는 표준 방식이라
+        //   Gmail/Outlook/Naver 등 주요 클라이언트 모두에서 렌더링됨. 외부 CDN 요청도 없음.
+        helper.addInline(ICON_CID, ClassPathResource(ICON_CLASSPATH))
 
         try {
             mailSender.send(message)
@@ -71,12 +68,12 @@ class MailService(
 
                   <!-- 헤더 -->
                   <!-- 아이콘: 프론트 랜딩 페이지의 배낭 SVG를 흰 stroke으로 PNG 변환한 파일(static/mail/triplog-icon.png)을
-                       base64 data URI로 임베드. 외부 CDN에 의존하지 않아 로컬 개발 중에도 그대로 렌더됨.
+                       cid 인라인 첨부로 실어보냄 (sendHtmlEmail의 addInline 참고).
                        PNG 자체가 #4A90E2 배경(헤더 배경색과 동일)이라 헤더에 얹으면 흰 아이콘만 도드라져 보임. -->
                   <tr>
                     <td style="background-color:#4A90E2;padding:32px 40px;text-align:center;">
                       <h1 style="margin:0;color:#ffffff;font-size:30px;font-weight:700;letter-spacing:-0.5px;">
-                        <img src="$iconDataUri" alt="" style="width:46px;height:46px;vertical-align:middle;margin-right:10px;border:0;display:inline-block;">
+                        <img src="cid:$ICON_CID" alt="" style="width:46px;height:46px;vertical-align:middle;margin-right:10px;border:0;display:inline-block;">
                         Triplog
                       </h1>
                     </td>
