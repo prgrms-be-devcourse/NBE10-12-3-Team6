@@ -63,6 +63,7 @@ jobs:
           echo "REDIS_PORT=6379" >> .env
           echo "FIREBASE_ENABLED=true" >> .env
           echo "GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-key.json" >> .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
 
       # [3-1] Firebase Admin SDK 자격증명 JSON을 파일로 저장
       #      - GitHub Secret에는 서비스 계정 JSON 원문을 그대로 저장(FIREBASE_CREDENTIALS_JSON)
