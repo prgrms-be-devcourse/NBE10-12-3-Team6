@@ -3,13 +3,16 @@ package csh.back.global.config
 import csh.back.domain.member.repository.RefreshTokenRepository
 import csh.back.domain.member.service.MemberService
 import csh.back.global.filter.DeviceIdFilter
+import csh.back.global.jwt.CookieNames
 import csh.back.global.jwt.JwtAuthenticationFilter
 import csh.back.global.jwt.JwtUtil
 import csh.back.global.oauth2.KakaoOAuth2SuccessHandler
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
+import org.springframework.http.ResponseCookie
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
@@ -82,9 +85,20 @@ class SecurityConfig(
                 //   여전히 살아있으므로 프론트에서 JS로 지울 수 없음. 그 상태로 Next.js middleware는 쿠키 존재만 보고
                 //   인증됨으로 오판하여 /home으로 튕기고, /home이 다시 401을 받는 루프가 발생.
                 //   401 응답에 Set-Cookie Max-Age=0을 함께 실어 브라우저가 즉시 쿠키를 제거하도록 한다.
+                //
+                // 만료 쿠키 속성은 원본 발급 시(JwtAuthenticationFilter.setAccessTokenCookie / setRefreshTokenCookie)와
+                // 동일하게(HttpOnly, Path=/, SameSite=Lax) 맞춰야 브라우저가 확실히 같은 쿠키로 인식하고 삭제한다.
+                // ResponseCookie를 사용하면 원본과 대칭이 유지되고 문자열 하드코딩 오타도 방지된다.
                 ex.authenticationEntryPoint { _, response, _ ->
-                    response.addHeader("Set-Cookie", "accessToken=; Path=/; Max-Age=0; SameSite=Lax")
-                    response.addHeader("Set-Cookie", "refreshToken=; Path=/; Max-Age=0; SameSite=Lax")
+                    listOf(CookieNames.ACCESS_TOKEN, CookieNames.REFRESH_TOKEN).forEach { name ->
+                        val expired = ResponseCookie.from(name, "")
+                            .httpOnly(true)
+                            .path("/")
+                            .maxAge(0)
+                            .sameSite("Lax")
+                            .build()
+                        response.addHeader(HttpHeaders.SET_COOKIE, expired.toString())
+                    }
                     response.status = jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED
                     response.contentType = "application/json;charset=UTF-8"
                     response.writer.write("""{"statusCode":401,"message":"인증이 필요합니다."}""")
