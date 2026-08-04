@@ -39,6 +39,9 @@ class Post(
     var normalContentUrl: String? = null,
     var dataSaverContentUrl: String? = null,
 
+    @Column(name = "dominant_color", length = 7)
+    var dominantColor: String? = null,
+
     @Column(length = 1000)
     var content: String? = null
 ) : BaseEntity() {

@@ -32,6 +32,7 @@ class PostImageProcessorTest {
         assertEquals(640, dataSaver.height)
         assertTrue(result.normal.bytes.isWebp())
         assertTrue(result.dataSaver.bytes.isWebp())
+        assertEquals("#2878DC", result.dominantColor)
     }
 
     @Test
@@ -62,6 +63,23 @@ class PostImageProcessorTest {
         assertThrows(IllegalArgumentException::class.java) {
             processor.createVariants(file)
         }
+    }
+
+    @Test
+    @DisplayName("빈 이미지 파일을 거부한다")
+    fun rejectEmptyFile() {
+        val file = MockMultipartFile(
+            "image",
+            "empty.png",
+            "image/png",
+            byteArrayOf()
+        )
+
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            processor.createVariants(file)
+        }
+
+        assertEquals("업로드된 이미지가 없습니다.", exception.message)
     }
 
     private fun createPng(width: Int, height: Int): MockMultipartFile {

@@ -227,10 +227,12 @@ class PostService(
             image != null &&
                     !image.isEmpty
 
+        var dominantColor: String? = null
         val uploadedImages =
             if (hasImage) {
                 val originalImage = requireNotNull(image)
                 val variants = postImageProcessor.createVariants(originalImage)
+                dominantColor = variants.dominantColor
                 s3UploadService.uploadImages(originalImage, variants)
             } else {
                 null
@@ -251,6 +253,7 @@ class PostService(
                     contentUrl = uploadedImages?.originalUrl,
                     normalContentUrl = uploadedImages?.normalUrl,
                     dataSaverContentUrl = uploadedImages?.dataSaverUrl,
+                    dominantColor = dominantColor,
                     content = content?.trim()?.ifEmpty { null }
                 )
             )
@@ -374,6 +377,7 @@ class PostService(
                 dataSaverContentUrl = post.dataSaverContentUrl
                     ?: post.normalContentUrl
                     ?: post.contentUrl,
+                dominantColor = post.dominantColor,
                 timelineId = timeline.id,
                 startTime = timeline.startTime,
                 endTime = timeline.endTime,
@@ -403,6 +407,7 @@ class PostService(
             dataSaverContentUrl = post.dataSaverContentUrl
                 ?: post.normalContentUrl
                 ?: post.contentUrl,
+            dominantColor = post.dominantColor,
             timelineId = null,
             startTime = slotStart,
             endTime =

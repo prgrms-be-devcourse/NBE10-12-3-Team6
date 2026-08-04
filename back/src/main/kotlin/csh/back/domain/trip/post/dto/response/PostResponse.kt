@@ -19,6 +19,8 @@ data class PostResponse(
     val normalContentUrl: String? = contentUrl,
     @field:Schema(description = "데이터 절약 모드용 WebP 이미지 URL", nullable = true)
     val dataSaverContentUrl: String? = normalContentUrl ?: contentUrl,
+    @field:Schema(description = "사진의 대표 색상", example = "#2878DC", nullable = true)
+    val dominantColor: String? = null,
     @field:Schema(description = "게시글 내용", example = "부산 여행 시작!")
     val content: String?,
     @field:Schema(description = "게시글의 전체 좋아요 수", example = "3")
@@ -36,6 +38,7 @@ data class PostResponse(
             dataSaverContentUrl = post.dataSaverContentUrl
                 ?: post.normalContentUrl
                 ?: post.contentUrl,
+            dominantColor = post.dominantColor,
             content = post.content,
             likeCount = likeCount
         )

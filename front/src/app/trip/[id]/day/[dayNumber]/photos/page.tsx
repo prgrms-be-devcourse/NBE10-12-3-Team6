@@ -335,6 +335,7 @@ export default function PhotoUploadPage() {
                 setContent(nextContent);
                 if (nextContent.length <= POST_CONTENT_MAX_LENGTH) setContentError("");
               }}
+              maxLength={POST_CONTENT_MAX_LENGTH}
               rows={2}
               placeholder="사진과 함께 남길 내용을 입력해 주세요."
               aria-label="포스트 내용"
