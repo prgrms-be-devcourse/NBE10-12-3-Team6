@@ -45,9 +45,19 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       # [3] GitHub Secrets에 등록된 값으로 .env 파일 생성
+      #     - ./front/.env로 저장하는 이유:
+      #       NEXT_PUBLIC_* 값은 `next build` 시점에 클라이언트 번들로 인라인되므로
+      #       빌드 컨텍스트(./front) 안에 .env가 있어야 함. 런타임 --env-file만으론 브라우저에 안 잡힘.
+      #     - .dockerignore가 없어서 COPY . . 로 자연스럽게 이미지에 포함됨
       - name: 🍏 Create .env file from Secrets
         run: |
-          echo "KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}" > .env
+          echo "KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}" > ./front/.env
+          echo "NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}" >> ./front/.env
+          echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}" >> ./front/.env
+          echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}" >> ./front/.env
+          echo "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}" >> ./front/.env
+          echo "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}" >> ./front/.env
+          echo "NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}" >> ./front/.env
 
       # [4] ghcr.io 로그인 (GITHUB_TOKEN은 Actions에서 자동 발급, 별도 등록 불필요)
       - name: 🍏 Login to GitHub Container Registry
@@ -77,15 +87,17 @@ jobs:
           push: true
           tags: ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
 
-      # [8] .env 파일을 서버로 전송
+      # [8] .env 파일을 서버로 전송 (런타임 --env-file용, 서버 컴포넌트/API 라우트가 참조)
+      #     NEXT_PUBLIC_* 값은 이미 빌드 타임에 번들에 박혀 있어서 런타임 주입은 부수적임
       - name: 🍏 Copy .env to Oracle Cloud
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.HOST }}
           username: ubuntu
           key: ${{ secrets.KEY }}
-          source: .env
+          source: ./front/.env
           target: ${{ env.TARGET_DIR }}
+          strip_components: 1
 
       # [9] SSH로 서버에 접속하여 ghcr.io에서 이미지 pull 후 컨테이너 교체
       #     --restart unless-stopped: 서버 재부팅 시 컨테이너 자동 재시작
@@ -120,4 +132,5 @@ jobs:
 
       # [10] Actions Runner에 남아있는 임시 파일 삭제
       - name: 🍏 Clean up local temp files
-        run: rm -f .env
+        if: always()
+        run: rm -f ./front/.env

@@ -52,7 +52,7 @@ logging:
     org.springframework.transaction.interceptor: TRACE
     org.springframework.security: debug
 jwt:
-  secret: "this-is-a-very-long-secret-key-for-jwt-signing-minimum-256-bits" # 256비트 이상이어야 HS256 서명 가능
+  secret: ${JWT_SECRET}
   access-expiration: 1800000   # 30분 (ms)
 
 file:
@@ -69,3 +69,4 @@ firebase: #다른 테스트를 위해 실행시 파이어베이스 값을 임시
   #슬랙에 업로드된 사용자용 키를 활성화하는거라 개별적으로 환경 변수를 등록해줘야함
   # ex) FIREBASE_ENABLED=true;GOOGLE_APPLICATION_CREDENTIALS=C:\{개별 설정 경로}\notification-firebase-adminsdk.json
   enabled: ${FIREBASE_ENABLED:false}
+  GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
