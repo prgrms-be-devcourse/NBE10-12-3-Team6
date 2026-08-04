@@ -149,11 +149,14 @@ class PostService(
     fun update(
         tripGroupId: Long,
         postId: Long,
+        memberId: Long,
         request: UpdatePostRequest
     ) {
+        requireValidContent(request.content)
         findAuthorizedPost(
             tripGroupId,
-            postId
+            postId,
+            memberId
         ).update(request.content)
     }
 
@@ -183,8 +186,10 @@ class PostService(
         tripGroupId: Long,
         memberId: Long,
         timelineId: Long?,
-        image: MultipartFile?
+        image: MultipartFile?,
+        content: String?
     ): PostResponse {
+        requireValidContent(content)
         tripMemberValidator.validMember(
             tripGroupId,
             memberId
@@ -246,7 +251,7 @@ class PostService(
                     contentUrl = uploadedImages?.originalUrl,
                     normalContentUrl = uploadedImages?.normalUrl,
                     dataSaverContentUrl = uploadedImages?.dataSaverUrl,
-                    content = null
+                    content = content?.trim()?.ifEmpty { null }
                 )
             )
         } catch (exception: RuntimeException) {
@@ -258,6 +263,12 @@ class PostService(
             throw exception
         }
         return PostResponse.from(savedPost)
+    }
+
+    private fun requireValidContent(content: String?) {
+        require(content == null || content.length <= 20) {
+            "20자 까지 입력이 가능합니다."
+        }
     }
 
     fun getCurrentSlot(
@@ -524,10 +535,10 @@ class PostService(
         return principal.id
     }
 
-    private fun validateAuthor(post: Post) {
+    private fun validateAuthor(post: Post, memberId: Long) {
         if (
             post.author.member.id !=
-            currentMemberId()
+            memberId
         ) {
             throw IllegalArgumentException(
                 "작성자만 수정 및 삭제할 수 있습니다."
@@ -550,7 +561,11 @@ class PostService(
         }
     }
 
-    private fun findAuthorizedPost(tripGroupId: Long, postId: Long): Post {
+    private fun findAuthorizedPost(
+        tripGroupId: Long,
+        postId: Long,
+        memberId: Long = currentMemberId()
+    ): Post {
         val post =
             postRepository.findById(postId)
                 .orElseThrow {
@@ -561,7 +576,7 @@ class PostService(
 
         validateTripGroup(post, tripGroupId)
 
-        validateAuthor(post)
+        validateAuthor(post, memberId)
         return post
     }
 

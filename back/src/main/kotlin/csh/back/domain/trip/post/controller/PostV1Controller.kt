@@ -42,7 +42,13 @@ class PostV1Controller(
         @RequestPart request: CreatePostRequest,
         @RequestPart(value = "image", required = false) image: MultipartFile?,
         @AuthenticationPrincipal member: AuthFilterDto
-    ): PostResponse = postService.create(tripGroupId, member.id, request.timelineId, image)
+    ): PostResponse = postService.create(
+        tripGroupId,
+        member.id,
+        request.timelineId,
+        image,
+        request.content
+    )
 
     @GetMapping("/{postId}")
     @Operation(summary = "게시글 조회", description = "게시글 단건 조회")
@@ -71,8 +77,9 @@ class PostV1Controller(
     fun update(
         @PathVariable tripGroupId: Long,
         @PathVariable postId: Long,
-        @RequestBody request: UpdatePostRequest
-    ) = postService.update(tripGroupId, postId, request)
+        @RequestBody request: UpdatePostRequest,
+        @AuthenticationPrincipal member: AuthFilterDto
+    ) = postService.update(tripGroupId, postId, member.id, request)
 
     @DeleteMapping("/{postId}")
     @Operation(summary = "게시글 삭제", description = "게시글을 삭제합니다.")
