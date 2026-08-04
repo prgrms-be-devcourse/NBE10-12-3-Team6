@@ -65,7 +65,7 @@ class TripGroupV1ControllerTest {
             .andDo(print())
 
         resultActions
-            .andExpect(status().isForbidden)
+            .andExpect(status().isUnauthorized)
     }
 
     @Test

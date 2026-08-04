@@ -310,10 +310,10 @@ class MemberControllerTest {
     }
 
     @Test
-    @DisplayName("현재 로그인 회원 조회 - 인증 쿠키가 없으면 403")
+    @DisplayName("현재 로그인 회원 조회 - 인증 쿠키가 없으면 401")
     fun t13() {
         mvc.perform(get("$BASE_URL/me"))
-            .andExpect(status().isForbidden())
+            .andExpect(status().isUnauthorized())
     }
 
     @Test

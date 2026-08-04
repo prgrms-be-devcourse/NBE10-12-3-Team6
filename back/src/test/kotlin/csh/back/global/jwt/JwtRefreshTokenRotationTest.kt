@@ -78,11 +78,11 @@ class JwtRefreshTokenRotationTest {
         val oldRefreshToken = login()
         triggerRotation(oldRefreshToken)
 
-        // 구 토큰은 DB에서 삭제됐으므로 필터가 인증을 설정하지 못함 → 403
+        // 구 토큰은 DB에서 삭제됐으므로 필터가 인증을 설정하지 못함 → 401 (미인증)
         mvc.perform(
             get(PROTECTED_URL)
                 .cookie(Cookie(CookieNames.REFRESH_TOKEN, oldRefreshToken))
-        ).andExpect(status().isForbidden())
+        ).andExpect(status().isUnauthorized())
     }
 
     @Test

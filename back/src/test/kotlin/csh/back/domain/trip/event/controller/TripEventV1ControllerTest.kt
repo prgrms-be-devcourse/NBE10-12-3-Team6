@@ -80,7 +80,7 @@ class TripEventV1ControllerTest {
             get(BASE_URL, TRIP_GROUP_ID)
                 .accept(MediaType.TEXT_EVENT_STREAM),
         )
-            .andExpect(status().isForbidden)
+            .andExpect(status().isUnauthorized)
 
         Mockito.verifyNoInteractions(tripEventService)
     }
