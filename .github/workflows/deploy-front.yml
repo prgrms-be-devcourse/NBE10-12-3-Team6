@@ -147,4 +147,4 @@ jobs:
       # [10] Actions Runner에 남아있는 임시 파일 삭제
       - name: 🍏 Clean up local temp files
         if: always()
-        run: rm -f ./front/.env
+        run: rm -f .env
