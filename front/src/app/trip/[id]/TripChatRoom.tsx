@@ -391,7 +391,11 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
           type="submit"
           disabled={!input.trim()}
           aria-label="메시지 전송"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500 text-white disabled:bg-gray-200"
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+            input.trim()
+              ? "bg-blue-500 text-white"
+              : "cursor-not-allowed bg-gray-200 text-gray-400"
+          }`}
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M13 6l6 6-6 6" />
