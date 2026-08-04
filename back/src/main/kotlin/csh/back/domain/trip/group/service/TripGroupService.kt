@@ -44,9 +44,10 @@ class TripGroupService(
         startDate: String?,
         pageable: Pageable,
     ): SliceResponse<TripGroupResponse> =
+        // Repository가 Projections.constructor로 이미 TripGroupResponse를 만들어 돌려주므로
+        // 여기서 별도 map 변환이 필요 없다. (N+1 방지 겸 매핑 로직 중복 제거)
         SliceResponse.from(
-            tripGroupRepository.findAllByMemberIdWithSearch(ownerId, keyword, startDate, pageable)
-                .map { TripGroupResponse.from(it) },
+            tripGroupRepository.findAllByMemberIdWithSearch(ownerId, keyword, startDate, pageable),
         )
 
     fun writeGroup(request: TripGroupRequest, ownerId: Long): TripGroupResponse {

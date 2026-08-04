@@ -1,9 +1,10 @@
 package csh.back.domain.trip.group.repository
 
+import com.querydsl.core.types.Projections
 import com.querydsl.core.types.dsl.BooleanExpression
 import com.querydsl.jpa.impl.JPAQueryFactory
+import csh.back.domain.trip.group.dto.response.TripGroupResponse
 import csh.back.domain.trip.group.entity.QTripGroup.tripGroup
-import csh.back.domain.trip.group.entity.TripGroup
 import csh.back.domain.trip.member.entity.QTripMember
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Slice
@@ -19,14 +20,32 @@ class TripGroupRepositoryImpl(
         keyword: String?,
         startDate: String?,
         pageable: Pageable,
-    ): Slice<TripGroup> {
+    ): Slice<TripGroupResponse> {
         val me = QTripMember("me")
         val groupMember = QTripMember("groupMember")
 
+        // N+1 방지를 위한 projection:
+        //   TripGroup 엔티티를 통째로 로드하지 않고 필요한 컬럼만 SELECT → owner LAZY 프록시가 아예 안 생기고
+        //   Member 테이블 조회 없이 owner.id(FK 컬럼)만 그대로 뽑아온다.
+        //   Projections.constructor 인자 순서는 TripGroupResponse의 primary constructor와 정확히 일치해야 함.
+        //
         // Slice 판정 트릭: pageSize+1개를 페치해서 실제 pageSize보다 많이 오면 hasNext=true.
         // count 쿼리를 아끼기 위한 방식(Page 대비 count 1번 절약).
         val fetched = jpaQueryFactory
-            .selectFrom(tripGroup)
+            .select(
+                Projections.constructor(
+                    TripGroupResponse::class.java,
+                    tripGroup.id,
+                    tripGroup.name,
+                    tripGroup.owner.id,
+                    tripGroup.region,
+                    tripGroup.joinCode,
+                    tripGroup.nights,
+                    tripGroup.startDate,
+                    tripGroup.endDate,
+                ),
+            )
+            .from(tripGroup)
             .join(me).on(me.tripGroup.eq(tripGroup))
             .leftJoin(groupMember).on(groupMember.tripGroup.eq(tripGroup))
             .where(
