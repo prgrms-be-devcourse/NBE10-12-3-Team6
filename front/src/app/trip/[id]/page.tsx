@@ -600,27 +600,29 @@ function TripCandidatePoolCard({ trip, onUpdate, tripStatus }: { trip: Trip; onU
       )}
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteTargetId(null)}>
-          <div className="bg-white rounded-2xl shadow-xl p-6 mx-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
-            <p className="font-bold text-base">후보 장소 삭제</p>
-            <p className="text-sm text-gray-600">&apos;{deleteTarget.placeName}&apos;을(를) 삭제하시겠습니까?</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setDeleteTargetId(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-600"
-              >
-                취소
-              </button>
-              <button
-                onClick={confirmDeleteCandidate}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
-                style={{ background: "#fee2e2", color: "#dc2626" }}
-              >
-                삭제
-              </button>
+        <FixedBottomPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteTargetId(null)}>
+            <div className="bg-white rounded-2xl shadow-xl p-6 mx-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+              <p className="font-bold text-base">후보 장소 삭제</p>
+              <p className="text-sm text-gray-600">&apos;{deleteTarget.placeName}&apos;을(를) 삭제하시겠습니까?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDeleteTargetId(null)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-600"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={confirmDeleteCandidate}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                  style={{ background: "#fee2e2", color: "#dc2626" }}
+                >
+                  삭제
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </FixedBottomPortal>
       )}
 
       {showAdd && (
@@ -959,6 +961,7 @@ export default function TripDetailPage() {
   const [voteDefaultMenuClosing, setVoteDefaultMenuClosing] = useState(false);
   const [isAnonymousVoteDefault, setIsAnonymousVoteDefault] = useState(true);
   const voteDefaultMenuCloseTimerRef = useRef<number | null>(null);
+  const voteDefaultMenuRef = useRef<HTMLDivElement>(null);
   const trip = trips.find(t => t.id === id);
 
   useEffect(() => {
@@ -968,6 +971,21 @@ export default function TripDetailPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!showVoteDefaultMenu) return;
+    const handleOutsidePointerDown = (event: Event) => {
+      if (!voteDefaultMenuRef.current?.contains(event.target as Node)) {
+        closeVoteDefaultMenu();
+      }
+    };
+    document.addEventListener("mousedown", handleOutsidePointerDown);
+    document.addEventListener("touchstart", handleOutsidePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsidePointerDown);
+      document.removeEventListener("touchstart", handleOutsidePointerDown);
+    };
+  }, [showVoteDefaultMenu]);
 
   const closeVoteDefaultMenu = () => {
     if (!showVoteDefaultMenu || voteDefaultMenuClosing) return;
@@ -982,6 +1000,7 @@ export default function TripDetailPage() {
   };
 
   const toggleVoteDefaultMenu = () => {
+    if (tripStatus !== "before") return;
     if (voteDefaultMenuClosing) return;
     if (showVoteDefaultMenu) {
       closeVoteDefaultMenu();
@@ -993,6 +1012,7 @@ export default function TripDetailPage() {
   };
 
   const toggleAnonymousVoteDefault = async () => {
+    if (tripStatus !== "before") return;
     const previous = isAnonymousVoteDefault;
     const next = !previous;
     setIsAnonymousVoteDefault(next);
@@ -1390,7 +1410,7 @@ export default function TripDetailPage() {
               pendingLabel="새로 참여한 여행 멤버 동기화"
               positionClass="trip-room-header-action-2"
             />
-            <TripChatRoomButton className="trip-room-header-control trip-room-header-action-1 absolute z-10" />
+            <TripChatRoomButton refreshKey={tab} className="trip-room-header-control trip-room-header-action-1 absolute z-10" />
             <button
               onClick={() => setShowInvite(true)}
               aria-label="초대 링크"
@@ -1410,7 +1430,7 @@ export default function TripDetailPage() {
               pendingLabel="변경된 후보 장소 동기화"
               positionClass="trip-room-header-action-1"
             />
-            <TripChatRoomButton className="trip-room-header-control trip-room-header-action-0 absolute z-10" />
+            <TripChatRoomButton refreshKey={tab} className="trip-room-header-control trip-room-header-action-0 absolute z-10" />
           </>
         ) : tab === "vote" ? (
           <>
@@ -1421,7 +1441,7 @@ export default function TripDetailPage() {
               pendingLabel="변경된 투표 목록 동기화"
               positionClass="trip-room-header-action-1"
             />
-            <TripChatRoomButton className="trip-room-header-control trip-room-header-action-0 absolute z-10" />
+            <TripChatRoomButton refreshKey={tab} className="trip-room-header-control trip-room-header-action-0 absolute z-10" />
           </>
         ) : tab === "timeline" && tripStatus === "during" ? (
           <Link
@@ -1582,22 +1602,21 @@ export default function TripDetailPage() {
               <div className="flex items-center justify-between gap-3">
                 <p className="font-semibold">일차별 투표</p>
                 {isHost && (
-                  <div className="relative shrink-0">
+                  <div ref={voteDefaultMenuRef} className="relative shrink-0">
                     <button
                       type="button"
                       onClick={toggleVoteDefaultMenu}
+                      disabled={tripStatus !== "before"}
                       aria-expanded={showVoteDefaultMenu && !voteDefaultMenuClosing}
                       aria-haspopup="true"
                       aria-label="방장 투표 설정 열기"
-                      title="방장 투표 설정"
-                      className={`host-badge ${showVoteDefaultMenu ? "is-open" : ""} flex h-10 w-10 items-center justify-center rounded-full border`}
+                      title={tripStatus === "before" ? "방장 투표 설정" : "여행 시작 전에만 변경할 수 있어요"}
+                      className={`host-badge ${showVoteDefaultMenu ? "is-open" : ""} flex h-10 w-10 items-center justify-center rounded-full border disabled:cursor-not-allowed disabled:opacity-50`}
                     >
                       <CrownSimple size={19} weight="bold" />
                     </button>
                     {showVoteDefaultMenu && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={closeVoteDefaultMenu} />
-                        <div className={`host-menu ${voteDefaultMenuClosing ? "is-closing" : ""} absolute right-0 top-12 z-50 w-52 rounded-2xl border p-2 shadow-xl`}>
+                      <div className={`host-menu ${voteDefaultMenuClosing ? "is-closing" : ""} absolute right-0 top-12 z-50 w-52 rounded-2xl border p-2 shadow-xl`}>
                           <div
                             className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5"
                             style={{
@@ -1631,7 +1650,6 @@ export default function TripDetailPage() {
                             </button>
                           </div>
                         </div>
-                      </>
                     )}
                   </div>
                 )}

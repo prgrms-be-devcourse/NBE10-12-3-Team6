@@ -331,6 +331,11 @@ textarea,
   background-color: var(--surface-soft) !important;
 }
 
+/* 채팅 상대방 말풍선은 패널 배경과 구분되어야 해서 surface-soft보다 밝은 전용 색을 쓴다 */
+:root[data-theme="dark"] .chat-bubble-other {
+  background-color: #383b46 !important;
+}
+
 :root[data-theme="dark"] .border-gray-100,
 :root[data-theme="dark"] .border-gray-200,
 :root[data-theme="dark"] .border-gray-300 {
