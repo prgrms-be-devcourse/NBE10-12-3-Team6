@@ -12,6 +12,7 @@ import org.mockito.ArgumentMatchers.anyString
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.doThrow
+import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
@@ -101,6 +102,41 @@ class S3UploadServiceTest {
         assertThrows(IllegalStateException::class.java) {
             service.deleteImages(imageUrl)
         }
+    }
+
+    @Test
+    @DisplayName("데이터 절약 이미지 업로드 실패 시 먼저 업로드한 객체를 정리한다")
+    fun cleanupUploadedImagesWhenDataSaverUploadFails() {
+        `when`(amazonS3.getUrl(eq(BUCKET), anyString())).thenAnswer { invocation ->
+            URI("https://storage.example.com/$BUCKET/${invocation.arguments[1]}").toURL()
+        }
+        doAnswer { invocation ->
+            val request = invocation.getArgument<PutObjectRequest>(0)
+            if (request.key.startsWith("posts/data-saver/")) {
+                throw IllegalStateException("S3 upload failed")
+            }
+            null
+        }.`when`(amazonS3).putObject(org.mockito.ArgumentMatchers.any(PutObjectRequest::class.java))
+        val file = MockMultipartFile(
+            "image",
+            "photo.jpg",
+            "image/jpeg",
+            "original".toByteArray()
+        )
+        val variants = PostImageProcessor.PostImageVariants(
+            normal = encodedImage("normal"),
+            dataSaver = encodedImage("data-saver")
+        )
+
+        assertThrows(IllegalStateException::class.java) {
+            service.uploadImages(file, variants)
+        }
+
+        val requestCaptor = ArgumentCaptor.forClass(PutObjectRequest::class.java)
+        verify(amazonS3, times(3)).putObject(requestCaptor.capture())
+        val uploadedKeys = requestCaptor.allValues.map { it.key }
+        verify(amazonS3).deleteObject(BUCKET, uploadedKeys[0])
+        verify(amazonS3).deleteObject(BUCKET, uploadedKeys[1])
     }
 
     private fun encodedImage(value: String) = PostImageProcessor.EncodedImage(
