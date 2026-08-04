@@ -50,22 +50,33 @@ jobs:
         # 컨테이너 안에서 이 env는 "파일 경로"로만 인식됨(Google SDK 규약).
         # JSON 원문은 별도 스텝에서 파일로 저장하고, 여기선 그 파일의 경로만 세팅.
       - name: 🍏 Create .env file from Secrets
+        env:
+          FILE_UPLOAD_BASE_URL: ${{ secrets.FILE_UPLOAD_BASE_URL }}
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_NAMESPACE: ${{ secrets.S3_NAMESPACE }}
+          KAKAO_CLIENT_ID: ${{ secrets.KAKAO_CLIENT_ID }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           echo "SPRING_PROFILES_ACTIVE=prod" > .env
-          echo "FILE_UPLOAD_BASE_URL=${{ secrets.FILE_UPLOAD_BASE_URL }}" >> .env
-          echo "MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}" >> .env
-          echo "CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}" >> .env
-          echo "S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}" >> .env
-          echo "S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}" >> .env
-          echo "S3_NAMESPACE=${{ secrets.S3_NAMESPACE }}" >> .env
-          echo "KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }}" >> .env
-          echo "MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}" >> .env
-          echo "MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}" >> .env
+          echo "FILE_UPLOAD_BASE_URL=$(printf '%s' "$FILE_UPLOAD_BASE_URL" | tr -d '\r\n')" >> .env
+          echo "MYSQL_PASSWORD=$(printf '%s' "$MYSQL_PASSWORD" | tr -d '\r\n')" >> .env
+          echo "CORS_ALLOWED_ORIGINS=$(printf '%s' "$CORS_ALLOWED_ORIGINS" | tr -d '\r\n')" >> .env
+          echo "S3_ACCESS_KEY=$(printf '%s' "$S3_ACCESS_KEY" | tr -d '\r\n')" >> .env
+          echo "S3_SECRET_KEY=$(printf '%s' "$S3_SECRET_KEY" | tr -d '\r\n')" >> .env
+          echo "S3_NAMESPACE=$(printf '%s' "$S3_NAMESPACE" | tr -d '\r\n')" >> .env
+          echo "KAKAO_CLIENT_ID=$(printf '%s' "$KAKAO_CLIENT_ID" | tr -d '\r\n')" >> .env
+          echo "MAIL_USERNAME=$(printf '%s' "$MAIL_USERNAME" | tr -d '\r\n')" >> .env
+          echo "MAIL_PASSWORD=$(printf '%s' "$MAIL_PASSWORD" | tr -d '\r\n')" >> .env
           echo "REDIS_HOST=redis" >> .env
           echo "REDIS_PORT=6379" >> .env
           echo "FIREBASE_ENABLED=true" >> .env
           echo "GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-key.json" >> .env
-          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          echo "JWT_SECRET=$(printf '%s' "$JWT_SECRET" | tr -d '\r\n')" >> .env
 
       # [3-1] Firebase Admin SDK 자격증명 JSON을 파일로 저장
       #      - GH Secret `GOOGLE_APPLICATION_CREDENTIALS`에 서비스 계정 JSON 원문이 들어있음
