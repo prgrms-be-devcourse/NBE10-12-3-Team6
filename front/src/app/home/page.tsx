@@ -474,6 +474,12 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [resultAnimationKey, setResultAnimationKey] = useState(0);
   const [hasSearched, setHasSearched] = useState(false);
+  // 무한 스크롤 상태: 백엔드가 Slice 응답으로 hasNext/page를 내려주므로 그대로 보관.
+  // page는 "지금까지 로드된 마지막 페이지 번호". loadingMore는 sentinel 재진입 방지.
+  const [page, setPage] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const tripTitleRef = useRef<HTMLInputElement>(null);
   const [showCreate, setShowCreate] = useState(false);
   useEffect(() => { if (showCreate) setTimeout(() => tripTitleRef.current?.focus(), 50); }, [showCreate]);
@@ -485,32 +491,56 @@ export default function HomePage() {
   const [searchDate, setSearchDate] = useState("");
   const canSearchTrips = keyWord.trim().length > 0 || Boolean(searchDate);
   const todayValue = toDateValue(new Date());
+  // 백엔드 @PageableDefault(size = 10)와 일치. 프론트가 명시적으로 넘겨야 첫 응답의 size 필드가 예측 가능해짐.
+  const PAGE_SIZE = 10;
 
-  const getInit = async ({
+  // Slice 한 페이지 fetch. reset=true면 목록을 새로 시작(첫 페이지), false면 다음 페이지를 이어붙임.
+  // 검색/리셋은 reset=true, sentinel 진입은 reset=false로 호출.
+  const fetchPage = async ({
+    pageNumber,
+    reset,
+    keyword,
+    startDate,
     animateResults = false,
-    keyword = keyWord,
-    startDate = searchDate,
   }: {
+    pageNumber: number;
+    reset: boolean;
+    keyword: string;
+    startDate: string;
     animateResults?: boolean;
-    keyword?: string;
-    startDate?: string;
-  } = {}) => {
+  }) => {
     const p = new URLSearchParams();
     if (keyword.trim()) p.set("keyword", keyword.trim());
     if (startDate) p.set("startDate", startDate);
-    const query = p.toString() ? `?${p.toString()}` : "";
+    p.set("page", String(pageNumber));
+    p.set("size", String(PAGE_SIZE));
     try {
-      const res = await apiFetch(`${API_BASE}/api/v1/trips${query}`);
+      const res = await apiFetch(`${API_BASE}/api/v1/trips?${p.toString()}`);
       const body = await res.json();
-      const nextTrips = Array.isArray(body.data) ? body.data : [];
+      const slice = body.data ?? {};
+      const items: ApiTrip[] = Array.isArray(slice.items) ? slice.items : [];
+      // reset이면 통째로 교체, 아니면 누적. 응답 순서(startDate DESC)를 그대로 유지.
+      const nextTrips = reset ? items : [...trips, ...items];
       setTrips(nextTrips);
       loadTrips(nextTrips);
+      setPage(typeof slice.page === "number" ? slice.page : pageNumber);
+      setHasNext(Boolean(slice.hasNext));
       if (animateResults) setResultAnimationKey(key => key + 1);
     } catch {
     } finally {
-      setLoading(false);
+      if (reset) setLoading(false);
+      setLoadingMore(false);
     }
-  }
+  };
+
+  const loadFirstPage = (opts: { keyword?: string; startDate?: string; animateResults?: boolean } = {}) =>
+    fetchPage({
+      pageNumber: 0,
+      reset: true,
+      keyword: opts.keyword ?? keyWord,
+      startDate: opts.startDate ?? searchDate,
+      animateResults: opts.animateResults,
+    });
 
   const loadUnreadCounts = async () => {
     try {
@@ -525,13 +555,13 @@ export default function HomePage() {
     setKeyWord("");
     setSearchDate("");
     setHasSearched(false);
-    getInit({ animateResults: true, keyword: "", startDate: "" });
+    loadFirstPage({ animateResults: true, keyword: "", startDate: "" });
   };
 
   const runSearch = () => {
     if (!canSearchTrips) return;
     setHasSearched(true);
-    getInit({ animateResults: true });
+    loadFirstPage({ animateResults: true });
   };
 
   const handleKeywordChange = (value: string) => {
@@ -539,7 +569,7 @@ export default function HomePage() {
     if (!value.trim() && (keyWord.trim() || searchDate || hasSearched)) {
       setSearchDate("");
       setHasSearched(false);
-      getInit({ animateResults: true, keyword: "", startDate: "" });
+      loadFirstPage({ animateResults: true, keyword: "", startDate: "" });
     }
   };
 
@@ -547,7 +577,7 @@ export default function HomePage() {
     localStorage.removeItem("pendingInviteCode");
     clearOwnerId();
     const initialLoadFrame = requestAnimationFrame(() => {
-      void getInit();
+      void loadFirstPage();
       void loadUnreadCounts();
     });
 
@@ -555,6 +585,31 @@ export default function HomePage() {
       cancelAnimationFrame(initialLoadFrame);
     };
   }, []);
+
+  // 하단 sentinel이 뷰포트에 들어오면 다음 slice fetch.
+  // deps에 hasNext/loadingMore/page/keyWord/searchDate가 들어가야 최신 값을 캡처.
+  // rootMargin으로 실제 sentinel이 완전히 노출되기 전에 미리 요청해 스크롤 끊김 방지.
+  useEffect(() => {
+    if (!hasNext || loadingMore) return;
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setLoadingMore(true);
+          void fetchPage({
+            pageNumber: page + 1,
+            reset: false,
+            keyword: keyWord,
+            startDate: searchDate,
+          });
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasNext, loadingMore, page, keyWord, searchDate]);
 
   const handleCreateTrip = async () => {
     if (!tripTitle.trim() || !tripRegion.trim() || !tripDate) return;
@@ -673,6 +728,12 @@ export default function HomePage() {
                   unreadCount={unreadCounts[trip.id] ?? 0}
                 />
               ))}
+              {loadingMore && (
+                <p className="text-center text-xs text-gray-400 py-3">불러오는 중...</p>
+              )}
+              {/* sentinel: 하단이 뷰포트 근처에 들어오면 IntersectionObserver가 다음 페이지 요청.
+                  hasNext=false거나 loadingMore 중이면 useEffect가 옵저버를 붙이지 않음. */}
+              {hasNext && <div ref={sentinelRef} aria-hidden className="h-1" />}
             </div>
           )}
         </div>

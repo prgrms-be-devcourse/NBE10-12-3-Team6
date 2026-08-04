@@ -18,7 +18,9 @@ import csh.back.domain.trip.group.settings.repository.TripGroupSettingsRepositor
 import csh.back.domain.trip.member.dto.response.TripMemberResponse
 import csh.back.domain.trip.member.entity.TripMember
 import csh.back.domain.trip.member.repository.TripMemberRepository
+import csh.back.global.dto.SliceResponse
 import org.apache.commons.lang3.RandomStringUtils
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
@@ -35,9 +37,16 @@ class TripGroupService(
 ) {
 
     @Transactional(readOnly = true)
-    fun getGroups(ownerId: Long, keyword: String?, startDate: String?): List<TripGroupResponse> =
-        tripGroupRepository.findAllByMemberIdWithSearch(ownerId, keyword, startDate)
-            .map { TripGroupResponse.from(it) }
+    fun getGroups(
+        ownerId: Long,
+        keyword: String?,
+        startDate: String?,
+        pageable: Pageable,
+    ): SliceResponse<TripGroupResponse> =
+        SliceResponse.from(
+            tripGroupRepository.findAllByMemberIdWithSearch(ownerId, keyword, startDate, pageable)
+                .map { TripGroupResponse.from(it) },
+        )
 
     fun writeGroup(request: TripGroupRequest, ownerId: Long): TripGroupResponse {
         val nights = request.nightsOrThrow()

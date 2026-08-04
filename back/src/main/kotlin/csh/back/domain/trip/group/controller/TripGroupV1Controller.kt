@@ -11,10 +11,13 @@ import csh.back.domain.trip.member.dto.response.TripMemberResponse
 import csh.back.domain.trip.member.service.TripMemberService
 import csh.back.global.annotation.ApiV1
 import csh.back.global.dto.ResponseData
+import csh.back.global.dto.SliceResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 
+import org.springframework.data.domain.Pageable
+import org.springframework.data.web.PageableDefault
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -34,14 +37,16 @@ class TripGroupV1Controller(
     private val tripMemberService: TripMemberService,
 ) {
 
-    @Operation(summary = "모임방 목록 조회(로그인한 사용자 기준)")
+    @Operation(summary = "모임방 목록 조회(로그인한 사용자 기준, 무한 스크롤)")
     @GetMapping
     fun getAllGroups(
         @RequestParam(name = "keyword", required = false) keyword: String?,
         @RequestParam(name = "startDate", required = false) startDate: String?,
+        // size=10: 모바일 첫 화면에 한 번에 보이는 정도. 프론트 무한 스크롤이 hasNext를 보고 다음 요청.
+        @PageableDefault(size = 10) pageable: Pageable,
         @AuthenticationPrincipal owner: AuthFilterDto,
-    ): ResponseData<List<TripGroupResponse>> {
-        return ResponseData(200, tripGroupService.getGroups(owner.id, keyword, startDate))
+    ): ResponseData<SliceResponse<TripGroupResponse>> {
+        return ResponseData(200, tripGroupService.getGroups(owner.id, keyword, startDate, pageable))
     }
 
     @Operation(summary = "모임방 생성")
