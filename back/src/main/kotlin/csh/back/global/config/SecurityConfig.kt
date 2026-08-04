@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
@@ -78,9 +79,10 @@ class SecurityConfig(
                 }
             }
             // JwtAuthenticationFilter: Spring 기본 로그인 필터 앞에 위치
-            // DeviceIdFilter: JwtAuthenticationFilter보다 먼저 실행되어 device_id를 request attribute에 주입
+            // DeviceIdFilter: OAuth2AuthorizationRequestRedirectFilter보다 먼저 실행되어
+            // OAuth2 인증 흐름(리다이렉트 → 콜백 → SuccessHandler) 전체에서 device_id attribute를 사용 가능하게 함
             .addFilterBefore(JwtAuthenticationFilter(jwtUtil, refreshTokenRepository, memberService), UsernamePasswordAuthenticationFilter::class.java)
-            .addFilterBefore(DeviceIdFilter(), JwtAuthenticationFilter::class.java)
+            .addFilterBefore(DeviceIdFilter(), OAuth2AuthorizationRequestRedirectFilter::class.java)
 
         return http.build()
     }
