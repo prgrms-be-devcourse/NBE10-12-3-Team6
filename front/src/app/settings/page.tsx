@@ -222,6 +222,8 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        <ReminderNotificationSettings />
+
         <section className="mt-8">
           <div className="mb-3">
             <h2 className="font-bold">데이터 절약 설정</h2>
@@ -296,9 +298,6 @@ export default function SettingsPage() {
             (사진을 터치하여 확장되었을 때 사용되는 예상치는 포함되지 않는 수치)
           </p>
         </section>
-
-        <ReminderNotificationSettings />
-
       </main>
 
       <HomeBottomNavigation activeTab="settings" />

@@ -62,7 +62,7 @@ export default function ReminderNotificationSettings() {
         onClick={toggle}
         disabled={loading || blocked || unsupported}
         aria-pressed={enabled}
-        className={`theme-setting-option flex items-center gap-4 rounded-2xl border p-4 text-left transition ${
+        className={`theme-setting-option flex h-[78px] w-full items-center gap-4 rounded-2xl border px-4 py-3 text-left transition ${
           enabled
             ? "is-selected border-blue-100 bg-blue-50"
             : "border-gray-100 bg-white"
