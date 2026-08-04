@@ -32,6 +32,7 @@ class PostImageProcessorTest {
         assertEquals(640, dataSaver.height)
         assertTrue(result.normal.bytes.isWebp())
         assertTrue(result.dataSaver.bytes.isWebp())
+        assertEquals("#2878DC", result.dominantColor)
     }
 
     @Test

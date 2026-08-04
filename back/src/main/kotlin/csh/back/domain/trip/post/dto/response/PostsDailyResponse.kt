@@ -19,6 +19,8 @@ data class PostsDailyResponse(
         val normalContentUrl: String? = contentUrl,
         @field:Schema(description = "데이터 절약 모드용 WebP 이미지 URL", nullable = true)
         val dataSaverContentUrl: String? = normalContentUrl ?: contentUrl,
+        @field:Schema(description = "사진의 대표 색상", example = "#2878DC", nullable = true)
+        val dominantColor: String? = null,
         val timelineId: Long?,
         val startTime: LocalDateTime?,
         val endTime: LocalDateTime?,
@@ -41,6 +43,7 @@ data class PostsDailyResponse(
                     dataSaverContentUrl = post.dataSaverContentUrl
                         ?: post.normalContentUrl
                         ?: post.contentUrl,
+                    dominantColor = post.dominantColor,
                     timelineId = timeline?.id,
                     startTime = timeline?.startTime,
                     endTime = timeline?.endTime,

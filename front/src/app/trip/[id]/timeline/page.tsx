@@ -14,6 +14,7 @@ interface Post {
   contentUrl: string | null;
   normalContentUrl?: string | null;
   dataSaverContentUrl?: string | null;
+  dominantColor?: string | null;
   createdAt?: string;
   startTime?: string;
   endTime?: string;
@@ -43,6 +44,10 @@ interface PostCursorResponse {
 type Segment =
   | { type: "timeline"; timelineId: number; posts: Post[] }
   | { type: "free"; slotKey: string; posts: Post[] };
+
+const LIGHTBOX_EXIT_MS = 220;
+const POST_ACTION_MENU_EXIT_MS = 150;
+const DELETE_MODAL_EXIT_MS = 220;
 
 function resolveUrl(contentUrl?: string | null): string | null {
   if (!contentUrl) return null;
@@ -113,12 +118,18 @@ export default function TimelinePage() {
   const photoDataPreference = usePhotoDataPreference();
   const [groups, setGroups] = useState<DateGroup[]>([]);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [isLightboxClosing, setIsLightboxClosing] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasNext, setHasNext] = useState(false);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [postLoadError, setPostLoadError] = useState(false);
   const [activeDots, setActiveDots] = useState<Record<string, number>>({});
   const [editingPostId, setEditingPostId] = useState<number | null>(null);
+  const [openPostMenuId, setOpenPostMenuId] = useState<number | null>(null);
+  const [closingPostMenuId, setClosingPostMenuId] = useState<number | null>(null);
+  const [deleteTargetPostId, setDeleteTargetPostId] = useState<number | null>(null);
+  const [isDeleteModalPresented, setIsDeleteModalPresented] = useState(false);
+  const [isDeleteModalClosing, setIsDeleteModalClosing] = useState(false);
   const [contentDraft, setContentDraft] = useState("");
   const [contentEditError, setContentEditError] = useState("");
   const [postActionId, setPostActionId] = useState<number | null>(null);
@@ -129,6 +140,178 @@ export default function TimelinePage() {
   const listScrollRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
+  const lightboxCloseTimerRef = useRef<number | null>(null);
+  const postMenuRef = useRef<HTMLDivElement | null>(null);
+  const postMenuCloseTimerRef = useRef<number | null>(null);
+  const deleteModalCloseTimerRef = useRef<number | null>(null);
+
+  const openLightbox = useCallback((imageUrl: string) => {
+    if (lightboxCloseTimerRef.current !== null) {
+      window.clearTimeout(lightboxCloseTimerRef.current);
+      lightboxCloseTimerRef.current = null;
+    }
+    setIsLightboxClosing(false);
+    setLightbox(imageUrl);
+  }, []);
+
+  const closeLightbox = useCallback(() => {
+    if (!lightbox || isLightboxClosing) return;
+
+    setIsLightboxClosing(true);
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    lightboxCloseTimerRef.current = window.setTimeout(
+      () => {
+        setLightbox(null);
+        setIsLightboxClosing(false);
+        lightboxCloseTimerRef.current = null;
+      },
+      prefersReducedMotion ? 0 : LIGHTBOX_EXIT_MS,
+    );
+  }, [isLightboxClosing, lightbox]);
+
+  useEffect(() => {
+    if (!lightbox) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeLightbox();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeLightbox, lightbox]);
+
+  useEffect(() => () => {
+    if (lightboxCloseTimerRef.current !== null) {
+      window.clearTimeout(lightboxCloseTimerRef.current);
+    }
+  }, []);
+
+  const closePostActionMenu = useCallback(() => {
+    if (openPostMenuId === null || closingPostMenuId !== null) return;
+
+    setClosingPostMenuId(openPostMenuId);
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    postMenuCloseTimerRef.current = window.setTimeout(
+      () => {
+        setOpenPostMenuId(null);
+        setClosingPostMenuId(null);
+        postMenuCloseTimerRef.current = null;
+      },
+      prefersReducedMotion ? 0 : POST_ACTION_MENU_EXIT_MS,
+    );
+  }, [closingPostMenuId, openPostMenuId]);
+
+  const togglePostActionMenu = useCallback((postId: number) => {
+    if (openPostMenuId === postId) {
+      closePostActionMenu();
+      return;
+    }
+
+    if (postMenuCloseTimerRef.current !== null) {
+      window.clearTimeout(postMenuCloseTimerRef.current);
+      postMenuCloseTimerRef.current = null;
+    }
+    setClosingPostMenuId(null);
+    setOpenPostMenuId(postId);
+  }, [closePostActionMenu, openPostMenuId]);
+
+  const dismissPostActionMenu = useCallback(() => {
+    if (postMenuCloseTimerRef.current !== null) {
+      window.clearTimeout(postMenuCloseTimerRef.current);
+      postMenuCloseTimerRef.current = null;
+    }
+    setOpenPostMenuId(null);
+    setClosingPostMenuId(null);
+  }, []);
+
+  useEffect(() => {
+    if (openPostMenuId === null) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!postMenuRef.current?.contains(event.target as Node)) {
+        closePostActionMenu();
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closePostActionMenu();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closePostActionMenu, openPostMenuId]);
+
+  useEffect(() => () => {
+    if (postMenuCloseTimerRef.current !== null) {
+      window.clearTimeout(postMenuCloseTimerRef.current);
+    }
+  }, []);
+
+  const openDeleteModal = useCallback((postId: number) => {
+    if (deleteModalCloseTimerRef.current !== null) {
+      window.clearTimeout(deleteModalCloseTimerRef.current);
+      deleteModalCloseTimerRef.current = null;
+    }
+    setPostActionError("");
+    setIsDeleteModalClosing(false);
+    setDeleteTargetPostId(postId);
+  }, []);
+
+  useEffect(() => {
+    if (deleteTargetPostId === null) {
+      setIsDeleteModalPresented(false);
+      return;
+    }
+
+    setIsDeleteModalClosing(false);
+    setIsDeleteModalPresented(false);
+    const frame = window.requestAnimationFrame(() => {
+      setIsDeleteModalPresented(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [deleteTargetPostId]);
+
+  const closeDeleteModal = useCallback(() => {
+    if (deleteTargetPostId === null || isDeleteModalClosing) return;
+
+    setIsDeleteModalPresented(false);
+    setIsDeleteModalClosing(true);
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    deleteModalCloseTimerRef.current = window.setTimeout(
+      () => {
+        setDeleteTargetPostId(null);
+        setIsDeleteModalPresented(false);
+        setIsDeleteModalClosing(false);
+        setPostActionError("");
+        deleteModalCloseTimerRef.current = null;
+      },
+      prefersReducedMotion ? 0 : DELETE_MODAL_EXIT_MS,
+    );
+  }, [deleteTargetPostId, isDeleteModalClosing]);
+
+  useEffect(() => {
+    if (deleteTargetPostId === null) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && postActionId === null) closeDeleteModal();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeDeleteModal, deleteTargetPostId, postActionId]);
+
+  useEffect(() => () => {
+    if (deleteModalCloseTimerRef.current !== null) {
+      window.clearTimeout(deleteModalCloseTimerRef.current);
+    }
+  }, []);
 
   const goBack = () => {
     if (searchParams.get("from") === "timeline") {
@@ -231,7 +414,6 @@ export default function TimelinePage() {
 
   const deletePost = async (postId: number) => {
     if (!id || postActionId !== null) return;
-    if (!window.confirm("게시글과 서버에 저장된 사진을 모두 삭제할까요?")) return;
 
     setPostActionId(postId);
     setPostActionError("");
@@ -245,6 +427,7 @@ export default function TimelinePage() {
         .map(group => ({ ...group, posts: group.posts.filter(post => post.postId !== postId) }))
         .filter(group => group.posts.length > 0));
       if (editingPostId === postId) setEditingPostId(null);
+      closeDeleteModal();
     } catch (error) {
       setPostActionError(error instanceof Error ? error.message : "게시글을 삭제하지 못했습니다.");
     } finally {
@@ -342,10 +525,98 @@ export default function TimelinePage() {
   return (
     <>
       {lightbox && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onClick={() => setLightbox(null)}>
-          {/* 원격 S3 URL을 클릭할 때만 원본으로 요청하기 위해 기본 img를 사용한다. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={lightbox} alt="확대된 여행 사진" className="max-w-full max-h-full object-contain" />
+        <div
+          className={`photo-lightbox-backdrop fixed inset-0 z-[100] flex items-center justify-center ${
+            isLightboxClosing ? "is-closing" : ""
+          }`}
+          role="dialog"
+          aria-modal="true"
+          aria-label="확대된 여행 사진"
+          onClick={closeLightbox}
+        >
+          <div className="photo-lightbox-panel" onClick={event => event.stopPropagation()}>
+            <div className="photo-lightbox-header">
+              <button
+                type="button"
+                className="photo-lightbox-close-button ml-auto"
+                aria-label="확대 사진 닫기"
+                onClick={closeLightbox}
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="photo-lightbox-stage">
+              {/* 원격 S3 URL을 클릭할 때만 상세 이미지를 요청하기 위해 기본 img를 사용한다. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lightbox}
+                alt="확대된 여행 사진"
+                draggable={false}
+                className="photo-lightbox-image"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteTargetPostId !== null && (
+        <div
+          className={`delete-confirm-backdrop fixed inset-0 z-[110] flex items-center justify-center bg-black/55 px-5 ${
+            isDeleteModalPresented ? "is-open" : ""
+          } ${
+            isDeleteModalClosing ? "is-closing" : ""
+          }`}
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="delete-post-title"
+          aria-describedby="delete-post-description"
+          onClick={() => {
+            if (postActionId === null) closeDeleteModal();
+          }}
+        >
+          <div
+            className="delete-confirm-card w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-5 shadow-2xl"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-500">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14H6L5 6M10 11v5M14 11v5" />
+                </svg>
+              </div>
+              <h2 id="delete-post-title" className="text-lg font-bold text-gray-900">
+                사진을 삭제할까요?
+              </h2>
+              <p id="delete-post-description" className="mt-2 text-sm leading-6 text-gray-500">
+                사진과 작성한 내용이 함께 삭제되며
+                <br />
+                삭제 후에는 되돌릴 수 없습니다.
+              </p>
+              {postActionError && (
+                <p className="mt-3 text-sm font-semibold text-red-500">{postActionError}</p>
+              )}
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                autoFocus
+                onClick={closeDeleteModal}
+                disabled={postActionId !== null}
+                className="rounded-2xl bg-gray-100 py-3.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void deletePost(deleteTargetPostId)}
+                disabled={postActionId !== null}
+                className="rounded-2xl bg-red-500 py-3.5 text-sm font-semibold text-white transition-[background-color,transform] hover:bg-red-600 active:scale-[0.98] disabled:opacity-50"
+              >
+                {postActionId === deleteTargetPostId ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
       <div className="flex h-[100dvh] flex-col overflow-hidden">
@@ -446,95 +717,158 @@ export default function TimelinePage() {
                           const label = timeRange
                             ? `${timeRange} · ${fp?.confirmedPlaceName ?? "자유 시간"}`
                             : (fp?.confirmedPlaceName ?? "자유 시간");
-                          const labelColor = seg.type === "timeline" ? "text-blue-400" : "text-gray-400";
-                          const borderColor = seg.type === "timeline" ? "border-blue-100 bg-blue-50" : "border-gray-200 bg-gray-50";
+                          const labelColor = seg.type === "timeline" ? "text-blue-500" : "text-gray-500";
+                          const labelSurface = seg.type === "timeline"
+                            ? "border-blue-100 bg-blue-50"
+                            : "border-gray-200 bg-gray-100";
 
                           return seg.posts.map(post => {
                             const selectedUrls = selectPhotoUrls(post, photoDataPreference);
                             const previewSrc = resolveUrl(selectedUrls.previewUrl);
                             const detailSrc = resolveUrl(selectedUrls.detailUrl);
+                            const dominantColor = /^#[0-9a-fA-F]{6}$/.test(post.dominantColor ?? "")
+                              ? post.dominantColor
+                              : null;
                             return (
-                              <div key={post.postId} className={`rounded-2xl border p-3 flex flex-col gap-2 snap-start basis-full shrink-0 ${borderColor}`}>
-                                <div className="flex items-start justify-between gap-3">
-                                  <p className={`text-xs font-semibold ${labelColor}`}>{label}</p>
+                              <div key={post.postId} className="snap-start basis-full shrink-0 rounded-2xl border border-blue-100 bg-white shadow-sm">
+                                <div className="flex items-center justify-between gap-3 px-3 pb-2 pt-3">
+                                  <p className={`min-w-0 truncate rounded-full border px-2.5 py-1 text-xs font-semibold ${labelColor} ${labelSurface}`}>
+                                    {label}
+                                  </p>
                                   {Number(post.authorMemberId) === Number(currentUser.id) && (
-                                    <div className="flex shrink-0 gap-2 text-xs font-semibold">
+                                    <div
+                                      ref={openPostMenuId === post.postId ? postMenuRef : undefined}
+                                      className="relative shrink-0"
+                                    >
                                       <button
                                         type="button"
-                                        onClick={() => {
-                                          setEditingPostId(post.postId);
-                                          setContentDraft(post.content ?? "");
-                                          setContentEditError("");
-                                          setPostActionError("");
-                                        }}
-                                        className="text-blue-500"
+                                        onClick={() => togglePostActionMenu(post.postId)}
+                                        aria-label="게시글 메뉴"
+                                        aria-haspopup="menu"
+                                        aria-expanded={openPostMenuId === post.postId}
+                                        className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-50 text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
                                       >
-                                        내용 수정
+                                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                          <circle cx="5" cy="12" r="1.5" />
+                                          <circle cx="12" cy="12" r="1.5" />
+                                          <circle cx="19" cy="12" r="1.5" />
+                                        </svg>
                                       </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => void deletePost(post.postId)}
-                                        disabled={postActionId === post.postId}
-                                        className="text-red-500 disabled:opacity-50"
-                                      >
-                                        삭제
-                                      </button>
+
+                                      {openPostMenuId === post.postId && (
+                                        <div
+                                          role="menu"
+                                          aria-label="게시글 관리"
+                                          className={`post-action-menu absolute right-0 top-full z-30 mt-1.5 w-36 overflow-hidden rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl ${
+                                            closingPostMenuId === post.postId ? "is-closing" : ""
+                                          }`}
+                                        >
+                                          <button
+                                            type="button"
+                                            role="menuitem"
+                                            onClick={() => {
+                                              dismissPostActionMenu();
+                                              setEditingPostId(post.postId);
+                                              setContentDraft(post.content ?? "");
+                                              setContentEditError("");
+                                              setPostActionError("");
+                                            }}
+                                            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                                          >
+                                            <svg className="h-4 w-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m16.862 3.487 3.651 3.651M18.688 1.662a2.582 2.582 0 0 1 3.65 3.65L8.5 19.15 3 21l1.85-5.5L18.688 1.662Z" />
+                                            </svg>
+                                            내용 수정
+                                          </button>
+                                          <button
+                                            type="button"
+                                            role="menuitem"
+                                            onClick={() => {
+                                              dismissPostActionMenu();
+                                              openDeleteModal(post.postId);
+                                            }}
+                                            disabled={postActionId === post.postId}
+                                            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-red-500 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                          >
+                                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14H6L5 6M10 11v5M14 11v5" />
+                                            </svg>
+                                            삭제
+                                          </button>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
-                                <div className={`flex items-center justify-center overflow-hidden rounded-xl ${previewSrc ? "h-auto" : "min-h-[360px]"}`}>
-                                  {previewSrc ? (
-                                    // 원격 S3 URL에 브라우저 표준 lazy loading을 직접 적용한다.
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                      src={previewSrc}
-                                      alt="여행 사진"
-                                      loading="lazy"
-                                      decoding="async"
-                                      draggable={false}
-                                      className="h-auto max-h-[360px] w-full object-contain cursor-pointer"
-                                      onClick={() => detailSrc && setLightbox(detailSrc)}
+                                <div
+                                  className={`relative mx-3 flex items-center justify-center overflow-hidden rounded-xl bg-gray-50 ${previewSrc ? "h-auto" : "min-h-[320px]"}`}
+                                  style={dominantColor ? { backgroundColor: dominantColor } : undefined}
+                                >
+                                  {previewSrc && !dominantColor && (
+                                    <div
+                                      aria-hidden="true"
+                                      className="pointer-events-none absolute -inset-10 scale-110 bg-cover bg-center opacity-60 blur-3xl"
+                                      style={{ backgroundImage: `url(${JSON.stringify(previewSrc)})` }}
                                     />
+                                  )}
+                                  {previewSrc ? (
+                                    <button
+                                      type="button"
+                                      className="relative z-10 flex h-auto w-full cursor-zoom-in items-center justify-center"
+                                      aria-label="사진 확대"
+                                      disabled={!detailSrc}
+                                      onClick={() => detailSrc && openLightbox(detailSrc)}
+                                    >
+                                      {/* 원격 S3 URL에 브라우저 표준 lazy loading을 직접 적용한다. */}
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img
+                                        src={previewSrc}
+                                        alt="여행 사진"
+                                        loading="lazy"
+                                        decoding="async"
+                                        draggable={false}
+                                        className="pointer-events-none h-auto max-h-[320px] max-w-full object-contain"
+                                      />
+                                    </button>
                                   ) : (
                                     <p className="text-sm text-gray-400">사진을 불러올 수 없습니다.</p>
                                   )}
                                 </div>
-                                <div className="-mt-1 flex min-w-0 items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => void toggleLike(post)}
-                                  disabled={!likeStatuses[post.postId] || likeActionIds.has(post.postId)}
-                                  aria-label={likeStatuses[post.postId]?.liked ? "좋아요 취소" : "좋아요"}
-                                  aria-pressed={likeStatuses[post.postId]?.liked ?? false}
-                                  className={`flex w-fit shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                                    likeStatuses[post.postId]?.liked
-                                      ? "text-red-500"
-                                      : "text-gray-500"
-                                  }`}
-                                >
-                                  <svg
-                                    className="h-5 w-5"
-                                    viewBox="0 0 24 24"
-                                    fill={likeStatuses[post.postId]?.liked ? "currentColor" : "none"}
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    aria-hidden="true"
-                                  >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z" />
-                                  </svg>
-                                  <span>{likeStatuses[post.postId]?.likeCount ?? post.likeCount ?? 0}</span>
-                                </button>
-                                {editingPostId !== post.postId && post.content ? (
-                                  <>
-                                    <span className="h-5 w-px shrink-0 bg-gray-300" aria-hidden="true" />
-                                    <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-right text-sm leading-relaxed text-gray-700">
-                                      {post.content}
-                                    </p>
-                                  </>
-                                ) : null}
-                                </div>
-                                {editingPostId === post.postId ? (
-                                  <div className="flex flex-col gap-2">
+                                <div className="mt-3 rounded-b-2xl border-t border-blue-100 bg-blue-50 px-3 py-3">
+                                  <div className="flex min-h-8 min-w-0 items-center gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => void toggleLike(post)}
+                                      disabled={!likeStatuses[post.postId] || likeActionIds.has(post.postId)}
+                                      aria-label={likeStatuses[post.postId]?.liked ? "좋아요 취소" : "좋아요"}
+                                      aria-pressed={likeStatuses[post.postId]?.liked ?? false}
+                                      className={`flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-blue-100 bg-white px-2.5 py-1.5 text-sm font-semibold shadow-sm transition-[color,background-color,transform] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
+                                        likeStatuses[post.postId]?.liked
+                                          ? "text-red-500"
+                                          : "text-blue-500"
+                                      }`}
+                                    >
+                                      <svg
+                                        className="h-5 w-5"
+                                        viewBox="0 0 24 24"
+                                        fill={likeStatuses[post.postId]?.liked ? "currentColor" : "none"}
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        aria-hidden="true"
+                                      >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z" />
+                                      </svg>
+                                      <span>{likeStatuses[post.postId]?.likeCount ?? post.likeCount ?? 0}</span>
+                                    </button>
+                                    {editingPostId !== post.postId && post.content && (
+                                      <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-right text-sm leading-5 text-gray-700">
+                                        {post.content}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  {editingPostId === post.postId ? (
+                                    <div className="mt-2 flex flex-col gap-2">
                                       <textarea
                                         value={contentDraft}
                                         onChange={event => {
@@ -542,7 +876,8 @@ export default function TimelinePage() {
                                           setContentDraft(nextContent);
                                           if (nextContent.length <= POST_CONTENT_MAX_LENGTH) setContentEditError("");
                                         }}
-                                        rows={3}
+                                        maxLength={POST_CONTENT_MAX_LENGTH}
+                                        rows={2}
                                         placeholder="사진과 함께 남길 내용을 입력하세요."
                                         aria-invalid={!!contentEditError}
                                         aria-describedby={contentEditError ? `post-content-edit-error-${post.postId}` : undefined}
@@ -563,21 +898,22 @@ export default function TimelinePage() {
                                             setEditingPostId(null);
                                             setContentEditError("");
                                           }}
-                                        className="rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-500"
-                                      >
-                                        취소
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => void updatePostContent(post.postId)}
-                                        disabled={postActionId === post.postId}
-                                        className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                                      >
-                                        저장
-                                      </button>
+                                          className="rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-500"
+                                        >
+                                          취소
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => void updatePostContent(post.postId)}
+                                          disabled={postActionId === post.postId}
+                                          className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                                        >
+                                          저장
+                                        </button>
+                                      </div>
                                     </div>
-                                  </div>
-                                ) : null}
+                                  ) : null}
+                                </div>
                               </div>
                             );
                           });
