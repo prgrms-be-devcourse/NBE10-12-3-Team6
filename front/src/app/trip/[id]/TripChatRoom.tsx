@@ -318,18 +318,18 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
         className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-3"
         aria-label="채팅 메시지 목록"
       >
-        {loadingOlder && <div className="py-1 text-center text-xs text-gray-400">불러오는 중...</div>}
+        {loadingOlder && <div className="py-1 text-center text-xs text-gray-500">불러오는 중...</div>}
         {renderItems.map(item => {
           if (item.kind === "group") {
             const isExpanded = expandedGroups.has(item.key);
             return (
-              <div key={item.key} className="my-1 flex flex-col items-center gap-1 text-xs text-gray-400">
+              <div key={item.key} className="my-1 flex flex-col items-center gap-1 text-xs text-gray-500">
                 {isExpanded ? (
                   <>
                     {item.items.map(m => (
                       <div key={m.id}>{m.content}</div>
                     ))}
-                    <button type="button" onClick={() => toggleGroup(item.key)} className="text-gray-300 underline">
+                    <button type="button" onClick={() => toggleGroup(item.key)} className="text-gray-400 underline">
                       접기
                     </button>
                   </>
@@ -344,7 +344,7 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
 
           const m = item.message;
           return m.messageType === "SYSTEM" ? (
-            <div key={m.id} className="my-1 text-center text-xs text-gray-400">
+            <div key={m.id} className="my-1 text-center text-xs text-gray-500">
               {m.content}
             </div>
           ) : (
@@ -353,16 +353,18 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
               className={`flex flex-col ${m.senderId === currentUser.id ? "items-end" : "items-start"}`}
             >
               {m.senderId !== currentUser.id && (
-                <span className="mb-0.5 px-1 text-[11px] text-gray-400">{m.senderName ?? "알 수 없음"}</span>
+                <span className="mb-0.5 px-1 text-[11px] text-gray-500">{m.senderName ?? "알 수 없음"}</span>
               )}
               <div
                 className={`max-w-[75%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm ${
-                  m.senderId === currentUser.id ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-900"
+                  m.senderId === currentUser.id
+                    ? "bg-blue-500 text-white"
+                    : "chat-bubble-other bg-gray-100 text-gray-900"
                 }`}
               >
                 {m.content}
               </div>
-              <span className="mt-0.5 flex items-center gap-1 px-1 text-[10px] text-gray-300">
+              <span className="mt-0.5 flex items-center gap-1 px-1 text-[10px] text-gray-400">
                 {m.senderId === currentUser.id &&
                   countUnread(readStatuses, currentUser.id, totalMemberCount, m.id) > 0 && (
                     <span>안읽음 {countUnread(readStatuses, currentUser.id, totalMemberCount, m.id)}</span>
@@ -375,7 +377,7 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
       </div>
 
       {pendingContent && (
-        <div className="shrink-0 px-4 pb-1 text-[11px] text-gray-400">
+        <div className="shrink-0 px-4 pb-1 text-[11px] text-gray-500">
           {sendFailed ? "전송 실패 · 다시 시도해주세요" : "전송 중..."}
         </div>
       )}
