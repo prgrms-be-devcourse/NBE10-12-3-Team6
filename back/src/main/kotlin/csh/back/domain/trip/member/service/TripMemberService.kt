@@ -10,11 +10,11 @@ import csh.back.domain.trip.group.exception.NonMemberException
 import csh.back.domain.trip.group.exception.NotFoundException
 import csh.back.domain.trip.group.repository.TripGroupRepository
 import csh.back.domain.trip.member.dto.response.PastMateResponse
-import csh.back.domain.trip.member.dto.response.PastMatesSliceResponse
 import csh.back.domain.trip.member.dto.response.TripMemberResponse
 import csh.back.domain.trip.member.entity.TripMember
 import csh.back.domain.trip.member.repository.PastMateProjection
 import csh.back.domain.trip.member.repository.TripMemberRepository
+import csh.back.global.dto.SliceResponse
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -33,13 +33,13 @@ class TripMemberService(
     // Repository는 dto.response에 의존하지 않도록 PastMateProjection을 반환하고,
     // DTO 변환은 여기서 수행한다.
     @Transactional(readOnly = true)
-    fun findPastMates(memberId: Long, keyword: String?, pageable: Pageable): PastMatesSliceResponse {
+    fun findPastMates(memberId: Long, keyword: String?, pageable: Pageable): SliceResponse<PastMateResponse> {
         val projectionSlice = if (keyword.isNullOrBlank()) {
             tripMemberRepository.findPastMatesByMemberId(memberId, pageable)
         } else {
             tripMemberRepository.searchPastMatesByMemberId(memberId, keyword.trim(), pageable)
         }
-        return PastMatesSliceResponse.from(projectionSlice.map(::toPastMateResponse))
+        return SliceResponse.from(projectionSlice.map(::toPastMateResponse))
     }
 
     private fun toPastMateResponse(p: PastMateProjection) = PastMateResponse(

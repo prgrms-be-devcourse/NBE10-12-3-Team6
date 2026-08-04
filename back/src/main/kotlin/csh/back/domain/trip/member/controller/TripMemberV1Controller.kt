@@ -1,10 +1,11 @@
 package csh.back.domain.trip.member.controller
 
 import csh.back.domain.member.dto.response.AuthFilterDto
-import csh.back.domain.trip.member.dto.response.PastMatesSliceResponse
+import csh.back.domain.trip.member.dto.response.PastMateResponse
 import csh.back.domain.trip.member.service.TripMemberService
 import csh.back.global.annotation.ApiV1
 import csh.back.global.dto.ResponseData
+import csh.back.global.dto.SliceResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.data.domain.Pageable
@@ -41,7 +42,7 @@ class TripMemberV1Controller(
         @AuthenticationPrincipal owner: AuthFilterDto,
         @RequestParam(name = "search", required = false) keyword: String?,
         @PageableDefault(size = 15) pageable: Pageable,
-    ): ResponseData<PastMatesSliceResponse> {
+    ): ResponseData<SliceResponse<PastMateResponse>> {
         return ResponseData(200, tripMemberService.findPastMates(owner.id, keyword, pageable))
     }
 }

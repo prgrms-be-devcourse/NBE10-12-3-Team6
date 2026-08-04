@@ -117,9 +117,16 @@ export async function apiFetch(
       : {}),
   };
   const res = await fetch(input, { ...init, headers, credentials: "include" });
+  // 401: 인증 실패(토큰 만료/구 토큰/미인증) → 로그인 페이지.
+  // 이전에는 백엔드가 미인증도 403으로 내려줘서 이 분기가 죽어있었는데,
+  // SecurityConfig.authenticationEntryPoint를 401로 바꾸면서 실제로 동작하게 됨.
+  // 403/404: 로그인은 됐지만 접근 권한 없음(비회원/비소유자) 또는 리소스 없음 → 홈으로.
+  // "너 누군진 알겠는데 여긴 못 들어감"이므로 로그인 페이지가 아닌 홈으로 튕겨야 함.
   if (res.status === 401) {
     clearStoredAuthentication();
     window.location.replace("/");
+  } else if (res.status === 403 || res.status === 404) {
+    window.location.replace("/home");
   }
   return res;
 }

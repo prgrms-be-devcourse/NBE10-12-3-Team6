@@ -245,7 +245,7 @@ class TimelineV1ControllerTest {
                 .queryParam("dayNumber", "1"),
         )
             .andDo(print())
-            .andExpect(status().isForbidden)
+            .andExpect(status().isUnauthorized)
     }
 
     @Test

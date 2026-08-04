@@ -71,11 +71,28 @@ class SecurityConfig(
                 oauth2.successHandler(kakaoOAuth2SuccessHandler)
             }
             .exceptionHandling { ex ->
-                // oauth2Login() 기본 EntryPoint는 미인증 요청에 302(로그인 리다이렉트)를 반환
-                // API 요청에는 부적절하므로 403으로 직접 응답
-                // (GET /oauth2/authorization/kakao는 permitAll이라 이 EntryPoint를 거치지 않음)
+                // oauth2Login() 기본 EntryPoint는 미인증 요청에 302(로그인 리다이렉트)를 반환하므로 API에 부적절.
+                // 401(미인증)/403(접근권한 없음)을 명확히 구분해서 내려줘야 프론트가 각각 다른 리다이렉트를 걸 수 있음:
+                //   401 → 로그인 페이지, 403 → 홈. 이전에는 둘 다 403이라 프론트가 구분 불가였음.
+                // 응답 바디는 GlobalExceptionHandler의 ErrorResponse와 동일한 shape 유지.
+                // (GET /oauth2/authorization/kakao는 permitAll이라 이 핸들러를 거치지 않음)
+                //
+                // 무한 리다이렉트 루프 방지 (401에서 반드시 쿠키 만료):
+                //   서버 재시작으로 refresh_tokens가 리셋되거나 DB의 토큰이 무효화된 경우, 브라우저 httpOnly 쿠키는
+                //   여전히 살아있으므로 프론트에서 JS로 지울 수 없음. 그 상태로 Next.js middleware는 쿠키 존재만 보고
+                //   인증됨으로 오판하여 /home으로 튕기고, /home이 다시 401을 받는 루프가 발생.
+                //   401 응답에 Set-Cookie Max-Age=0을 함께 실어 브라우저가 즉시 쿠키를 제거하도록 한다.
                 ex.authenticationEntryPoint { _, response, _ ->
-                    response.sendError(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN)
+                    response.addHeader("Set-Cookie", "accessToken=; Path=/; Max-Age=0; SameSite=Lax")
+                    response.addHeader("Set-Cookie", "refreshToken=; Path=/; Max-Age=0; SameSite=Lax")
+                    response.status = jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED
+                    response.contentType = "application/json;charset=UTF-8"
+                    response.writer.write("""{"statusCode":401,"message":"인증이 필요합니다."}""")
+                }
+                ex.accessDeniedHandler { _, response, _ ->
+                    response.status = jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN
+                    response.contentType = "application/json;charset=UTF-8"
+                    response.writer.write("""{"statusCode":403,"message":"접근 권한이 없습니다."}""")
                 }
             }
             // JwtAuthenticationFilter: Spring 기본 로그인 필터 앞에 위치

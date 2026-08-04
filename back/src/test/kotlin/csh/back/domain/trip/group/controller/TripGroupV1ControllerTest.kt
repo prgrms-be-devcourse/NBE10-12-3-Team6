@@ -2,14 +2,20 @@ package csh.back.domain.trip.group.controller
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import csh.back.domain.member.dto.response.AuthFilterDto
+import csh.back.domain.member.repository.MemberRepository
+import csh.back.domain.trip.group.entity.TripGroup
+import csh.back.domain.trip.group.repository.TripGroupRepository
 import csh.back.domain.trip.group.service.TripGroupService
 import csh.back.domain.trip.group.support.WithMockLoginUser
+import csh.back.domain.trip.member.entity.TripMember
+import csh.back.domain.trip.member.repository.TripMemberRepository
 import org.hamcrest.Matchers
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.springframework.data.domain.PageRequest
 import org.springframework.http.MediaType
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.context.ActiveProfiles
@@ -18,6 +24,8 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers.print
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
+import java.util.UUID
 
 @ActiveProfiles("test")
 @SpringBootTest
@@ -32,7 +40,37 @@ class TripGroupV1ControllerTest {
     @Autowired
     lateinit var tripGroupService: TripGroupService
 
+    // 삭제 시나리오에서 미래 startDate 방을 즉석 생성하려고 리포지토리를 직접 주입.
+    // (seed 데이터의 방들은 startDate가 과거 고정이라 삭제 성공 케이스를 만들 수 없음)
+    @Autowired
+    lateinit var tripGroupRepository: TripGroupRepository
+
+    @Autowired
+    lateinit var tripMemberRepository: TripMemberRepository
+
+    @Autowired
+    lateinit var memberRepository: MemberRepository
+
     private val BASE_URL = "/api/v1"
+
+    // 삭제 테스트 전용: 지정한 startDate로 새 방을 만들고 방장(admin, id=1)을 첫 멤버로 등록.
+    // @Transactional 롤백으로 시드 오염 없음. joinCode는 unique 컬럼이라 UUID로 충돌 회피.
+    private fun createGroupForAdmin(startDate: LocalDate, nights: Int = 2): Long {
+        val admin = memberRepository.findById(1L).get()
+        val group = tripGroupRepository.save(
+            TripGroup(
+                owner = admin,
+                name = "삭제테스트여행",
+                region = "제주",
+                nights = nights,
+                joinCode = UUID.randomUUID().toString().replace("-", "").substring(0, 7),
+                startDate = startDate,
+                endDate = startDate.plusDays(nights.toLong()),
+            ),
+        )
+        tripMemberRepository.save(TripMember(member = admin, tripGroup = group, isAdmin = true))
+        return group.id!!
+    }
 
     @WithMockLoginUser
     fun t1() {
@@ -44,7 +82,7 @@ class TripGroupV1ControllerTest {
             .authentication!!
             .principal as AuthFilterDto
 
-        val tripGroups = tripGroupService.getGroups(member.id, "", "")
+        val tripGroups = tripGroupService.getGroups(member.id, "", "", PageRequest.of(0, 10)).items
 
         resultActions
             .andExpect(handler().handlerType(TripGroupV1Controller::class.java))
@@ -53,7 +91,7 @@ class TripGroupV1ControllerTest {
 
         for (i in tripGroups.indices) {
             val trip = tripGroups[i]
-            resultActions.andExpect(jsonPath("$.data[$i].ownerId").value(trip.ownerId as Any))
+            resultActions.andExpect(jsonPath("$.data.items[$i].ownerId").value(trip.ownerId as Any))
         }
     }
 
@@ -65,7 +103,7 @@ class TripGroupV1ControllerTest {
             .andDo(print())
 
         resultActions
-            .andExpect(status().isForbidden)
+            .andExpect(status().isUnauthorized)
     }
 
     @Test
@@ -393,6 +431,124 @@ class TripGroupV1ControllerTest {
             post("$BASE_URL/trips/3/members/invite")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{ "memberIds": [] }""")
+        )
+            .andDo(print())
+            .andExpect(status().isBadRequest)
+    }
+
+    // ========== 모임방 삭제 (단건/다중) ==========
+    // 정책: 방장만 삭제 가능, 여행 시작 1일 이상 남은 방만 삭제 가능(TripGroupService.DELETE_ALLOWED_DAYS_BEFORE_START=1).
+    // Soft delete: @SQLDelete + @SQLRestriction로 실제 DELETE 대신 deleted_at을 채우고 이후 조회에서 자동 제외.
+
+    @Test
+    @DisplayName("삭제 단건 - 방장이 시작 1일 이상 남은 방 삭제 → 200, 재조회 404")
+    @WithMockLoginUser
+    fun t17() {
+        val tripId = createGroupForAdmin(startDate = LocalDate.now().plusDays(7))
+
+        mvc.perform(delete("$BASE_URL/trips/$tripId"))
+            .andDo(print())
+            .andExpect(status().isOk)
+
+        // @SQLRestriction 덕분에 soft-delete된 방은 findById가 empty → NotFoundException → 404.
+        mvc.perform(get("$BASE_URL/trips/$tripId"))
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.message").value("존재하지 않는 모임입니다."))
+    }
+
+    @Test
+    @DisplayName("삭제 단건 - 방장이라도 시작 당일 방은 삭제 불가 → 400")
+    @WithMockLoginUser
+    fun t18() {
+        val tripId = createGroupForAdmin(startDate = LocalDate.now())
+
+        mvc.perform(delete("$BASE_URL/trips/$tripId"))
+            .andDo(print())
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.message").value("여행 시작 전날까지만 삭제할 수 있어요."))
+    }
+
+    @Test
+    @DisplayName("삭제 단건 - 비방장이 삭제 시도 → 403 (시점 검증보다 방장 검증이 먼저)")
+    @WithMockLoginUser(id = 2L, email = "member2@admin.com")
+    fun t19() {
+        // seed tg1은 admin(id=1) 소유. member2가 삭제 시도 → 방장 아니라 403.
+        // startDate가 과거지만 방장 체크가 먼저 실행되므로 400이 아닌 403이 나와야 함.
+        mvc.perform(delete("$BASE_URL/trips/1"))
+            .andDo(print())
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.message").value("해당 모임의 소유자가 아닙니다."))
+    }
+
+    @Test
+    @DisplayName("삭제 단건 - 존재하지 않는 방 → 404")
+    @WithMockLoginUser
+    fun t20() {
+        mvc.perform(delete("$BASE_URL/trips/9999"))
+            .andDo(print())
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.message").value("존재하지 않는 모임입니다."))
+    }
+
+    @Test
+    @DisplayName("삭제 단건 - 미인증 요청 → 401")
+    fun t21() {
+        mvc.perform(delete("$BASE_URL/trips/1"))
+            .andDo(print())
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    @DisplayName("다중 삭제 - 방장이 미래 방 2개 bulk-delete → 200, deletedCount=2")
+    @WithMockLoginUser
+    fun t22() {
+        val tripId1 = createGroupForAdmin(startDate = LocalDate.now().plusDays(10))
+        val tripId2 = createGroupForAdmin(startDate = LocalDate.now().plusDays(20))
+
+        mvc.perform(
+            post("$BASE_URL/trips/bulk-delete")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"ids":[$tripId1, $tripId2]}""")
+        )
+            .andDo(print())
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.deletedCount").value(2))
+
+        // 두 방 모두 조회 시 404
+        mvc.perform(get("$BASE_URL/trips/$tripId1")).andExpect(status().isNotFound)
+        mvc.perform(get("$BASE_URL/trips/$tripId2")).andExpect(status().isNotFound)
+    }
+
+    @Test
+    @DisplayName("다중 삭제 - 하나가 정책 위반이면 all-or-nothing → 400")
+    @WithMockLoginUser
+    fun t23() {
+        val futureId = createGroupForAdmin(startDate = LocalDate.now().plusDays(10))
+        // 시작 당일 방 → 다중 삭제 시 TripDeletionNotAllowedException → 트랜잭션 롤백
+        val todayId = createGroupForAdmin(startDate = LocalDate.now())
+
+        mvc.perform(
+            post("$BASE_URL/trips/bulk-delete")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"ids":[$futureId, $todayId]}""")
+        )
+            .andDo(print())
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.message").value("여행 시작 전날까지만 삭제할 수 있어요."))
+
+        // 롤백 자체 검증은 여기서 안 함: 이 테스트 클래스가 @Transactional이라 서비스 호출과
+        // 후속 mvc.perform이 동일 트랜잭션에서 돌아 실제 롤백은 테스트 종료 시점에나 반영됨.
+        // 롤백 동작은 Spring @Transactional의 계약이라 별도 검증 불필요.
+    }
+
+    @Test
+    @DisplayName("다중 삭제 - ids 빈 배열 → 400 (@NotEmpty 검증 실패)")
+    @WithMockLoginUser
+    fun t24() {
+        mvc.perform(
+            post("$BASE_URL/trips/bulk-delete")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"ids":[]}""")
         )
             .andDo(print())
             .andExpect(status().isBadRequest)
