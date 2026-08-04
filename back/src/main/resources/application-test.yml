@@ -28,3 +28,9 @@ spring:
 app:
   s3:
     bucket: trip-bucket
+
+# test 프로파일에서는 Firebase Admin SDK 로드 강제 OFF —
+# application.yml의 기본값(true)이 상속되면 credentials 없이 FirebaseApp 초기화하다 컨텍스트 로드 실패.
+# 실제 push 기능은 test 프로파일 대상이 아니므로 안전하게 비활성화.
+firebase:
+  enabled: false

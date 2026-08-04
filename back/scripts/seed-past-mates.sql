@@ -21,27 +21,29 @@
 -- ============================================================================
 
 -- ============ 1. 친구 회원 20명 ============
-INSERT INTO members (email, password, name, created_at, updated_at) VALUES
-('kim.sumin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '김수민', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('lee.jinho@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '이진호', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('park.seoyeon@test.com', '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '박서연', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('choi.youngsu@test.com', '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '최영수', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('jung.haneul@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '정하늘', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('kang.minjun@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '강민준', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('cho.yujin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '조유진', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('yoon.dohyun@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '윤도현', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('lim.chaewon@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '임채원', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('han.jihoon@test.com',   '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '한지훈', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('oh.sea@test.com',       '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '오세아', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('seo.jimin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '서지민', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('hong.junseo@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '홍준서', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('shin.daeun@test.com',   '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '신다은', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('bae.hyunwoo@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '배현우', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('cho.minji@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '조민지', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('yu.garam@test.com',     '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '유가람', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('moon.jiho@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '문지호', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('na.yerin@test.com',     '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '나예린', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('baek.seungwoo@test.com','$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '백승우', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+-- failed_login_count: 로그인 실패 카운터 컬럼 (NOT NULL) — seed는 항상 0으로 시작
+-- locked_until: nullable이라 생략 (기본 NULL = 락 안 걸린 상태)
+INSERT INTO members (email, password, name, failed_login_count, created_at, updated_at) VALUES
+('kim.sumin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '김수민', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('lee.jinho@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '이진호', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('park.seoyeon@test.com', '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '박서연', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('choi.youngsu@test.com', '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '최영수', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('jung.haneul@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '정하늘', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('kang.minjun@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '강민준', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('cho.yujin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '조유진', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('yoon.dohyun@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '윤도현', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('lim.chaewon@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '임채원', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('han.jihoon@test.com',   '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '한지훈', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('oh.sea@test.com',       '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '오세아', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('seo.jimin@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '서지민', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('hong.junseo@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '홍준서', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('shin.daeun@test.com',   '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '신다은', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('bae.hyunwoo@test.com',  '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '배현우', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('cho.minji@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '조민지', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('yu.garam@test.com',     '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '유가람', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('moon.jiho@test.com',    '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '문지호', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('na.yerin@test.com',     '$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '나예린', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('baek.seungwoo@test.com','$2a$10$DWK7CC1RmNMw177o0KWD0OIER1Sr5BSw0uZVcndxNa4eEPn3rD2bq', '백승우', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- ============ 2. 여행 11건 (모두 admin이 owner) ============
 -- 날짜 배치: 최근순 정렬 + 같은 날짜 tie 케이스 포함

@@ -56,6 +56,8 @@ class SecurityConfig(
                     "/api/v1/auth/login",
                     "/api/v1/auth/check_email",
                     "/api/v1/auth/verify_email",
+                    // 비밀번호 재설정 (비로그인 상태) — recovery code 검증 + 새 비번 저장 두 단계 모두 미인증 허용
+                    "/api/v1/auth/password-reset/**",
                     "/uploadedimages/**",
                     "/actuator/prometheus",
                     "/oauth2/authorization/**",
