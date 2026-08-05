@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "./store";
-import { API_BASE, apiFetch } from "./lib";
+import { API_BASE } from "./lib";
 import {
   clearStoredAuthentication,
+  getMe,
   hasStoredAuthentication,
   rememberCookieAuthentication,
 } from "./authStorage";
@@ -122,15 +123,14 @@ export default function LoginPage() {
       }
 
       try {
-        const res = await apiFetch(`${API_BASE}/api/v1/auth/me`);
-        if (!res.ok) {
+        const result = await getMe();
+        if (!result.ok || !result.data) {
           if (!cancelled) setRestoringSession(false);
           return;
         }
 
-        const body = await res.json().catch(() => ({}));
-        const memberId = Number(body.data?.id);
-        const memberName = typeof body.data?.name === "string" ? body.data.name : "";
+        const memberId = result.data.id;
+        const memberName = result.data.name;
 
         if (!Number.isFinite(memberId) || memberId <= 0) {
           clearStoredAuthentication();
@@ -255,19 +255,15 @@ export default function LoginPage() {
 
     const completeKakaoLogin = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/auth/me`, {
-          credentials: "include",
-        });
-        if (!res.ok) {
+        const result = await getMe();
+        if (!result.ok || !result.data) {
           throw new Error("카카오 로그인 정보를 확인하지 못했습니다.");
         }
-
-        const body = await res.json();
         if (cancelled) return;
 
         window.history.replaceState({}, "", window.location.pathname);
         rememberCookieAuthentication();
-        login(body.data?.name, body.data?.id);
+        login(result.data.name, result.data.id);
         setAuthTransition("forward");
         setMode("login");
         setLoginAnim(true);

@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { User, PlanTheme } from "./store";
-import { clearStoredAuthentication, rememberCookieAuthentication } from "./authStorage";
+import { AUTH_ME_PATH, clearStoredAuthentication, getMe, rememberCookieAuthentication } from "./authStorage";
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 
@@ -96,9 +96,9 @@ export function useAuthGuard() {
   useEffect(() => {
     let cancelled = false;
 
-    apiFetch(`${API_BASE}/api/v1/auth/me`).then((res) => {
+    getMe().then((result) => {
       if (cancelled) return;
-      if (res.ok) {
+      if (result.ok) {
         rememberCookieAuthentication();
       } else {
         clearStoredAuthentication();
@@ -118,6 +118,11 @@ export async function apiFetch(
   input: string,
   init: RequestInit = {},
 ): Promise<Response> {
+  // /auth/me 자기 자신은 getMe()의 공유 캐시를 직접 쓰는 호출자(useAuthGuard 등)를 위한 것이므로
+  // 여기서 또 기다릴 필요가 없다 — 순환 대기 방지
+  if (!input.includes(AUTH_ME_PATH)) {
+    await getMe();
+  }
   const accessToken =
     typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
   const refreshToken =

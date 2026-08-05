@@ -7,6 +7,7 @@ import csh.back.domain.trip.group.entity.TripGroup
 import csh.back.domain.trip.group.repository.TripGroupRepository
 import csh.back.domain.trip.member.entity.TripMember
 import csh.back.domain.trip.member.repository.TripMemberRepository
+import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatCode
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
@@ -108,21 +109,24 @@ class StompChannelInterceptorTest {
     }
 
     @Test
-    @DisplayName("짧은 시간 내 과도한 SEND는 rate limit 예외가 발생한다")
-    fun exceedingRateLimitThrows() {
+    @DisplayName("짧은 시간 내 과도한 SEND는 예외 없이 초과분 메시지만 조용히 드롭된다")
+    fun exceedingRateLimitDropsMessageWithoutDisconnecting() {
         tripMemberRepository.save(TripMember(member = member, tripGroup = tripGroup, isAdmin = false))
         val principal = AuthFilterDto(member.id!!, member.email)
 
-        assertThatThrownBy {
-            repeat(RATE_LIMIT_ATTEMPTS) {
-                val message = stompMessage(StompCommand.SEND, "/pub/trips/${tripGroup.id}/chat", principal)
-                interceptor.preSend(message, MOCK_CHANNEL)
-            }
-        }.isInstanceOf(RuntimeException::class.java)
+        val results = (1..RATE_LIMIT_ATTEMPTS).map {
+            val message = stompMessage(StompCommand.SEND, "/pub/trips/${tripGroup.id}/chat", principal)
+            interceptor.preSend(message, MOCK_CHANNEL)
+        }
+
+        // 세션을 끊지 않고 한도 이내 메시지는 통과, 초과분만 null로 드롭돼야 한다
+        assertThat(results.take(RATE_LIMIT_COUNT)).allMatch { it != null }
+        assertThat(results.drop(RATE_LIMIT_COUNT)).allMatch { it == null }
     }
 
     private companion object {
         val MOCK_CHANNEL = org.mockito.Mockito.mock(org.springframework.messaging.MessageChannel::class.java)
+        const val RATE_LIMIT_COUNT = 20
         const val RATE_LIMIT_ATTEMPTS = 25
     }
 }

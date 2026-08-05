@@ -36,6 +36,8 @@ const SEND_TIMEOUT_MS = 8000;
 const READ_DEBOUNCE_MS = 1000;
 const SYSTEM_GROUP_GAP_MS = 5000;
 const SYSTEM_GROUP_MIN_SIZE = 3;
+const RECONNECT_BASE_MS = 3000;
+const RECONNECT_JITTER_MS = 2000;
 
 type RenderItem =
   | { kind: "single"; message: ChatMessage }
@@ -116,6 +118,7 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
   const pendingRef = useRef<{ content: string } | null>(null);
   const failTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const markRead = (messageId: number) => {
     apiFetch(`${API_BASE}/api/v1/trips/${tripGroupId}/chat/read`, {
@@ -207,13 +210,30 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
 
   // STOMP 연결 (채팅 화면 진입 시 연결, 종료 시 해제)
   useEffect(() => {
+    let unmounted = false;
+
+    // reconnectDelay를 끄고 직접 스케줄링한다: 고정 지연이면 서버 재시작 시
+    // 모든 클라이언트가 동시에 재연결을 시도해 서버가 다시 뻗는 thundering herd가 발생한다.
+    const scheduleReconnect = () => {
+      if (unmounted || reconnectTimerRef.current) return;
+      const delay = RECONNECT_BASE_MS + Math.random() * RECONNECT_JITTER_MS;
+      reconnectTimerRef.current = setTimeout(() => {
+        reconnectTimerRef.current = null;
+        if (!unmounted) client.activate();
+      }, delay);
+    };
+
     const client = new Client({
       brokerURL: `${WS_BASE}/ws`,
-      reconnectDelay: 3000,
+      reconnectDelay: 0,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
     });
     clientRef.current = client;
+
+    client.onWebSocketClose = () => {
+      scheduleReconnect();
+    };
 
     client.onConnect = () => {
       client.subscribe(`/sub/trips/${tripGroupId}/chat`, (frame: IMessage) => {
@@ -238,6 +258,11 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
     const handleVisibility = () => {
       if (document.visibilityState !== "visible") return;
       if (!client.connected) {
+        // 사용자가 직접 탭으로 돌아온 명시적 액션이므로 지터 없이 즉시 재연결한다.
+        if (reconnectTimerRef.current) {
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = null;
+        }
         client.activate();
       } else if (lastReceivedIdRef.current != null) {
         recoverGap(lastReceivedIdRef.current);
@@ -246,7 +271,9 @@ export default function TripChatRoom({ tripGroupId }: { tripGroupId: number }) {
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
+      unmounted = true;
       document.removeEventListener("visibilitychange", handleVisibility);
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       client.deactivate();
       if (failTimerRef.current) clearTimeout(failTimerRef.current);
       if (readTimerRef.current) clearTimeout(readTimerRef.current);

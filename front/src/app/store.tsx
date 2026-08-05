@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { getMe, hasStoredAuthentication } from "./authStorage";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -146,21 +147,18 @@ export function TripLogProvider({ children }: { children: ReactNode }) {
   const [trips, setTrips] = useState<Trip[]>([]);
 
   useEffect(() => {
-    const apiBase = typeof window !== "undefined"
-      ? (process.env.NEXT_PUBLIC_API_BASE ?? `${window.location.protocol}//${window.location.hostname}:8080`)
-      : (process.env.NEXT_PUBLIC_API_BASE ?? "http://192.168.0.5:8080");
-    fetch(`${apiBase}/api/v1/auth/me`, { credentials: "include" })
-      .then(res => (res.ok ? res.json() : null))
-      .then(body => {
-        if (!body) return;
-        const id = Number(body.data?.id ?? 0);
-        const name = typeof body.data?.name === "string" ? body.data.name : "";
-        if (id > 0) {
-          setIsLoggedIn(true);
-          setCurrentUser(u => ({ ...u, id, name }));
-        }
-      })
-      .catch(() => {});
+    // 한 번도 로그인한 적 없는 방문자(저장된 인증 흔적 없음)는 호출할 이유가 없다 —
+    // 로그인 페이지(page.tsx)의 세션 복원 로직도 동일하게 이 플래그로 게이트되어 있다.
+    if (!hasStoredAuthentication()) return;
+
+    getMe().then(result => {
+      if (!result.data) return;
+      const { id, name } = result.data;
+      if (id > 0) {
+        setIsLoggedIn(true);
+        setCurrentUser(u => ({ ...u, id, name }));
+      }
+    });
   }, []);
 
   const login = useCallback((name?: string, id?: number) => {
