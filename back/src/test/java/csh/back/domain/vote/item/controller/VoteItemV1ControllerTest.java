@@ -22,6 +22,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -71,6 +73,12 @@ class VoteItemV1ControllerTest {
     @Autowired
     private TripChatMessageRepository tripChatMessageRepository;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+
     private Member member;
     private TripGroup tripGroup;
     private TripMember tripMember;
@@ -119,7 +127,10 @@ class VoteItemV1ControllerTest {
         timelineRepository.delete(timeline);
         tripMemberRepository.delete(tripMember);
         tripChatMessageRepository.deleteAllByTripGroupId(tripGroup.getId());
-        tripGroupRepository.delete(tripGroup);
+        // TripGroup은 @SQLDelete로 소프트 삭제(UPDATE)되므로 repository.delete()로는 row가 실제로 지워지지 않아
+        // join_code unique 인덱스를 계속 점유한다. JdbcTemplate으로 JPA 세션과 무관하게 물리 삭제한다.
+        transactionTemplate.executeWithoutResult(status ->
+                jdbcTemplate.update("DELETE FROM trip_groups WHERE id = ?", tripGroup.getId()));
     }
 
     private TripPlace createPlace(String kakaoPlaceId) {
