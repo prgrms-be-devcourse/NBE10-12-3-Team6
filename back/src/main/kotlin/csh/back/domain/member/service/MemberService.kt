@@ -17,6 +17,7 @@ import csh.back.global.jwt.JwtUtil
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
 import java.time.LocalDateTime
@@ -141,11 +142,19 @@ class MemberService(
                 )
             )
         } catch (e: DataIntegrityViolationException) {
-            refreshTokenRepository.findByMemberIdAndDeviceId(
+            findExistingRefreshTokenInNewTransaction(
                 oldRefreshToken.member.id!!,
                 oldRefreshToken.deviceId
-            ).orElseThrow { e }
+            ) ?: throw e
         }
+    }
+
+    // 오염된 영속성 컨텍스트(null id 엔티티)와 분리된 새 트랜잭션에서 조회
+    // — catch 블록에서 같은 트랜잭션으로 조회하면 Hibernate가 flush를 시도하다
+    //   null id 엔티티를 다시 INSERT하려 해서 "null identifier" 예외가 발생함
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun findExistingRefreshTokenInNewTransaction(memberId: Long, deviceId: String): RefreshToken? {
+        return refreshTokenRepository.findByMemberIdAndDeviceId(memberId, deviceId).orElse(null)
     }
 
     @Transactional
