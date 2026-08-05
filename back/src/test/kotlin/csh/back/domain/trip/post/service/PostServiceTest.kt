@@ -27,6 +27,8 @@ import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.domain.PageRequest
+import java.time.LocalDate
 import java.util.Optional
 
 @ExtendWith(MockitoExtension::class)
@@ -86,12 +88,59 @@ class PostServiceTest {
     @Test
     fun `페이지 크기가 허용 범위를 벗어나면 조회하지 않는다`() {
         assertThatThrownBy {
-            postService.getPosts(TRIP_GROUP_ID, MEMBER_ID, null, 11)
+            postService.getPosts(TRIP_GROUP_ID, MEMBER_ID, 1, null, 6)
         }
             .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("최대 10개")
+            .hasMessageContaining("최대 5개")
 
         verifyNoInteractions(tripMemberValidator, postRepository)
+    }
+
+    @Test
+    fun `여행 일차의 날짜 범위에서 사진을 5개씩 조회한다`() {
+        val tripGroup = org.mockito.Mockito.mock(TripGroup::class.java)
+        val tripMembers = emptyList<TripMember>()
+        val startDate = LocalDate.of(2026, 8, 1)
+
+        doReturn(tripGroup)
+            .`when`(tripGroupService)
+            .findTripGroupById(TRIP_GROUP_ID)
+        doReturn(TRIP_GROUP_ID).`when`(tripGroup).id
+        doReturn(startDate).`when`(tripGroup).startDate
+        doReturn(2).`when`(tripGroup).nights
+        doReturn(tripMembers)
+            .`when`(tripMemberRepository)
+            .findByTripGroupId(TRIP_GROUP_ID)
+        doReturn(emptyList<Post>())
+            .`when`(postRepository)
+            .findFirstDayPageWithTimelineAndPlaceByAuthorIn(
+                tripMembers,
+                startDate.plusDays(1).atStartOfDay(),
+                startDate.plusDays(2).atStartOfDay(),
+                PageRequest.of(0, 6)
+            )
+        doReturn(emptyList<csh.back.domain.trip.timeline.entity.Timeline>())
+            .`when`(timelineRepository)
+            .findByTripAndDateSorted(TRIP_GROUP_ID, 2L)
+
+        val response = postService.getPosts(
+            TRIP_GROUP_ID,
+            MEMBER_ID,
+            2,
+            null,
+            5
+        )
+
+        assertThat(response.groups).isEmpty()
+        assertThat(response.hasNext).isFalse()
+        assertThat(response.nextCursor).isNull()
+        verify(postRepository)
+            .findFirstDayPageWithTimelineAndPlaceByAuthorIn(
+                tripMembers,
+                startDate.plusDays(1).atStartOfDay(),
+                startDate.plusDays(2).atStartOfDay(),
+                PageRequest.of(0, 6)
+            )
     }
 
     @Test

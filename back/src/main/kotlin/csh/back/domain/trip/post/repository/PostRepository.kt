@@ -35,12 +35,18 @@ interface PostRepository : JpaRepository<Post, Long> {
         LEFT JOIN FETCH p.timeline t
         LEFT JOIN FETCH t.tripWishPlace
         WHERE p.author IN :members
+          AND p.createdAt >= :dayStart
+          AND p.createdAt < :dayEnd
         ORDER BY p.createdAt ASC, p.id ASC
         """
     )
-    fun findFirstPageWithTimelineAndPlaceByAuthorIn(
+    fun findFirstDayPageWithTimelineAndPlaceByAuthorIn(
         @Param("members")
         members: List<TripMember>,
+        @Param("dayStart")
+        dayStart: LocalDateTime,
+        @Param("dayEnd")
+        dayEnd: LocalDateTime,
         pageable: Pageable
     ): List<Post>
 
@@ -53,6 +59,8 @@ interface PostRepository : JpaRepository<Post, Long> {
         LEFT JOIN FETCH p.timeline t
         LEFT JOIN FETCH t.tripWishPlace
         WHERE p.author IN :members
+          AND p.createdAt >= :dayStart
+          AND p.createdAt < :dayEnd
           AND (
             p.createdAt > :cursorCreatedAt
             OR (
@@ -63,9 +71,13 @@ interface PostRepository : JpaRepository<Post, Long> {
         ORDER BY p.createdAt ASC, p.id ASC
         """
     )
-    fun findNextPageWithTimelineAndPlaceByAuthorIn(
+    fun findNextDayPageWithTimelineAndPlaceByAuthorIn(
         @Param("members")
         members: List<TripMember>,
+        @Param("dayStart")
+        dayStart: LocalDateTime,
+        @Param("dayEnd")
+        dayEnd: LocalDateTime,
         @Param("cursorCreatedAt")
         cursorCreatedAt: LocalDateTime,
         @Param("cursorId")

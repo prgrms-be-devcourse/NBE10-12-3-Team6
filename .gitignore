@@ -45,3 +45,6 @@ db_dev.lock.db
 ### claude ###
 .claude
 docs/*
+
+# env files (can opt-in for committing if needed)
+.env*

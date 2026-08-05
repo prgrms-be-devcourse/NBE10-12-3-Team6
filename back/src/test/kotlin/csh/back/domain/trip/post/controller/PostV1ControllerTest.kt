@@ -59,6 +59,7 @@ class PostV1ControllerTest {
         private const val MEMBER_ID = 1L
         private const val POST_ID = 10L
         private const val TIMELINE_ID = 100L
+        private const val DAY_NUMBER = 1
     }
 
     @Test
@@ -172,7 +173,7 @@ class PostV1ControllerTest {
     }
 
     @Test
-    @DisplayName("게시글 전체 조회")
+    @DisplayName("게시글 일차별 커서 조회")
     @WithMockLoginUser(id = MEMBER_ID)
     fun getPosts() {
         val date = LocalDate.of(2026, 7, 30)
@@ -208,11 +209,12 @@ class PostV1ControllerTest {
         )
 
         `when`(
-            postService.getPosts(TRIP_GROUP_ID, MEMBER_ID, null, 10)
+            postService.getPosts(TRIP_GROUP_ID, MEMBER_ID, DAY_NUMBER, null, 5)
         ).thenReturn(cursorResponse)
 
         mvc.perform(
             get(BASE_URL, TRIP_GROUP_ID)
+                .param("dayNumber", DAY_NUMBER.toString())
         )
             .andDo(print())
             .andExpect(handler().handlerType(PostV1Controller::class.java))
@@ -242,7 +244,7 @@ class PostV1ControllerTest {
             .andExpect(jsonPath("$.nextCursor").value("next-cursor"))
             .andExpect(jsonPath("$.hasNext").value(true))
 
-        verify(postService).getPosts(TRIP_GROUP_ID, MEMBER_ID, null, 10)
+        verify(postService).getPosts(TRIP_GROUP_ID, MEMBER_ID, DAY_NUMBER, null, 5)
     }
 
     @Test
