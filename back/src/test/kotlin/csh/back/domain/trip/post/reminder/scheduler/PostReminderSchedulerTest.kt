@@ -14,6 +14,6 @@ class PostReminderSchedulerTest {
 
         scheduler.sendOneYearAgoPostReminders()
 
-        verify(service).sendOneYearAgoPostReminders()
+        verify(service).sendOneWeekAgoPostReminders()
     }
 }
