@@ -45,6 +45,7 @@ class PostService(
     fun getPosts(
         tripGroupId: Long,
         memberId: Long,
+        dayNumber: Int,
         cursor: String?,
         size: Int
     ): PostCursorResponse {
@@ -56,6 +57,14 @@ class PostService(
         val tripGroup =
             tripGroupService.findTripGroupById(tripGroupId)
 
+        require(dayNumber in 1..(tripGroup.nights + 1)) {
+            "여행 일차는 1일부터 ${tripGroup.nights + 1}일차까지 조회할 수 있습니다."
+        }
+
+        val dayDate = tripGroup.startDate.plusDays((dayNumber - 1).toLong())
+        val dayStart = dayDate.atStartOfDay()
+        val dayEnd = dayStart.plusDays(1)
+
         val tripMembers =
             tripMemberRepository.findByTripGroupId(
                 tripGroup.id!!
@@ -64,13 +73,17 @@ class PostService(
         val pageRequest = PageRequest.of(0, size + 1)
         val decodedCursor = cursor?.let(::decodeCursor)
         val fetchedPosts = if (decodedCursor == null) {
-            postRepository.findFirstPageWithTimelineAndPlaceByAuthorIn(
+            postRepository.findFirstDayPageWithTimelineAndPlaceByAuthorIn(
                 tripMembers,
+                dayStart,
+                dayEnd,
                 pageRequest
             )
         } else {
-            postRepository.findNextPageWithTimelineAndPlaceByAuthorIn(
+            postRepository.findNextDayPageWithTimelineAndPlaceByAuthorIn(
                 tripMembers,
+                dayStart,
+                dayEnd,
                 decodedCursor.createdAt,
                 decodedCursor.postId,
                 pageRequest
@@ -79,37 +92,28 @@ class PostService(
         val hasNext = fetchedPosts.size > size
         val posts = fetchedPosts.take(size)
 
-        val schedulesByDate =
-            timelineRepository
-                .findByTripGroupIdSorted(tripGroupId)
-                .groupBy {
-                    it.startTime.toLocalDate()
-                }
+        val daySchedules = timelineRepository
+            .findByTripAndDateSorted(tripGroupId, dayNumber.toLong())
 
         val likeCounts =
             findLikeCounts(posts)
 
-        val groups = posts
-            .groupBy {
-                it.createdAt!!.toLocalDate()
-            }
-            .toSortedMap()
-            .map { (date, dailyPosts) ->
-                val daySchedules =
-                    schedulesByDate[date].orEmpty()
-
+        val groups = if (posts.isEmpty()) {
+            emptyList()
+        } else {
+            listOf(
                 PostsDailyResponse(
-                    date = date,
-                    posts = dailyPosts.map { post ->
+                    date = dayDate,
+                    posts = posts.map { post ->
                         toSummaryWithSlot(
                             post = post,
                             daySchedules = daySchedules,
-                            likeCount =
-                                likeCounts[post.id] ?: 0L
+                            likeCount = likeCounts[post.id] ?: 0L
                         )
                     }
                 )
-            }
+            )
+        }
 
         return PostCursorResponse(
             groups = groups,
@@ -613,6 +617,6 @@ class PostService(
     )
 
     companion object {
-        private const val MAX_PAGE_SIZE = 10
+        private const val MAX_PAGE_SIZE = 5
     }
 }

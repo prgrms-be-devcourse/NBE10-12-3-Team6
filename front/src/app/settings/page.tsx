@@ -45,17 +45,17 @@ const PHOTO_DATA_OPTIONS: {
   {
     value: "quality",
     title: "품질 우선",
-    description: "예상 데이터 사용량 약 8~20MB",
+    description: "예상 데이터 사용량 약 4~10MB",
   },
   {
     value: "balanced",
     title: "균형 모드",
-    description: "예상 데이터 사용량 약 1~5MB",
+    description: "예상 데이터 사용량 약 0.5~2.5MB",
   },
   {
     value: "saving",
     title: "절약 우선",
-    description: "예상 데이터 사용량 약 1~5MB\n사진 확장 시에도 압축본 사용",
+    description: "예상 데이터 사용량 약 0.5~2.5MB\n사진 확장 시에도 압축본 사용",
   },
 ];
 
@@ -229,7 +229,8 @@ export default function SettingsPage() {
             <h2 className="font-bold">데이터 절약 설정</h2>
             <p className="mt-1 text-xs text-gray-500">
               사진을 불러올 때 사용하는 데이터 사용량 조절
-              <span className="mt-0.5 block">(원본 사진 1장당 약 5MB / 총 10개 기준)</span>
+              <span className="mt-0.5 block">(원본 사진 1장당 약 5MB / 일차당 최대 5개 기준)</span>
+              <span className="mt-0.5 block">동시에 불러오는 일차 수에 따라 데이터 사용량이 합산됩니다.</span>
             </p>
           </div>
 

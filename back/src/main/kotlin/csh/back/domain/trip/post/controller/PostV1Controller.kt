@@ -59,15 +59,17 @@ class PostV1Controller(
     ): PostResponse = postService.getPost(tripGroupId, postId)
 
     @GetMapping
-    @Operation(summary = "게시글 목록 조회", description = "타임라인 게시글을 커서 기반으로 10개씩 조회합니다.")
+    @Operation(summary = "게시글 목록 조회", description = "일차별 타임라인 게시글을 커서 기반으로 5개씩 조회합니다.")
     fun getPosts(
         @PathVariable tripGroupId: Long,
         @AuthenticationPrincipal member: AuthFilterDto,
+        @RequestParam dayNumber: Int,
         @RequestParam(required = false) cursor: String?,
-        @RequestParam(defaultValue = "10") size: Int
+        @RequestParam(defaultValue = "5") size: Int
     ): PostCursorResponse = postService.getPosts(
         tripGroupId,
         member.id,
+        dayNumber,
         cursor,
         size
     )

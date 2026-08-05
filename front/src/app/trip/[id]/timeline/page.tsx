@@ -41,6 +41,14 @@ interface PostCursorResponse {
   hasNext: boolean;
 }
 
+interface DayPhotoState {
+  nextCursor: string | null;
+  hasNext: boolean;
+  isLoading: boolean;
+  isLoaded: boolean;
+  hasError: boolean;
+}
+
 type Segment =
   | { type: "timeline"; timelineId: number; posts: Post[] }
   | { type: "free"; slotKey: string; posts: Post[] };
@@ -119,10 +127,7 @@ export default function TimelinePage() {
   const [groups, setGroups] = useState<DateGroup[]>([]);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [isLightboxClosing, setIsLightboxClosing] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [hasNext, setHasNext] = useState(false);
-  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
-  const [postLoadError, setPostLoadError] = useState(false);
+  const [dayPhotoStates, setDayPhotoStates] = useState<Record<string, DayPhotoState>>({});
   const [activeDots, setActiveDots] = useState<Record<string, number>>({});
   const [editingPostId, setEditingPostId] = useState<number | null>(null);
   const [openPostMenuId, setOpenPostMenuId] = useState<number | null>(null);
@@ -137,9 +142,9 @@ export default function TimelinePage() {
   const [likeStatuses, setLikeStatuses] = useState<Record<number, PostLikeStatus>>({});
   const [likeActionIds, setLikeActionIds] = useState<Set<number>>(new Set());
   const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const daySectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const listScrollRef = useRef<HTMLDivElement | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
-  const loadingRef = useRef(false);
+  const loadingDaysRef = useRef<Set<string>>(new Set());
   const lightboxCloseTimerRef = useRef<number | null>(null);
   const postMenuRef = useRef<HTMLDivElement | null>(null);
   const postMenuCloseTimerRef = useRef<number | null>(null);
@@ -346,15 +351,31 @@ export default function TimelinePage() {
       }).catch(() => {});
   }, [id, trip, upsertTrip]);
 
-  const loadPostPage = useCallback(async (cursor: string | null, replace = false) => {
-    if (!id || loadingRef.current) return;
+  const loadPostPage = useCallback(async (
+    dayNumber: number,
+    date: string,
+    cursor: string | null = null,
+    replace = false,
+  ) => {
+    if (!id || loadingDaysRef.current.has(date)) return;
 
-    loadingRef.current = true;
-    setIsLoadingPosts(true);
-    setPostLoadError(false);
+    loadingDaysRef.current.add(date);
+    setDayPhotoStates(current => ({
+      ...current,
+      [date]: {
+        nextCursor: current[date]?.nextCursor ?? null,
+        hasNext: current[date]?.hasNext ?? false,
+        isLoading: true,
+        isLoaded: current[date]?.isLoaded ?? false,
+        hasError: false,
+      },
+    }));
 
     try {
-      const query = new URLSearchParams({ size: "10" });
+      const query = new URLSearchParams({
+        dayNumber: String(dayNumber),
+        size: "5",
+      });
       if (cursor) query.set("cursor", cursor);
 
       const response = await apiFetch(
@@ -367,16 +388,39 @@ export default function TimelinePage() {
       const body = await response.json();
       const data = (body.data ?? body) as PostCursorResponse | DateGroup[];
       const pageGroups = Array.isArray(data) ? data : (data.groups ?? []);
+      const pageGroup = pageGroups.find(group => group.date === date)
+        ?? { date, posts: [] };
 
-      setGroups(current => replace ? pageGroups : mergeGroups(current, pageGroups));
-      setNextCursor(Array.isArray(data) ? null : data.nextCursor);
-      setHasNext(Array.isArray(data) ? false : data.hasNext);
+      setGroups(current => {
+        const withoutCurrentDay = replace
+          ? current.filter(group => group.date !== date)
+          : current;
+        return mergeGroups(withoutCurrentDay, [pageGroup]);
+      });
+      setDayPhotoStates(current => ({
+        ...current,
+        [date]: {
+          nextCursor: Array.isArray(data) ? null : data.nextCursor,
+          hasNext: Array.isArray(data) ? false : data.hasNext,
+          isLoading: false,
+          isLoaded: true,
+          hasError: false,
+        },
+      }));
     } catch (error) {
       console.error(error);
-      setPostLoadError(true);
+      setDayPhotoStates(current => ({
+        ...current,
+        [date]: {
+          nextCursor: current[date]?.nextCursor ?? null,
+          hasNext: current[date]?.hasNext ?? false,
+          isLoading: false,
+          isLoaded: current[date]?.isLoaded ?? false,
+          hasError: true,
+        },
+      }));
     } finally {
-      loadingRef.current = false;
-      setIsLoadingPosts(false);
+      loadingDaysRef.current.delete(date);
     }
   }, [id]);
 
@@ -465,13 +509,6 @@ export default function TimelinePage() {
   };
 
   useEffect(() => {
-    const firstFrame = requestAnimationFrame(() => {
-      void loadPostPage(null, true);
-    });
-    return () => cancelAnimationFrame(firstFrame);
-  }, [loadPostPage]);
-
-  useEffect(() => {
     if (!id) return;
 
     const posts = groups.flatMap(group => group.posts);
@@ -500,21 +537,33 @@ export default function TimelinePage() {
   }, [groups, id, likeStatuses]);
 
   useEffect(() => {
-    const target = loadMoreRef.current;
-    const root = listScrollRef.current;
-    if (!target || !root || !hasNext) return;
+    if (!trip) return;
 
+    const root = listScrollRef.current;
     const observer = new IntersectionObserver(
       entries => {
-        if (entries[0]?.isIntersecting) {
-          void loadPostPage(nextCursor);
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const date = (entry.target as HTMLElement).dataset.photoDate;
+          if (!date) continue;
+          const day = trip.days.find(candidate => candidate.date === date);
+          if (!day) continue;
+          const state = dayPhotoStates[date];
+          if (!state?.isLoaded && !state?.isLoading) {
+            void loadPostPage(day.dayNumber, day.date, null, true);
+          }
         }
       },
-      { root, rootMargin: "240px 0px", threshold: 0 }
+      { root, rootMargin: "240px 0px", threshold: 0 },
     );
-    observer.observe(target);
+
+    for (const day of trip.days) {
+      const section = daySectionRefs.current[day.id];
+      if (section) observer.observe(section);
+    }
+
     return () => observer.disconnect();
-  }, [hasNext, loadPostPage, nextCursor]);
+  }, [dayPhotoStates, loadPostPage, trip]);
 
   if (!trip) return (
     <div className="flex min-h-[100dvh] items-center justify-center">
@@ -640,10 +689,16 @@ export default function TimelinePage() {
           {trip.days.map(day => {
             const group = groups.find(g => g.date === day.date);
             const dayPosts = group?.posts ?? [];
+            const dayPhotoState = dayPhotoStates[day.date];
             const activeIdx = activeDots[day.id] ?? 0;
 
             return (
-              <div key={day.id} className="shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div
+                key={day.id}
+                ref={element => { daySectionRefs.current[day.id] = element; }}
+                data-photo-date={day.date}
+                className="shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+              >
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                   <div>
                     <p className="font-semibold">{day.dayNumber}일차</p>
@@ -655,7 +710,18 @@ export default function TimelinePage() {
                 </div>
 
                 <div className="p-4">
-                  {dayPosts.length === 0 ? (
+                  {((!dayPhotoState?.isLoaded && !dayPhotoState?.hasError)
+                    || (dayPhotoState?.isLoading && dayPosts.length === 0)) ? (
+                    <p className="text-sm text-gray-400">사진을 불러오는 중...</p>
+                  ) : dayPhotoState?.hasError && dayPosts.length === 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => void loadPostPage(day.dayNumber, day.date, null, true)}
+                      className="text-sm font-semibold text-blue-500"
+                    >
+                      다시 불러오기
+                    </button>
+                  ) : dayPosts.length === 0 ? (
                     <p className="text-sm text-gray-500">아직 사진 기록이 없습니다.</p>
                   ) : (
                     <div className="relative">
@@ -669,6 +735,17 @@ export default function TimelinePage() {
                           if (step <= 0) return;
                           const idx = Math.max(0, Math.min(Math.round(el.scrollLeft / step), el.children.length - 1));
                           setActiveDots(prev => (prev[day.id] === idx ? prev : { ...prev, [day.id]: idx }));
+                          if (
+                            idx >= dayPosts.length - 2
+                            && dayPhotoState?.hasNext
+                            && !dayPhotoState.isLoading
+                          ) {
+                            void loadPostPage(
+                              day.dayNumber,
+                              day.date,
+                              dayPhotoState.nextCursor,
+                            );
+                          }
                         }}
                         onPointerDown={(e) => {
                           if (e.pointerType === "touch") return;
@@ -920,6 +997,10 @@ export default function TimelinePage() {
                         })}
                       </div>
 
+                      {dayPhotoState?.isLoading && dayPosts.length > 0 && (
+                        <p className="pt-2 text-center text-xs text-gray-400">다음 사진을 불러오는 중...</p>
+                      )}
+
                     </div>
                   )}
                 </div>
@@ -927,20 +1008,6 @@ export default function TimelinePage() {
             );
           })}
 
-          <div ref={loadMoreRef} className="min-h-8 flex items-center justify-center">
-            {isLoadingPosts && (
-              <p className="text-xs text-gray-400">사진을 불러오는 중...</p>
-            )}
-            {postLoadError && (
-              <button
-                type="button"
-                onClick={() => void loadPostPage(nextCursor, groups.length === 0)}
-                className="text-xs font-semibold text-blue-500"
-              >
-                다시 불러오기
-              </button>
-            )}
-          </div>
           {postActionError && (
             <p className="px-1 text-center text-xs text-red-500">{postActionError}</p>
           )}

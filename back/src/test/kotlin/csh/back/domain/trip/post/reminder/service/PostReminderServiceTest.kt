@@ -29,7 +29,7 @@ class PostReminderServiceTest {
                 targetDate.plusDays(1).atStartOfDay()
             )
 
-        postReminderService.sendOneYearAgoPostReminders(today)
+        postReminderService.sendOneWeekAgoPostReminders(today)
 
         verify(postReminderSender).send(10L)
         verify(postReminderSender).send(20L)
@@ -49,7 +49,7 @@ class PostReminderServiceTest {
             .`when`(postReminderSender)
             .send(10L)
 
-        postReminderService.sendOneYearAgoPostReminders(today)
+        postReminderService.sendOneWeekAgoPostReminders(today)
 
         verify(postReminderSender).send(20L)
     }
