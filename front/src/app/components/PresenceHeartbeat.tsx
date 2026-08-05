@@ -2,43 +2,26 @@
 
 import { useEffect, useRef } from "react";
 import { apiFetch, API_BASE } from "../lib";
+import { useStore } from "../store";
 
 const RECONNECT_DELAY_MS = 2000;
 
 // 로그인된 상태에서 서버에 SSE 연결을 유지해 online 상태를 마킹한다.
 // 서버는 Redis에 presence(60s TTL)를 저장하고 30s 마다 하트비트 ping을 보내 TTL을 갱신한다.
-// 인증 실패 시 2초 뒤 재시도해서 로그인 완료 시 자동으로 붙는다.
+// 인증 여부는 TripLogProvider가 이미 확인한 store의 isLoggedIn을 그대로 따른다 — 여기서 별도로
+// /auth/me를 다시 호출하면 페이지 로드마다 같은 엔드포인트가 두 번 호출되는 중복이 생긴다.
 export default function PresenceHeartbeat() {
+  const { isLoggedIn } = useStore();
   const closedRef = useRef(false);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    if (!isLoggedIn) return;
     closedRef.current = false;
-
-    // apiFetch는 401 시 자동으로 /로 리다이렉트하는 부작용이 있으므로 raw fetch 사용
-    const checkAuthed = async (): Promise<boolean> => {
-      try {
-        const res = await fetch(`${API_BASE}/api/v1/auth/me`, { credentials: "include" });
-        return res.ok;
-      } catch {
-        return false;
-      }
-    };
-
-    const scheduleReconnect = () => {
-      if (closedRef.current) return;
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS);
-    };
 
     const connect = async () => {
       if (closedRef.current) return;
-      const authed = await checkAuthed();
-      if (!authed) {
-        scheduleReconnect();
-        return;
-      }
 
       const controller = new AbortController();
       controllerRef.current = controller;
@@ -68,16 +51,13 @@ export default function PresenceHeartbeat() {
         }
       }
 
-      scheduleReconnect();
+      // 네트워크 문제 등으로 스트림이 끊긴 경우에만 짧게 재시도한다.
+      // 로그아웃은 항상 하드 네비게이션(window.location.replace)을 동반해 컴포넌트가 통째로
+      // 언마운트되므로, 로그인 상태 변화 자체는 이 effect의 isLoggedIn 의존성으로 충분히 처리된다.
+      if (!closedRef.current) {
+        reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS);
+      }
     };
-
-    // 로그아웃 시 현재 SSE 스트림을 즉시 abort — 이후 재접속 루프는 accessToken 부재를 감지해
-    // 자연스럽게 대기 상태로 들어감. 다시 로그인하면 다음 폴링(최대 2s)에 자동 연결.
-    const handleLogout = () => {
-      console.log("[presence] 로그아웃 감지 — SSE abort");
-      controllerRef.current?.abort();
-    };
-    window.addEventListener("triplog-logout", handleLogout);
 
     connect();
 
@@ -85,9 +65,8 @@ export default function PresenceHeartbeat() {
       closedRef.current = true;
       controllerRef.current?.abort();
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      window.removeEventListener("triplog-logout", handleLogout);
     };
-  }, []);
+  }, [isLoggedIn]);
 
   return null;
 }

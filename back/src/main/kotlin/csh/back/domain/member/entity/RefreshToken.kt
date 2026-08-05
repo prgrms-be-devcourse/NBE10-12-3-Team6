@@ -23,12 +23,13 @@ class RefreshToken(
     @JoinColumn(name = "member_id", nullable = false)
     val member: Member,
 
+    // rotate()로만 갱신 — 생성자 프로퍼티는 커스텀 접근자를 붙일 수 없어 var로 선언
     @Column(unique = true, nullable = false)
-    val token: String = UUID.randomUUID().toString(),
+    var token: String = UUID.randomUUID().toString(),
 
     // 쿠키 maxAge(7일)와 일치시켜 쿠키·DB 만료 불일치 방지
     @Column(nullable = false)
-    val expiresAt: LocalDateTime = LocalDateTime.now().plusDays(7),
+    var expiresAt: LocalDateTime = LocalDateTime.now().plusDays(7),
 
     // #28 새 기기 로그인 알림에서 기기 구분에 사용 — 지금은 저장만, 판단 로직은 #28에서 추가
     @Column
@@ -39,4 +40,10 @@ class RefreshToken(
     val deviceId: String,
 ) : BaseEntity() {
     fun isExpired(): Boolean = LocalDateTime.now().isAfter(expiresAt)
+
+    // delete+insert 대신 기존 행을 그대로 갱신 — 동시 회전 시 유니크 제약 위반 예외 자체가 발생하지 않는다
+    fun rotate() {
+        token = UUID.randomUUID().toString()
+        expiresAt = LocalDateTime.now().plusDays(7)
+    }
 }

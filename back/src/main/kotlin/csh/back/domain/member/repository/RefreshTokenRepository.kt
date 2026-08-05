@@ -2,7 +2,9 @@ package csh.back.domain.member.repository
 
 import csh.back.domain.member.entity.Member
 import csh.back.domain.member.entity.RefreshToken
+import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.transaction.annotation.Transactional
@@ -37,6 +39,9 @@ interface RefreshTokenRepository : JpaRepository<RefreshToken, Long> {
     // 새 기기 로그인 감지용 — 로그인 직전 해당 (member, device) 조합이 이미 알려진 기기인지 확인
     fun existsByMemberIdAndDeviceId(memberId: Long, deviceId: String): Boolean
 
-    // race condition fallback — DELETE 직후 동시 요청이 INSERT한 토큰을 반환
-    fun findByMemberIdAndDeviceId(memberId: Long, deviceId: String): Optional<RefreshToken>
+    // 동시 회전 요청을 SELECT ... FOR UPDATE로 직렬화 — 같은 행을 두고 delete+insert 경합을 벌이는 대신
+    // 락을 먼저 획득한 요청만 실제로 회전하고 나머지는 대기 후 이미 회전된 값을 그대로 반환한다
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT rt FROM RefreshToken rt WHERE rt.member.id = :memberId AND rt.deviceId = :deviceId")
+    fun findByMemberIdAndDeviceIdForUpdate(memberId: Long, deviceId: String): RefreshToken?
 }

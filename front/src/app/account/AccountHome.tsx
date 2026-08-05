@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import HomeBottomNavigation from "../components/HomeBottomNavigation";
 import { API_BASE, apiFetch, useAuthGuard } from "../lib";
+import { getMe } from "../authStorage";
 import { useStore } from "../store";
 
 type AccountPayload = {
@@ -27,22 +28,20 @@ export default function AccountHome({
   useEffect(() => {
     router.prefetch("/account/password");
 
-    const controller = new AbortController();
+    let cancelled = false;
 
-    apiFetch(`${API_BASE}/api/v1/auth/me`, { signal: controller.signal })
-      .then(async response => {
-        const body = await response.json();
-        if (!response.ok) throw new Error(body?.message ?? "계정 정보를 불러오지 못했습니다.");
-        return body.data as AccountPayload;
-      })
-      .then(setAccount)
-      .catch(error => {
-        if (!controller.signal.aborted) {
-          console.error("[계정 정보 조회 실패]", error);
-        }
-      });
+    getMe().then(result => {
+      if (cancelled) return;
+      if (!result.ok || !result.data) {
+        console.error("[계정 정보 조회 실패]");
+        return;
+      }
+      setAccount(result.data);
+    });
 
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   const handleLogout = async () => {
@@ -55,7 +54,6 @@ export default function AccountHome({
     }
 
     localStorage.clear();
-    window.dispatchEvent(new Event("triplog-logout"));
     // router.replace 대신 하드 네비게이션 사용: 방금 만료시킨 쿠키 상태가 브라우저 저장소에 확실히 반영된
     // 뒤에 새 요청을 나가게 하기 위함(SPA 라우팅은 상황에 따라 쿠키 갱신 타이밍이 미묘하게 어긋날 수 있음).
     window.location.replace("/");

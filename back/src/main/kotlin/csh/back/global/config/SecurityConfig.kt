@@ -17,6 +17,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.savedrequest.NullRequestCache
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.web.cors.CorsConfiguration
@@ -48,6 +49,10 @@ class SecurityConfig(
             .headers { headers ->
                 headers.frameOptions { frame -> frame.sameOrigin() }
             }
+            // 이 API는 JWT 쿠키 기반이라 "로그인 후 원래 요청 페이지로 리다이렉트" 기능을 쓰지 않는다.
+            // 기본 HttpSessionRequestCache는 미인증 요청마다 세션을 만들어 요청을 저장하므로,
+            // 매 401 발생 시 불필요한 세션 생성 + 로그 스팸(Saved request ... to session)이 발생했다.
+            .requestCache { cache -> cache.requestCache(NullRequestCache()) }
             .authorizeHttpRequests { auth ->
                 // 회원가입, 로그인은 인증 없이 접근 허용
                 auth.requestMatchers(
