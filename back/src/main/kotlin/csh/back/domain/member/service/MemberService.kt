@@ -14,8 +14,10 @@ import csh.back.domain.member.repository.MemberRepository
 import csh.back.domain.presence.service.PresenceService
 import csh.back.domain.member.repository.RefreshTokenRepository
 import csh.back.global.jwt.JwtUtil
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
 import java.time.LocalDateTime
@@ -123,18 +125,36 @@ class MemberService(
             .orElseThrow { RuntimeException("존재하지 않는 회원입니다.") }
 
     // 기존 RefreshToken을 삭제하고 같은 (member, deviceId)로 새 토큰을 발급한다.
-    // deleteByToken(JPA lifecycle 방식)은 INSERT보다 DELETE가 늦게 flush돼 unique 제약 위반 발생 가능.
-    // deleteByMemberIdAndDeviceId(@Modifying bulk DELETE)는 즉시 SQL을 실행하므로 순서 문제 없음.
+    // 동시 요청이 DELETE와 INSERT 사이에 끼어들어 unique 제약 위반이 발생하면,
+    // 경쟁에서 이긴 요청이 이미 INSERT한 토큰을 반환해 강제 로그아웃을 방지한다.
     @Transactional
     fun rotateRefreshToken(oldRefreshToken: RefreshToken): RefreshToken {
-        refreshTokenRepository.deleteByMemberIdAndDeviceId(oldRefreshToken.member.id!!, oldRefreshToken.deviceId)
-        return refreshTokenRepository.save(
-            RefreshToken(
-                member = oldRefreshToken.member,
-                deviceId = oldRefreshToken.deviceId,
-                userAgent = oldRefreshToken.userAgent,
+        return try {
+            refreshTokenRepository.deleteByMemberIdAndDeviceId(
+                oldRefreshToken.member.id!!,
+                oldRefreshToken.deviceId
             )
-        )
+            refreshTokenRepository.save(
+                RefreshToken(
+                    member = oldRefreshToken.member,
+                    deviceId = oldRefreshToken.deviceId,
+                    userAgent = oldRefreshToken.userAgent,
+                )
+            )
+        } catch (e: DataIntegrityViolationException) {
+            findExistingRefreshTokenInNewTransaction(
+                oldRefreshToken.member.id!!,
+                oldRefreshToken.deviceId
+            ) ?: throw e
+        }
+    }
+
+    // 오염된 영속성 컨텍스트(null id 엔티티)와 분리된 새 트랜잭션에서 조회
+    // — catch 블록에서 같은 트랜잭션으로 조회하면 Hibernate가 flush를 시도하다
+    //   null id 엔티티를 다시 INSERT하려 해서 "null identifier" 예외가 발생함
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    fun findExistingRefreshTokenInNewTransaction(memberId: Long, deviceId: String): RefreshToken? {
+        return refreshTokenRepository.findByMemberIdAndDeviceId(memberId, deviceId).orElse(null)
     }
 
     @Transactional
