@@ -1,6 +1,6 @@
-# 📝 TripLog 2차 MVP 기획서
+# 📝 TripLog 2차
 
-> 작성일: 2026-08-05
+> 
 기준: 1차 `NBE10-12-2-Team6@dev` ↔︎ 2차 `NBE10-12-3-Team6@dev`
 대상: 1차 MVP 완료 이후 ~ 2차 MVP 종료 시점까지
 >
