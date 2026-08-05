@@ -36,4 +36,7 @@ interface RefreshTokenRepository : JpaRepository<RefreshToken, Long> {
 
     // 새 기기 로그인 감지용 — 로그인 직전 해당 (member, device) 조합이 이미 알려진 기기인지 확인
     fun existsByMemberIdAndDeviceId(memberId: Long, deviceId: String): Boolean
+
+    // race condition fallback — DELETE 직후 동시 요청이 INSERT한 토큰을 반환
+    fun findByMemberIdAndDeviceId(memberId: Long, deviceId: String): Optional<RefreshToken>
 }

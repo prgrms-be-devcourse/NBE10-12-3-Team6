@@ -48,15 +48,17 @@ class JwtAuthenticationFilter(
                 }
                 val member = rt.member
                 val newAccessToken = jwtUtil.generateAccessToken(member.id!!, member.email)
-                setAccessTokenCookie(response, newAccessToken)
 
                 // 로그아웃 요청은 rotation 제외: 필터가 구 토큰을 먼저 삭제하면 logout 핸들러가
                 // 삭제할 토큰을 찾지 못해 신규 토큰이 DB에 남는 문제 발생
+                // rotation 성공 후 쿠키 세팅 — 실패 시 accessToken 쿠키만 나가는 "절반의 성공" 방지
                 if (!isLogoutRequest(request)) {
                     val newRt = memberService.rotateRefreshToken(rt)
+                    setAccessTokenCookie(response, newAccessToken)
                     setRefreshTokenCookie(response, newRt.token)
                     response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer ${newRt.token} $newAccessToken")
                 } else {
+                    setAccessTokenCookie(response, newAccessToken)
                     response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer ${rt.token} $newAccessToken")
                 }
 
