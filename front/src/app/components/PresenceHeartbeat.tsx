@@ -7,7 +7,7 @@ const RECONNECT_DELAY_MS = 2000;
 
 // 로그인된 상태에서 서버에 SSE 연결을 유지해 online 상태를 마킹한다.
 // 서버는 Redis에 presence(60s TTL)를 저장하고 30s 마다 하트비트 ping을 보내 TTL을 갱신한다.
-// accessToken이 없으면 2초 뒤 재시도해서 로그인 완료 시 자동으로 붙는다.
+// 인증 실패 시 2초 뒤 재시도해서 로그인 완료 시 자동으로 붙는다.
 export default function PresenceHeartbeat() {
   const closedRef = useRef(false);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -16,8 +16,15 @@ export default function PresenceHeartbeat() {
   useEffect(() => {
     closedRef.current = false;
 
-    const isAuthed = () =>
-      typeof window !== "undefined" && !!localStorage.getItem("accessToken");
+    // apiFetch는 401 시 자동으로 /로 리다이렉트하는 부작용이 있으므로 raw fetch 사용
+    const checkAuthed = async (): Promise<boolean> => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/auth/me`, { credentials: "include" });
+        return res.ok;
+      } catch {
+        return false;
+      }
+    };
 
     const scheduleReconnect = () => {
       if (closedRef.current) return;
@@ -27,7 +34,8 @@ export default function PresenceHeartbeat() {
 
     const connect = async () => {
       if (closedRef.current) return;
-      if (!isAuthed()) {
+      const authed = await checkAuthed();
+      if (!authed) {
         scheduleReconnect();
         return;
       }

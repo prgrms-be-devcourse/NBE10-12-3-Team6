@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { hasStoredAuthentication } from "./authStorage";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -147,12 +146,21 @@ export function TripLogProvider({ children }: { children: ReactNode }) {
   const [trips, setTrips] = useState<Trip[]>([]);
 
   useEffect(() => {
-    setIsLoggedIn(hasStoredAuthentication());
-    setCurrentUser({
-      id: Number(localStorage.getItem("userId") ?? 0),
-      name: localStorage.getItem("userName") ?? "",
-      color: "blue",
-    });
+    const apiBase = typeof window !== "undefined"
+      ? (process.env.NEXT_PUBLIC_API_BASE ?? `${window.location.protocol}//${window.location.hostname}:8080`)
+      : (process.env.NEXT_PUBLIC_API_BASE ?? "http://192.168.0.5:8080");
+    fetch(`${apiBase}/api/v1/auth/me`, { credentials: "include" })
+      .then(res => (res.ok ? res.json() : null))
+      .then(body => {
+        if (!body) return;
+        const id = Number(body.data?.id ?? 0);
+        const name = typeof body.data?.name === "string" ? body.data.name : "";
+        if (id > 0) {
+          setIsLoggedIn(true);
+          setCurrentUser(u => ({ ...u, id, name }));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const login = useCallback((name?: string, id?: number) => {
