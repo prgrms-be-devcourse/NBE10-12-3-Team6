@@ -116,7 +116,7 @@ export default function LoginPage() {
 
     const restoreSession = async () => {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("oauth") === "success" || !hasStoredAuthentication()) {
+      if (params.get("oauth") !== "success" && !hasStoredAuthentication()) {
         if (!cancelled) setRestoringSession(false);
         return;
       }
@@ -333,15 +333,8 @@ export default function LoginPage() {
       // 성공 경로 진입 — 락아웃/힌트 상태 리셋
       setLockoutSecondsLeft(0);
       setRemainingAttempts(null);
-      const authHeader = res.headers.get("authorization");
-      if (authHeader) {
-        const parts = authHeader.split(" ");
-        if (parts.length === 3) {
-          localStorage.setItem("refreshToken", parts[1]);
-          localStorage.setItem("accessToken", parts[2]);
-        }
-      }
       const body = await res.json().catch(() => ({}));
+      rememberCookieAuthentication();
       login(body.data?.name, body.data?.id);
       setLoginAnim(true);
       setTimeout(() => setWelcomeVisible(true), 500);

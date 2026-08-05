@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { User, PlanTheme } from "./store";
-import { clearStoredAuthentication, hasStoredAuthentication } from "./authStorage";
+import { clearStoredAuthentication, rememberCookieAuthentication } from "./authStorage";
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 
@@ -94,9 +94,21 @@ export const WS_BASE = API_BASE.replace(/^http/, "ws");
 export function useAuthGuard() {
   const router = useRouter();
   useEffect(() => {
-    if (!hasStoredAuthentication()) {
-      router.replace("/");
-    }
+    let cancelled = false;
+
+    apiFetch(`${API_BASE}/api/v1/auth/me`).then((res) => {
+      if (cancelled) return;
+      if (res.ok) {
+        rememberCookieAuthentication();
+      } else {
+        clearStoredAuthentication();
+        router.replace("/");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 }
 
