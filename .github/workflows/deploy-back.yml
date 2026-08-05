@@ -61,6 +61,7 @@ jobs:
           MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
         run: |
           echo "SPRING_PROFILES_ACTIVE=prod" > .env
           echo "FILE_UPLOAD_BASE_URL=$(printf '%s' "$FILE_UPLOAD_BASE_URL" | tr -d '\r\n')" >> .env
@@ -77,6 +78,7 @@ jobs:
           echo "FIREBASE_ENABLED=true" >> .env
           echo "GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-key.json" >> .env
           echo "JWT_SECRET=$(printf '%s' "$JWT_SECRET" | tr -d '\r\n')" >> .env
+          echo "FRONTEND_URL=$(printf '%s' "$FRONTEND_URL" | tr -d '\r\n')" >> .env
 
       # [3-1] Firebase Admin SDK 자격증명 JSON을 파일로 저장
       #      - GH Secret `GOOGLE_APPLICATION_CREDENTIALS`에 서비스 계정 JSON 원문이 들어있음
