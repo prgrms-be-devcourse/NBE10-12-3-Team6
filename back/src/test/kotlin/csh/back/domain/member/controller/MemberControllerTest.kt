@@ -100,7 +100,7 @@ class MemberControllerTest {
                 .content("""
                     {
                         "email": "admin@admin.com",
-                        "password": "1234",
+                        "password": "adminpass",
                         "name": "어드민"
                     }
                 """.trimIndent())
@@ -109,6 +109,27 @@ class MemberControllerTest {
             .andExpect(handler().methodName("signUp"))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.message").value("이미 사용 중인 이메일입니다."))
+    }
+
+    @Test
+    @DisplayName("회원가입 - 비밀번호 7자 이하 → 400")
+    fun t18() {
+        mvc.perform(
+            post("$BASE_URL/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "email": "newuser@test.com",
+                        "password": "short7",
+                        "name": "테스트유저"
+                    }
+                """.trimIndent())
+        ).andDo(print())
+            .andExpect(handler().handlerType(MemberController::class.java))
+            .andExpect(handler().methodName("signUp"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.statusCode").value(400))
+            .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("비밀번호는 8자 이상이어야 합니다")))
     }
 
     @Test
