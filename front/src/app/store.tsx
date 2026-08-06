@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { getMe, hasStoredAuthentication } from "./authStorage";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -146,15 +147,21 @@ export function TripLogProvider({ children }: { children: ReactNode }) {
   const [trips, setTrips] = useState<Trip[]>([]);
 
   useEffect(() => {
-    setIsLoggedIn(!!localStorage.getItem("accessToken"));
-    setCurrentUser({
-      id: Number(localStorage.getItem("userId") ?? 0),
-      name: localStorage.getItem("userName") ?? "",
-      color: "blue",
+    // 한 번도 로그인한 적 없는 방문자(저장된 인증 흔적 없음)는 호출할 이유가 없다 —
+    // 로그인 페이지(page.tsx)의 세션 복원 로직도 동일하게 이 플래그로 게이트되어 있다.
+    if (!hasStoredAuthentication()) return;
+
+    getMe().then(result => {
+      if (!result.data) return;
+      const { id, name } = result.data;
+      if (id > 0) {
+        setIsLoggedIn(true);
+        setCurrentUser(u => ({ ...u, id, name }));
+      }
     });
   }, []);
 
-  const login = (name?: string, id?: number) => {
+  const login = useCallback((name?: string, id?: number) => {
     const newName = name ?? "";
     const newId = id ?? 0;
     if (typeof window !== "undefined") {
@@ -163,7 +170,7 @@ export function TripLogProvider({ children }: { children: ReactNode }) {
     }
     setCurrentUser(u => ({ ...u, id: newId, name: newName }));
     setIsLoggedIn(true);
-  };
+  }, []);
 
   const signup = (nickname: string) => {
     if (nickname.trim()) setCurrentUser(u => ({ ...u, name: nickname.trim() }));

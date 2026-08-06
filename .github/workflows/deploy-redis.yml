@@ -1,0 +1,51 @@
+name: Deploy Redis to Oracle Cloud
+
+# ────────────────────────────────────────────────────────────
+# 트리거 조건
+#   - dev 브랜치에 deploy-version-redis.yml 파일이 변경되어 push될 때 자동 실행
+#   - 또는 GitHub Actions UI에서 수동으로 실행 가능 (workflow_dispatch)
+# ────────────────────────────────────────────────────────────
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - deploy-version-redis.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # [1] SSH로 Oracle Cloud 서버에 접속하여 Redis 컨테이너 배포
+      #     - triplog-net 네트워크에 붙여 backend가 "redis" 호스트명으로 접근하게 함
+      #     - redis_data 볼륨 + --appendonly yes: 컨테이너 재기동 후에도 데이터 유지
+      #     - 호스트 포트(6379)는 일부러 열지 않음 — 무인증 Redis를 공용 IP로 노출하면
+      #       스캐너에 즉시 걸리므로 내부 네트워크(triplog-net)에서만 접근 가능하게 유지
+      - name: 🐳 Deploy Redis on Oracle Cloud VM via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ubuntu
+          key: ${{ secrets.KEY }}
+          script: |
+            docker network create triplog-net || true
+            docker stop redis || true
+            docker rm redis || true
+            docker pull redis:7-alpine
+            docker run -d \
+              --name redis \
+              --network triplog-net \
+              --restart unless-stopped \
+              -e TZ=Asia/Seoul \
+              -v redis_data:/data \
+              redis:7-alpine \
+              redis-server --appendonly yes

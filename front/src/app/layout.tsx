@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import MobileKeyboardFocusGuard from "./components/MobileKeyboardFocusGuard";
+import PresenceHeartbeat from "./components/PresenceHeartbeat";
+import PushNotificationSync from "./components/PushNotificationSync";
 import { TripLogProvider } from "./store";
 
 export const metadata: Metadata = {
@@ -17,6 +20,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f8f9fa" },
     { media: "(prefers-color-scheme: dark)", color: "#0f1014" },
@@ -32,12 +36,32 @@ export default function RootLayout({
 
   const themeScript = `
     (() => {
-      const applyTheme = () => {
-        const theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-        document.documentElement.dataset.theme = theme;
+      const themeStorageKey = "triplog-theme-preference";
+      const colorSchemeMedia = window.matchMedia("(prefers-color-scheme: dark)");
+
+      const getThemePreference = () => {
+        try {
+          const savedPreference = localStorage.getItem(themeStorageKey);
+          return savedPreference === "light" || savedPreference === "dark"
+            ? savedPreference
+            : "system";
+        } catch {
+          return "system";
+        }
       };
+
+      const applyTheme = () => {
+        const preference = getThemePreference();
+        const theme = preference === "system"
+          ? colorSchemeMedia.matches ? "dark" : "light"
+          : preference;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.themePreference = preference;
+      };
+
       applyTheme();
-      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+      colorSchemeMedia.addEventListener("change", applyTheme);
+      window.addEventListener("triplog-theme-change", applyTheme);
     })();
   `;
 
@@ -49,7 +73,10 @@ export default function RootLayout({
       </head>
       <body className="min-h-full bg-gray-50 flex justify-center">
         <TripLogProvider>
-          <div className="w-full max-w-md bg-white relative overflow-x-hidden" style={{ minHeight: "100dvh" }}>
+          <MobileKeyboardFocusGuard />
+          <PresenceHeartbeat />
+          <PushNotificationSync />
+          <div className="triplog-app-shell w-full max-w-md bg-white relative overflow-x-clip" style={{ minHeight: "100dvh" }}>
             {children}
           </div>
         </TripLogProvider>

@@ -4,11 +4,13 @@ import { useRef, useState, useEffect, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { Camera } from "@phosphor-icons/react";
-import { useStore, TripDay, PhotoRecord, uid } from "../../../../../store";
+import { useStore, uid } from "../../../../../store";
 import { API_BASE, apiFetch } from "../../../../../lib";
+import FixedBottomPortal from "../../../../../components/FixedBottomPortal";
+import TripEventHeaderNotice from "../../../TripEventHeaderNotice";
 
 interface TimelineBlock {
-  timeLineId?: number | null;
+  timelineId?: number | null;
   startTime: string;
   endTime: string;
   confirmedPlaceName?: string | null;
@@ -16,12 +18,13 @@ interface TimelineBlock {
 }
 
 const UPLOAD_MODAL_EXIT_MS = 220;
+const POST_CONTENT_MAX_LENGTH = 20;
 
 
 export default function PhotoUploadPage() {
   const router = useRouter();
   const { id, dayNumber } = useParams<{ id: string; dayNumber: string }>();
-  const { trips, updateTrip, upsertTrip } = useStore();
+  const { trips, upsertTrip } = useStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -33,6 +36,8 @@ export default function PhotoUploadPage() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadModalClosing, setUploadModalClosing] = useState(false);
   const [isLeavingPhotoPage, setIsLeavingPhotoPage] = useState(false);
+  const [content, setContent] = useState("");
+  const [contentError, setContentError] = useState("");
 
   const trip = trips.find(t => t.id === id);
   const dayNum = parseInt(dayNumber);
@@ -96,19 +101,21 @@ export default function PhotoUploadPage() {
     return () => cancelAnimationFrame(firstFrame);
   }, [showUploadModal]);
 
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   if (!trip || dayIdx < 0) return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex min-h-[100dvh] items-center justify-center">
       <p className="text-gray-400 text-sm">불러오는 중...</p>
     </div>
   );
 
   const day = trip.days[dayIdx];
 
-  const setDay = (updated: TripDay) => {
-    updateTrip({ ...trip, days: trip.days.map((d, i) => i === dayIdx ? updated : d) });
-  };
-
-  const recordKey = currentBlock ? String(currentBlock.timeLineId) : `free-${dayNum}`;
+  const recordKey = currentBlock ? String(currentBlock.timelineId) : `free-${dayNum}`;
   const record = day.records.find(r => r.blockId === recordKey);
   const showUploadButton = !!selectedFile || record?.status === "uploaded";
 
@@ -124,33 +131,53 @@ export default function PhotoUploadPage() {
       fileInputRef.current?.click();
       return;
     }
+    if (content.length > POST_CONTENT_MAX_LENGTH) {
+      setContentError("20자 까지 입력이 가능합니다.");
+      return;
+    }
+    setContentError("");
     setUploading(true);
     try {
       const form = new FormData();
       form.append("image", selectedFile);
       form.append(
         "request",
-        new Blob([JSON.stringify({ timeLineId: currentBlock?.timeLineId ?? null })], { type: "application/json" })
+        new Blob([JSON.stringify({
+          timelineId: currentBlock?.timelineId ?? null,
+          content: content.trim() || null,
+        })], { type: "application/json" })
       );
       const res = await apiFetch(`${API_BASE}/api/v1/trips/${id}/posts`, {
         method: "POST",
         body: form,
       });
       if (res.ok) {
+        const responseBody = await res.json();
+        const createdPost = responseBody.data ?? responseBody;
+        const postId = createdPost.id ?? createdPost.postId;
+        const submittedContent = content.trim();
+
+        // 이전 백엔드가 생성 시 content를 누락하더라도 기존 수정 API로 저장을 보장한다.
+        if (submittedContent && createdPost.content !== submittedContent) {
+          if (!postId) throw new Error("생성된 포스트 정보를 확인하지 못했습니다.");
+
+          const updateResponse = await apiFetch(
+            `${API_BASE}/api/v1/trips/${id}/posts/${postId}`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: submittedContent }),
+            }
+          );
+          if (!updateResponse.ok) throw new Error("포스트 내용을 저장하지 못했습니다.");
+        }
+
         setUploadModalClosing(false);
         setShowUploadModal(true);
         return;
       }
-      const title = currentBlock
-        ? `${currentBlock.startTime.slice(11, 16)}~${currentBlock.endTime.slice(11, 16)} 활동`
-        : "자유 시간";
-      const already = day.records.find(r => r.blockId === recordKey);
-      const newRecords = already
-        ? day.records.map(r => r.blockId === recordKey ? { ...r, status: "uploaded" as const } : r)
-        : [...day.records, { id: uid(), blockId: recordKey, title, status: "uploaded" } as PhotoRecord];
-      setDay({ ...day, records: newRecords });
-      setSelectedFile(null);
-      setPreviewUrl(null);
+      const errorText = await res.text();
+      throw new Error(errorText || "사진 업로드에 실패했습니다.");
     } catch (e) {
       console.error(e);
     } finally {
@@ -204,13 +231,16 @@ export default function PhotoUploadPage() {
   };
 
   return (
-    <div className={`photo-page-transition flex flex-col h-screen px-4 pt-3 pb-[4.875rem] ${isLeavingPhotoPage ? "trip-page-exit" : ""}`}>
-      <div className="relative flex items-center shrink-0 h-24">
+    <div
+      className={`app-safe-inline photo-page-transition flex h-[100dvh] flex-col overflow-hidden ${isLeavingPhotoPage ? "trip-page-exit" : ""}`}
+      style={{ paddingBottom: "max(4.875rem, calc(3.875rem + env(safe-area-inset-bottom)))" }}
+    >
+      <div className="app-safe-header-frame relative flex shrink-0 items-center pb-2">
         <Link
           href="/home"
           onClick={goHomeWithTransition}
           aria-label="여행방 목록"
-          className="trip-header-icon-button absolute left-0 top-1/2 z-10 w-10 h-10 -translate-y-1/2 rounded-full flex items-center justify-center"
+          className="app-safe-header-frame-control trip-header-icon-button absolute left-0 z-10 flex h-10 w-10 items-center justify-center rounded-full"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 10.75 12 4l8.25 6.75" />
@@ -218,17 +248,19 @@ export default function PhotoUploadPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 20v-5.25h4.5V20" />
           </svg>
         </Link>
-        <h1 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-semibold text-base whitespace-nowrap">{dayNum}일차 사진 기록</h1>
+        <TripEventHeaderNotice className="app-safe-header-frame-control trip-secondary-event-header absolute left-1/2 h-10 -translate-x-1/2">
+          <h1 className="font-semibold text-base whitespace-nowrap">{dayNum}일차 사진 기록</h1>
+        </TripEventHeaderNotice>
         {isDuringTrip ? (
           <Link
             href={`/trip/${id}/timeline?from=timeline`}
             onClick={goAllTimelineWithTransition}
-            className="absolute right-0 top-1/2 -translate-y-1/2 text-xs font-semibold text-blue-500"
+            className="app-safe-header-frame-text absolute right-0 text-xs font-semibold text-blue-500"
           >
             전체보기
           </Link>
         ) : (
-          <div className="absolute right-0 top-1/2 w-16 -translate-y-1/2" />
+          <div className="app-safe-header-frame-control absolute right-0 w-16" />
         )}
       </div>
 
@@ -274,7 +306,7 @@ export default function PhotoUploadPage() {
         type="button"
         onClick={() => { if (!currentBlock?.isTaken) fileInputRef.current?.click(); }}
         aria-disabled={!!currentBlock?.isTaken}
-        className={`photo-capture-panel flex-1 rounded-3xl overflow-hidden flex flex-col items-center justify-center gap-2 transition-opacity ${currentBlock?.isTaken ? "cursor-default" : "active:opacity-80"}`}
+        className={`photo-capture-panel min-h-0 flex-1 rounded-3xl overflow-hidden flex flex-col items-center justify-center gap-2 transition-opacity ${currentBlock?.isTaken ? "cursor-default" : "active:opacity-80"}`}
       >
         {currentBlock?.isTaken ? (
           <>
@@ -288,9 +320,40 @@ export default function PhotoUploadPage() {
           <>
             <Camera size={52} weight="regular" className="text-gray-400" />
             <p className="text-sm text-gray-400">탭해서 사진 찍기</p>
+            <p className="text-xs text-gray-500">HEIC·HEIF 형식은 현재 지원하지 않습니다.</p>
           </>
         )}
       </button>
+
+      {selectedFile && (
+        <div className="shrink-0 pt-3">
+          <div className={`rounded-2xl border bg-white px-4 py-3 transition-colors ${contentError ? "border-red-400" : "border-gray-200 focus-within:border-blue-400"}`}>
+            <textarea
+              value={content}
+              onChange={event => {
+                const nextContent = event.target.value;
+                setContent(nextContent);
+                if (nextContent.length <= POST_CONTENT_MAX_LENGTH) setContentError("");
+              }}
+              maxLength={POST_CONTENT_MAX_LENGTH}
+              rows={2}
+              placeholder="사진과 함께 남길 내용을 입력해 주세요."
+              aria-label="포스트 내용"
+              aria-invalid={!!contentError}
+              aria-describedby={contentError ? "post-content-error" : undefined}
+              className="w-full resize-none bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+            />
+            <p className={`text-right text-xs ${content.length > POST_CONTENT_MAX_LENGTH ? "text-red-500" : "text-gray-400"}`}>
+              {content.length}/{POST_CONTENT_MAX_LENGTH}
+            </p>
+          </div>
+          {contentError && (
+            <p id="post-content-error" className="mt-2 px-1 text-sm font-semibold text-red-500">
+              {contentError}
+            </p>
+          )}
+        </div>
+      )}
 
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -330,11 +393,12 @@ export default function PhotoUploadPage() {
         </div>
       )}
 
-      <div
-        className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-      >
-        <div className="trip-floating-tab-bar pointer-events-auto is-timeline">
+      <FixedBottomPortal>
+        <div
+          className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
+          <div className="trip-floating-tab-bar pointer-events-auto is-timeline">
           <span className="trip-floating-tab-indicator" aria-hidden="true" />
           {([
             { key: "trip", label: "여행 모임", icon: (
@@ -375,8 +439,9 @@ export default function PhotoUploadPage() {
               </button>
             );
           })}
+          </div>
         </div>
-      </div>
+      </FixedBottomPortal>
     </div>
   );
 }

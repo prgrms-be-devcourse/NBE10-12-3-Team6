@@ -1,30 +1,27 @@
 "use client";
 
-import { useCallback, useState, useEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import { useState, useEffect, type MouseEvent, type ReactNode } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowClockwise, Clock, Minus, PencilSimple, Plus, X } from "@phosphor-icons/react";
+import { ArrowClockwise, Clock, Minus, PencilSimple, Plus } from "@phosphor-icons/react";
 import { useStore, Trip, TripDay, ActivityBlock, PlanTheme, uid } from "../../../../store";
 import { timeText, durationText, apiFetch, useAuthGuard, API_BASE } from "../../../../lib";
 import AnimatedBottomSheet from "../../../../components/AnimatedBottomSheet";
+import TripChatRoomButton from "../../TripChatRoomButton";
+import TripEventHeaderNotice from "../../TripEventHeaderNotice";
+import { useTripEvent } from "../../TripEventProvider";
 
 const THEMES: PlanTheme[] = ["meal", "cafe", "activity", "etc"];
 const MEMBER_COLORS = ["blue", "orange", "green", "purple", "pink", "teal", "indigo", "cyan"];
 
-type TimeLineApiItem = {
-  timeLineId?: number;
-  timelineId?: number;
+type TimelineApiItem = {
+  timelineId: number;
   voteId?: number | null;
   dayNumber: number;
   startTime: string;
   endTime: string;
   confirmedPlaceName?: string | null;
   category?: string | null;
-};
-
-type TimelineEventPayload = {
-  message?: string;
-  changedMemberId?: number;
 };
 
 const isoToMinutes = (iso: string) => {
@@ -42,15 +39,19 @@ const makeDraftBlock = (order: number, startMinute = 9 * 60): ActivityBlock => (
 
 const isPersistedBlock = (block: ActivityBlock) => /^\d+$/.test(block.id);
 const TIMELINE_BLOCK_EXIT_MS = 180;
-const SYNC_BANNER_ENTER_MS = 640;
-const SYNC_BANNER_EXIT_MS = 420;
+const TIMELINE_SYNC_EVENT_TYPES = new Set([
+  "TIMELINE_CREATED",
+  "TIMELINE_BATCH_CREATED",
+  "TIMELINE_TIME_UPDATED",
+  "TIMELINE_DELETED",
+  "VOTE_CREATED",
+  "TIMELINE_PLACE_CONFIRMED",
+]);
 const wait = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms));
 
-type SyncBannerPhase = "enter" | "visible" | "exit";
-
-const toActivityBlocks = (items: TimeLineApiItem[]): ActivityBlock[] =>
+const toActivityBlocks = (items: TimelineApiItem[]): ActivityBlock[] =>
   items.map((item, i) => ({
-    id: String(item.timeLineId ?? item.timelineId ?? i),
+    id: String(item.timelineId),
     order: i + 1,
     theme: THEMES[i % THEMES.length],
     startMinute: isoToMinutes(item.startTime),
@@ -59,31 +60,6 @@ const toActivityBlocks = (items: TimeLineApiItem[]): ActivityBlock[] =>
     confirmedPlaceName: item.confirmedPlaceName ?? null,
     category: item.category ?? null,
   }));
-
-const parseSseEvent = (rawEvent: string) => {
-  const dataLines: string[] = [];
-  let eventName = "";
-
-  rawEvent.split(/\r?\n/).forEach(line => {
-    if (line.startsWith("event:")) {
-      eventName = line.replace("event:", "").trim();
-    }
-    if (line.startsWith("data:")) {
-      dataLines.push(line.replace(/^data:\s?/, ""));
-    }
-  });
-
-  return { eventName, data: dataLines.join("\n") };
-};
-
-const readTimelineEventPayload = (data: string): TimelineEventPayload => {
-  if (!data) return {};
-  try {
-    return JSON.parse(data) as TimelineEventPayload;
-  } catch {
-    return { message: data };
-  }
-};
 
 function TimePickerSheet({
   title,
@@ -127,21 +103,11 @@ function TimePickerSheet({
     <AnimatedBottomSheet
       onClose={onClose}
       overlayClassName="bg-black/35"
-      className="overflow-y-auto px-5 pt-4 pb-6"
+      className="overflow-y-auto px-5 pb-6"
     >
       {(close) => (
         <>
-        <div className="flex items-center gap-3 mb-4">
-          <p className="font-bold flex-1">{title}</p>
-          <button
-            type="button"
-            onClick={close}
-            className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-600"
-            aria-label="닫기"
-          >
-            <X size={18} weight="bold" />
-          </button>
-        </div>
+        <span className="sr-only">{title}</span>
 
         <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-2xl mb-4">
           {[
@@ -463,73 +429,22 @@ export default function DayPlanPage() {
   const router = useRouter();
   const { id, dayNumber } = useParams<{ id: string; dayNumber: string }>();
   const { trips, updateTrip, upsertTrip, currentUser } = useStore();
+  const { latestEvent } = useTripEvent();
 
   const trip = trips.find(t => t.id === id);
   const dayNum = parseInt(dayNumber);
   const dayIdx = trip?.days.findIndex(d => d.dayNumber === dayNum) ?? -1;
 
   const [validationError, setValidationError] = useState("");
-  const [showSyncButton, setShowSyncButton] = useState(false);
-  const [syncBannerPhase, setSyncBannerPhase] = useState<SyncBannerPhase>("enter");
-  const [syncBannerKey, setSyncBannerKey] = useState(0);
-  const [syncMessage, setSyncMessage] = useState("새로운 변경 사항이 있습니다.");
+  const [pendingSyncDays, setPendingSyncDays] = useState<number[]>([]);
   const [syncLoading, setSyncLoading] = useState(false);
   const [timelineSaving, setTimelineSaving] = useState(false);
   const [isEditingTimeRanges, setIsEditingTimeRanges] = useState(false);
   const [removingBlockIds, setRemovingBlockIds] = useState<string[]>([]);
   const [isLeavingDay, setIsLeavingDay] = useState(false);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const syncAnimationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const syncBannerVisibleRef = useRef(false);
-
-  const openSyncBanner = useCallback((message: string) => {
-    if (syncAnimationTimer.current) {
-      clearTimeout(syncAnimationTimer.current);
-      syncAnimationTimer.current = null;
-    }
-
-    setSyncMessage(message);
-
-    if (syncBannerVisibleRef.current) {
-      setSyncBannerPhase("visible");
-      setShowSyncButton(true);
-      return;
-    }
-
-    syncBannerVisibleRef.current = true;
-    setSyncBannerKey(key => key + 1);
-    setSyncBannerPhase("enter");
-    setShowSyncButton(true);
-
-    syncAnimationTimer.current = setTimeout(() => {
-      setSyncBannerPhase("visible");
-      syncAnimationTimer.current = null;
-    }, SYNC_BANNER_ENTER_MS);
-  }, []);
-
-  const closeSyncBanner = useCallback(() => new Promise<void>((resolve) => {
-    if (syncAnimationTimer.current) {
-      clearTimeout(syncAnimationTimer.current);
-      syncAnimationTimer.current = null;
-    }
-
-    syncBannerVisibleRef.current = false;
-    setSyncBannerPhase("exit");
-    syncAnimationTimer.current = setTimeout(() => {
-      setShowSyncButton(false);
-      setSyncBannerPhase("enter");
-      syncAnimationTimer.current = null;
-      resolve();
-    }, SYNC_BANNER_EXIT_MS);
-  }), []);
-
-  useEffect(() => () => {
-    if (syncAnimationTimer.current) clearTimeout(syncAnimationTimer.current);
-    syncBannerVisibleRef.current = false;
-  }, []);
 
   const applyTimelineItems = async (
-    items: TimeLineApiItem[],
+    items: TimelineApiItem[],
     { clearWhenEmpty = false, animateRemoved = false } = {}
   ) => {
     if (!trip || dayIdx < 0) return;
@@ -539,8 +454,7 @@ export default function DayPlanPage() {
     const draftBlocks = currentDay.blocks.filter(block => !isPersistedBlock(block));
     const nextPersistedIds = new Set(
       items
-        .map(item => item.timeLineId ?? item.timelineId)
-        .filter((timelineId): timelineId is number => timelineId != null)
+        .map(item => item.timelineId)
         .map(String)
     );
     const removedBlockIds = animateRemoved
@@ -576,12 +490,12 @@ export default function DayPlanPage() {
     }
   };
 
-  const fetchTimeLinesForDay = async ({ clearWhenEmpty = true, animateRemoved = false } = {}) => {
+  const fetchTimelinesForDay = async ({ clearWhenEmpty = true, animateRemoved = false } = {}) => {
     if (!id || !trip || dayIdx < 0) return;
     const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/timelines?dayNumber=${dayNum}`);
     if (!response.ok) throw new Error("타임라인을 불러오지 못했습니다.");
     const body = await response.json();
-    const items: TimeLineApiItem[] = body.data ?? [];
+    const items: TimelineApiItem[] = body.data ?? [];
     await applyTimelineItems(items, { clearWhenEmpty, animateRemoved });
   };
 
@@ -640,7 +554,11 @@ export default function DayPlanPage() {
 
   useEffect(() => {
     if (!id || !trip || dayIdx < 0) return;
-    fetchTimeLinesForDay({ clearWhenEmpty: true }).catch(() => {});
+    fetchTimelinesForDay({ clearWhenEmpty: true })
+      .then(() => {
+        setPendingSyncDays(days => days.filter(pendingDay => pendingDay !== dayNum));
+      })
+      .catch(() => {});
   }, [id, dayNum, trip?.id]);
 
   useEffect(() => {
@@ -649,67 +567,27 @@ export default function DayPlanPage() {
   }, [id, dayNum]);
 
   useEffect(() => {
-    if (!id || !trip || dayIdx < 0) return;
+    if (!latestEvent) return;
 
-    let closed = false;
-    const controller = new AbortController();
+    const changedDayNumber = latestEvent.dayNumber == null
+      ? null
+      : Number(latestEvent.dayNumber);
+    const affectsCurrentDay =
+      TIMELINE_SYNC_EVENT_TYPES.has(latestEvent.eventType) &&
+      (changedDayNumber == null || changedDayNumber === dayNum);
 
-    const handleEvent = (rawEvent: string) => {
-      const { eventName, data } = parseSseEvent(rawEvent);
-      if (eventName !== "TIMELINE_UPDATED") return;
+    if (!affectsCurrentDay) return;
 
-      const payload = readTimelineEventPayload(data);
-      if (payload.changedMemberId != null && Number(payload.changedMemberId) === Number(currentUser.id)) {
-        return;
-      }
-
-      openSyncBanner(payload.message || "새로운 변경 사항이 있습니다.");
-    };
-
-    const connect = async () => {
-      try {
-        const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/timelines/subscribe`, {
-          headers: { Accept: "text/event-stream" },
-          signal: controller.signal,
-        });
-
-        if (!response.ok || !response.body) return;
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (!closed) {
-          const { value, done } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const events = buffer.split(/\r?\n\r?\n/);
-          buffer = events.pop() ?? "";
-          events.forEach(handleEvent);
-        }
-      } catch (error) {
-        if (!closed && !controller.signal.aborted) {
-          console.error("[타임라인 SSE 연결 실패]", error);
-        }
-      }
-
-      if (!closed) {
-        reconnectTimer.current = setTimeout(connect, 2000);
-      }
-    };
-
-    connect();
-
-    return () => {
-      closed = true;
-      controller.abort();
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-    };
-  }, [id, trip?.id, dayIdx, currentUser.id, openSyncBanner]);
+    const pendingTimer = window.setTimeout(() => {
+      setPendingSyncDays(days => (
+        days.includes(dayNum) ? days : [...days, dayNum]
+      ));
+    }, 0);
+    return () => window.clearTimeout(pendingTimer);
+  }, [latestEvent, dayNum]);
 
   if (!trip || dayIdx < 0) return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex min-h-[100dvh] items-center justify-center">
       <p className="text-gray-400 text-sm">불러오는 중...</p>
     </div>
   );
@@ -724,6 +602,7 @@ export default function DayPlanPage() {
   })();
   const sortedBlocks = [...day.blocks].sort((a, b) => a.startMinute - b.startMinute);
   const canComplete = isAdmin && day.blocks.length > 0;
+  const hasPendingSync = pendingSyncDays.includes(dayNum);
 
   const leaveDayWithTransition = (navigate: () => void) => {
     if (isLeavingDay) return;
@@ -775,11 +654,13 @@ export default function DayPlanPage() {
     return true;
   };
 
-  const syncTimeLines = async () => {
+  const syncTimelines = async () => {
+    if (!hasPendingSync || syncLoading) return;
+
     setSyncLoading(true);
     try {
-      await fetchTimeLinesForDay({ clearWhenEmpty: true, animateRemoved: true });
-      await closeSyncBanner();
+      await fetchTimelinesForDay({ clearWhenEmpty: true, animateRemoved: true });
+      setPendingSyncDays(days => days.filter(pendingDay => pendingDay !== dayNum));
       setIsEditingTimeRanges(false);
     } catch (error) {
       console.error("[타임라인 동기화 실패]", error);
@@ -794,7 +675,7 @@ export default function DayPlanPage() {
     return rounded >= 23 * 60 ? 9 * 60 : rounded;
   };
 
-  const saveNewTimeLine = async (block: ActivityBlock) => {
+  const saveNewTimeline = async (block: ActivityBlock) => {
     setTimelineSaving(true);
     try {
       const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/timelines`, {
@@ -807,17 +688,17 @@ export default function DayPlanPage() {
         }),
       });
       if (!response.ok) throw new Error("시간 구간을 추가하지 못했습니다.");
-      await fetchTimeLinesForDay({ clearWhenEmpty: true });
+      await fetchTimelinesForDay({ clearWhenEmpty: true });
     } catch (error) {
       console.error("[타임라인 추가 실패]", error);
       setValidationError("시간 구간을 추가하지 못했습니다.");
-      await fetchTimeLinesForDay({ clearWhenEmpty: true }).catch(() => {});
+      await fetchTimelinesForDay({ clearWhenEmpty: true }).catch(() => {});
     } finally {
       setTimelineSaving(false);
     }
   };
 
-  const saveUpdatedTimeLine = async (block: ActivityBlock) => {
+  const saveUpdatedTimeline = async (block: ActivityBlock) => {
     if (!isPersistedBlock(block)) return;
 
     setTimelineSaving(true);
@@ -831,17 +712,17 @@ export default function DayPlanPage() {
         }),
       });
       if (!response.ok) throw new Error("시간 구간을 수정하지 못했습니다.");
-      await fetchTimeLinesForDay({ clearWhenEmpty: true });
+      await fetchTimelinesForDay({ clearWhenEmpty: true });
     } catch (error) {
       console.error("[타임라인 수정 실패]", error);
       setValidationError("시간 구간을 수정하지 못했습니다.");
-      await fetchTimeLinesForDay({ clearWhenEmpty: true }).catch(() => {});
+      await fetchTimelinesForDay({ clearWhenEmpty: true }).catch(() => {});
     } finally {
       setTimelineSaving(false);
     }
   };
 
-  const deletePersistedTimeLine = async (block: ActivityBlock) => {
+  const deletePersistedTimeline = async (block: ActivityBlock) => {
     if (!isPersistedBlock(block)) return;
 
     setTimelineSaving(true);
@@ -851,12 +732,12 @@ export default function DayPlanPage() {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("시간 구간을 삭제하지 못했습니다.");
-      await fetchTimeLinesForDay({ clearWhenEmpty: true });
+      await fetchTimelinesForDay({ clearWhenEmpty: true });
     } catch (error) {
       console.error("[타임라인 삭제 실패]", error);
       setValidationError("시간 구간을 삭제하지 못했습니다.");
       clearBlockRemoving(block.id);
-      await fetchTimeLinesForDay({ clearWhenEmpty: true }).catch(() => {});
+      await fetchTimelinesForDay({ clearWhenEmpty: true }).catch(() => {});
     } finally {
       setTimelineSaving(false);
     }
@@ -893,7 +774,7 @@ export default function DayPlanPage() {
     if (!validateBlocks(nextBlocks)) return;
 
     if (day.isPlanCompleted) {
-      await saveNewTimeLine(newBlock);
+      await saveNewTimeline(newBlock);
       return;
     }
 
@@ -906,7 +787,7 @@ export default function DayPlanPage() {
 
     const removed = sortedBlocks[sortedBlocks.length - 1];
     if (day.isPlanCompleted && isPersistedBlock(removed)) {
-      await deletePersistedTimeLine(removed);
+      await deletePersistedTimeline(removed);
       return;
     }
 
@@ -918,7 +799,7 @@ export default function DayPlanPage() {
     if (day.isPlanCompleted && !isEditingTimeRanges) return;
 
     if (day.isPlanCompleted && isPersistedBlock(block)) {
-      await deletePersistedTimeLine(block);
+      await deletePersistedTimeline(block);
       return;
     }
 
@@ -938,7 +819,7 @@ export default function DayPlanPage() {
 
     const updated = nextBlocks.find(block => block.id === blockId);
     if (day.isPlanCompleted && updated) {
-      await saveUpdatedTimeLine(updated);
+      await saveUpdatedTimeline(updated);
     }
   };
 
@@ -948,7 +829,7 @@ export default function DayPlanPage() {
     const sorted = normalizeOrders(day.blocks);
     if (!validateBlocks(sorted)) return;
 
-    const timeLines = sorted.map(block => ({
+    const timelines = sorted.map(block => ({
       dayNumber: dayNum,
       startTime: toDateTime(block.startMinute),
       endTime: toDateTime(block.endMinute),
@@ -959,10 +840,10 @@ export default function DayPlanPage() {
       const response = await apiFetch(`${API_BASE}/api/v1/trips/${id}/timelines/batch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dayNumber: dayNum, timeLines }),
+        body: JSON.stringify({ dayNumber: dayNum, timelines }),
       });
       if (!response.ok) throw new Error("타임라인 저장 실패");
-      await fetchTimeLinesForDay({ clearWhenEmpty: true });
+      await fetchTimelinesForDay({ clearWhenEmpty: true });
       setIsEditingTimeRanges(false);
     } catch (error) {
       console.error("[타임라인 저장 실패]", error);
@@ -973,35 +854,32 @@ export default function DayPlanPage() {
   };
 
   return (
-    <div className={`timeline-day-page flex flex-col h-screen ${isLeavingDay ? "trip-page-exit" : ""}`}>
-      <div className="flex items-center gap-3 px-4 pt-12 pb-2">
+    <div className={`timeline-day-page flex h-[100dvh] flex-col ${isLeavingDay ? "trip-page-exit" : ""}`}>
+      <div className="app-safe-header flex items-center gap-3 px-4 pb-2">
         <button onClick={() => leaveDayWithTransition(() => router.back())} aria-label="뒤로가기" className="trip-header-icon-button w-10 h-10 rounded-full flex items-center justify-center">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <h1 className="font-semibold text-base flex-1 text-center">{dayNum}일차</h1>
-        <div className="w-8" />
-      </div>
-
-      {showSyncButton && (
-        <div
-          key={syncBannerKey}
-          className={`sync-banner-shell px-4 is-${syncBannerPhase}`}
+        <TripEventHeaderNotice className="h-10 flex-1">
+          <h1 className="font-semibold text-base text-center">
+            {dayNum}일차
+          </h1>
+        </TripEventHeaderNotice>
+        <button
+          type="button"
+          onClick={syncTimelines}
+          disabled={!hasPendingSync || syncLoading}
+          aria-label={hasPendingSync ? "변경된 타임라인 동기화" : "동기화할 변경 사항 없음"}
+          title={hasPendingSync ? "변경된 타임라인 동기화" : "동기화할 변경 사항 없음"}
+          className={`timeline-sync-icon-button w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+            hasPendingSync ? "is-pending" : "is-idle"
+          }`}
         >
-          <div className="sync-banner-card rounded-2xl bg-blue-50 px-4 py-3 flex items-center gap-3">
-            <p className="flex-1 min-w-0 text-sm font-semibold text-blue-700 leading-snug">{syncMessage}</p>
-            <button
-              onClick={syncTimeLines}
-              disabled={syncLoading}
-              className="shrink-0 px-3 py-2 rounded-xl bg-white text-blue-600 font-bold text-xs flex items-center gap-1.5 disabled:opacity-60"
-            >
-              <ArrowClockwise size={15} weight="bold" className={syncLoading ? "animate-spin" : ""} />
-              동기화
-            </button>
-          </div>
-        </div>
-      )}
+          <ArrowClockwise size={19} weight="bold" />
+        </button>
+        <TripChatRoomButton />
+      </div>
 
       <div className="flex-1 overflow-y-scroll px-4 pt-2 pb-4 flex flex-col gap-5">
         <div>

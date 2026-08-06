@@ -4,13 +4,15 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "../store";
-import { Avatar, formatDate, apiFetch, useAuthGuard, API_BASE } from "../lib";
+import { formatDate, apiFetch, useAuthGuard, API_BASE } from "../lib";
 import { useTripOwnerStore } from "../stores/tripOwnerStore";
 import AnimatedBottomSheet from "../components/AnimatedBottomSheet";
+import HomeBottomNavigation from "../components/HomeBottomNavigation";
 
 type ApiTrip = {
   id: number;
   name: string;
+  ownerId?: number;
   region: string;
   nights: number;
   startDate: string;
@@ -96,28 +98,14 @@ function MobileDatePicker({
     <AnimatedBottomSheet
       onClose={onClose}
       zIndexClassName="z-[60]"
-      className="overflow-y-auto px-5 pt-4 pb-6"
+      className="overflow-y-auto px-5 pb-6"
     >
       {(close) => (
         <>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-lg font-bold">{title}</p>
-            <p className="text-xs text-gray-500 mt-0.5">날짜를 선택하세요.</p>
-          </div>
-          <button
-            type="button"
-            onClick={close}
-            className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center"
-            aria-label="닫기"
-          >
-            ✕
-          </button>
-        </div>
+        <span className="sr-only">{title}</span>
 
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <label className="flex flex-col gap-1.5">
-            <span aria-hidden="true" className="text-xs font-bold text-transparent">&nbsp;</span>
+          <label>
             <div className="relative">
               <select
                 value={year}
@@ -133,8 +121,7 @@ function MobileDatePicker({
               </svg>
             </div>
           </label>
-          <label className="flex flex-col gap-1.5">
-            <span aria-hidden="true" className="text-xs font-bold text-transparent">&nbsp;</span>
+          <label>
             <div className="relative">
               <select
                 value={month}
@@ -406,18 +393,6 @@ function RegionSheetPicker({
         >
           {(close) => (
             <>
-            <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
-              <p className="text-lg font-bold">지역 선택</p>
-              <button
-                type="button"
-                onClick={close}
-                className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center"
-                aria-label="닫기"
-              >
-                ✕
-              </button>
-            </div>
-
             <div className="overflow-y-auto px-5 pb-8 flex flex-col gap-5">
               {DOMESTIC_REGIONS.map(({ group, cities }) => (
                 <div key={group}>
@@ -449,7 +424,15 @@ function RegionSheetPicker({
   );
 }
 
-function TripCard({ trip, animationDelayMs = 0 }: { trip: ApiTrip; animationDelayMs?: number }) {
+function TripCard({
+  trip,
+  animationDelayMs = 0,
+  unreadCount = 0,
+}: {
+  trip: ApiTrip;
+  animationDelayMs?: number;
+  unreadCount?: number;
+}) {
   const status = getTripStatus(trip.startDate, trip.nights);
   const badge = STATUS_BADGE[status];
   return (
@@ -460,8 +443,15 @@ function TripCard({ trip, animationDelayMs = 0 }: { trip: ApiTrip; animationDela
     >
       <div className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-start justify-between mb-3">
-          <div>
-            <p className="font-bold text-base">{trip.name}</p>
+          <div className="min-w-0">
+            <p className="font-bold text-base flex items-center gap-1.5">
+              {trip.name}
+              {unreadCount > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </p>
             <p className="text-sm text-gray-500 mt-0.5">{trip.region} · {trip.nights}박 {trip.nights + 1}일</p>
           </div>
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ml-2 ${badge.className}`}>
@@ -474,6 +464,52 @@ function TripCard({ trip, animationDelayMs = 0 }: { trip: ApiTrip; animationDela
   );
 }
 
+// 삭제 모달에서 리스트에 렌더할 "선택 가능한 카드". 실제 라우팅용 <Link>가 아니라 클릭=선택 토글.
+// 카드 전체가 클릭 타겟이라 체크박스는 시각 표시용, 스타일은 선택 시 파란 링으로.
+function DeletableTripRow({
+  trip,
+  selected,
+  onToggle,
+}: {
+  trip: ApiTrip;
+  selected: boolean;
+  onToggle: (id: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(trip.id)}
+      aria-pressed={selected}
+      className={`w-full text-left rounded-2xl border p-4 transition-shadow ${
+        selected
+          ? "border-blue-500 ring-2 ring-blue-200 bg-blue-50"
+          : "border-gray-100 bg-white"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden
+          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+            selected ? "bg-blue-500 border-blue-500" : "border-gray-300 bg-white"
+          }`}
+        >
+          {selected && (
+            <svg className="h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12l5 5 9-11" />
+            </svg>
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-bold text-sm">{trip.name}</p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            {trip.region} · {trip.nights}박 {trip.nights + 1}일 · {formatDate(trip.startDate)} 시작
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 export default function HomePage() {
   useAuthGuard();
   const router = useRouter();
@@ -481,12 +517,16 @@ export default function HomePage() {
   const clearOwnerId = useTripOwnerStore((state) => state.clearOwnerId);
 
   const [trips, setTrips] = useState<ApiTrip[]>([]);
+  const [unreadCounts, setUnreadCounts] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [resultAnimationKey, setResultAnimationKey] = useState(0);
   const [hasSearched, setHasSearched] = useState(false);
-  const [showLogout, setShowLogout] = useState(false);
-  const [confirmLogout, setConfirmLogout] = useState(false);
-
+  // 무한 스크롤 상태: 백엔드가 Slice 응답으로 hasNext/page를 내려주므로 그대로 보관.
+  // page는 "지금까지 로드된 마지막 페이지 번호". loadingMore는 sentinel 재진입 방지.
+  const [page, setPage] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const tripTitleRef = useRef<HTMLInputElement>(null);
   const [showCreate, setShowCreate] = useState(false);
   useEffect(() => { if (showCreate) setTimeout(() => tripTitleRef.current?.focus(), 50); }, [showCreate]);
@@ -498,44 +538,77 @@ export default function HomePage() {
   const [searchDate, setSearchDate] = useState("");
   const canSearchTrips = keyWord.trim().length > 0 || Boolean(searchDate);
   const todayValue = toDateValue(new Date());
+  // 백엔드 @PageableDefault(size = 10)와 일치. 프론트가 명시적으로 넘겨야 첫 응답의 size 필드가 예측 가능해짐.
+  const PAGE_SIZE = 10;
 
-  const getInit = async ({
+  // Slice 한 페이지 fetch. reset=true면 목록을 새로 시작(첫 페이지), false면 다음 페이지를 이어붙임.
+  // 검색/리셋은 reset=true, sentinel 진입은 reset=false로 호출.
+  const fetchPage = async ({
+    pageNumber,
+    reset,
+    keyword,
+    startDate,
     animateResults = false,
-    keyword = keyWord,
-    startDate = searchDate,
   }: {
+    pageNumber: number;
+    reset: boolean;
+    keyword: string;
+    startDate: string;
     animateResults?: boolean;
-    keyword?: string;
-    startDate?: string;
-  } = {}) => {
+  }) => {
     const p = new URLSearchParams();
     if (keyword.trim()) p.set("keyword", keyword.trim());
     if (startDate) p.set("startDate", startDate);
-    const query = p.toString() ? `?${p.toString()}` : "";
+    p.set("page", String(pageNumber));
+    p.set("size", String(PAGE_SIZE));
     try {
-      const res = await apiFetch(`${API_BASE}/api/v1/trips${query}`);
+      const res = await apiFetch(`${API_BASE}/api/v1/trips?${p.toString()}`);
       const body = await res.json();
-      const nextTrips = Array.isArray(body.data) ? body.data : [];
+      const slice = body.data ?? {};
+      const items: ApiTrip[] = Array.isArray(slice.items) ? slice.items : [];
+      // reset이면 통째로 교체, 아니면 누적. 응답 순서(startDate DESC)를 그대로 유지.
+      const nextTrips = reset ? items : [...trips, ...items];
       setTrips(nextTrips);
       loadTrips(nextTrips);
+      setPage(typeof slice.page === "number" ? slice.page : pageNumber);
+      setHasNext(Boolean(slice.hasNext));
       if (animateResults) setResultAnimationKey(key => key + 1);
     } catch {
     } finally {
-      setLoading(false);
+      if (reset) setLoading(false);
+      setLoadingMore(false);
     }
-  }
+  };
+
+  const loadFirstPage = (opts: { keyword?: string; startDate?: string; animateResults?: boolean } = {}) =>
+    fetchPage({
+      pageNumber: 0,
+      reset: true,
+      keyword: opts.keyword ?? keyWord,
+      startDate: opts.startDate ?? searchDate,
+      animateResults: opts.animateResults,
+    });
+
+  const loadUnreadCounts = async () => {
+    try {
+      const res = await apiFetch(`${API_BASE}/api/v1/trips/chat/unread-counts`);
+      const body = await res.json();
+      setUnreadCounts(body.data ?? {});
+    } catch {
+    }
+  };
 
   const resetSearch = () => {
     setKeyWord("");
     setSearchDate("");
     setHasSearched(false);
-    getInit({ animateResults: true, keyword: "", startDate: "" });
+    loadFirstPage({ animateResults: true, keyword: "", startDate: "" });
   };
 
   const runSearch = () => {
     if (!canSearchTrips) return;
     setHasSearched(true);
-    getInit({ animateResults: true });
+    loadFirstPage({ animateResults: true });
   };
 
   const handleKeywordChange = (value: string) => {
@@ -543,15 +616,146 @@ export default function HomePage() {
     if (!value.trim() && (keyWord.trim() || searchDate || hasSearched)) {
       setSearchDate("");
       setHasSearched(false);
-      getInit({ animateResults: true, keyword: "", startDate: "" });
+      loadFirstPage({ animateResults: true, keyword: "", startDate: "" });
     }
   };
 
   useEffect(() => {
     localStorage.removeItem("pendingInviteCode");
     clearOwnerId();
-    getInit()
+    const initialLoadFrame = requestAnimationFrame(() => {
+      void loadFirstPage();
+      void loadUnreadCounts();
+    });
+
+    return () => {
+      cancelAnimationFrame(initialLoadFrame);
+    };
   }, []);
+
+  // 하단 sentinel이 뷰포트에 들어오면 다음 slice fetch.
+  // deps에 hasNext/loadingMore/page/keyWord/searchDate가 들어가야 최신 값을 캡처.
+  // rootMargin으로 실제 sentinel이 완전히 노출되기 전에 미리 요청해 스크롤 끊김 방지.
+  useEffect(() => {
+    if (!hasNext || loadingMore) return;
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setLoadingMore(true);
+          void fetchPage({
+            pageNumber: page + 1,
+            reset: false,
+            keyword: keyWord,
+            startDate: searchDate,
+          });
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasNext, loadingMore, page, keyWord, searchDate]);
+
+  // 삭제 모달 UI 상태. Set으로 관리해 다중 선택 토글이 O(1).
+  const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const [selectedDeleteIds, setSelectedDeleteIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // 팀원 공용 삭제 확인 모달(.delete-confirm-backdrop / .delete-confirm-card) 애니메이션 상태.
+  // 패턴은 trip/[id]/timeline/page.tsx의 사진 삭제 모달과 동일:
+  //   mount → 다음 frame에 is-open 클래스 부여로 fade-in 시작
+  //   close → is-open 제거 + is-closing 부여 → 220ms 뒤 unmount
+  const [confirmMounted, setConfirmMounted] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmClosing, setConfirmClosing] = useState(false);
+
+  useEffect(() => {
+    if (!confirmMounted) {
+      setConfirmOpen(false);
+      return;
+    }
+    setConfirmClosing(false);
+    setConfirmOpen(false);
+    const frame = window.requestAnimationFrame(() => setConfirmOpen(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [confirmMounted]);
+
+  const openDeleteConfirm = () => {
+    if (selectedDeleteIds.size === 0 || confirmMounted) return;
+    setConfirmMounted(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (!confirmMounted || confirmClosing || bulkDeleting) return;
+    setConfirmOpen(false);
+    setConfirmClosing(true);
+    // globals.css의 .delete-confirm-backdrop.is-closing transition-duration(220ms)에 맞춰 unmount.
+    window.setTimeout(() => {
+      setConfirmMounted(false);
+      setConfirmClosing(false);
+    }, 220);
+  };
+
+  // "방장 + 여행 시작 전날까지 남음"만 삭제 가능. 백엔드 DELETE_ALLOWED_DAYS_BEFORE_START=1과 일치.
+  // 홈 목록 API가 이미 startDate/ownerId를 다 주므로 별도 API 없이 프론트에서 필터.
+  const isDeletableTrip = (t: ApiTrip): boolean => {
+    if (Number(t.ownerId) !== Number(currentUser.id)) return false;
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const tripStart = new Date(t.startDate); tripStart.setHours(0, 0, 0, 0);
+    const daysUntilStart = Math.round((tripStart.getTime() - todayStart.getTime()) / 86400000);
+    return daysUntilStart >= 1;
+  };
+
+  const deletableTrips = trips.filter(isDeletableTrip);
+
+  const openDeleteSheet = () => {
+    setSelectedDeleteIds(new Set());
+    setShowDeleteSheet(true);
+  };
+
+  const toggleDeleteSelection = (tripId: number) => {
+    setSelectedDeleteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(tripId)) next.delete(tripId); else next.add(tripId);
+      return next;
+    });
+  };
+
+  const performBulkDelete = async () => {
+    if (selectedDeleteIds.size === 0 || bulkDeleting) return;
+    setBulkDeleting(true);
+    try {
+      const res = await apiFetch(`${API_BASE}/api/v1/trips/bulk-delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedDeleteIds) }),
+      });
+      if (!res.ok) {
+        // 403/404는 apiFetch가 이미 처리, 여기 도달했다면 400/500. 상태 복구만.
+        setBulkDeleting(false);
+        return;
+      }
+      // 낙관적 제거: 성공 시 로컬 목록에서 즉시 제거해 재요청 없이 UX 즉시 반영.
+      const nextTrips = trips.filter(t => !selectedDeleteIds.has(t.id));
+      setTrips(nextTrips);
+      loadTrips(nextTrips);
+      setSelectedDeleteIds(new Set());
+      // 확인 모달을 먼저 닫고(애니 시작), 그 뒤 하단 시트도 닫는다.
+      setConfirmOpen(false);
+      setConfirmClosing(true);
+      window.setTimeout(() => {
+        setConfirmMounted(false);
+        setConfirmClosing(false);
+        setShowDeleteSheet(false);
+      }, 220);
+    } catch (e) {
+      console.error("[모임방 다중 삭제 실패]", e);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   const handleCreateTrip = async () => {
     if (!tripTitle.trim() || !tripRegion.trim() || !tripDate) return;
@@ -580,20 +784,29 @@ export default function HomePage() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
-    router.replace("/");
-  };
-
   return (
-    <div className="home-page min-h-screen">
-      <div className="shrink-0 flex items-center justify-between px-4 pt-14 pb-2">
+    <div className="home-page min-h-[100dvh]">
+      <div className="app-safe-header shrink-0 flex items-center justify-between px-4 pb-2">
         <p className="text-3xl font-bold">내 여행</p>
-        <button onClick={() => setShowCreate(true)} aria-label="여행 모임 만들기" className="home-create-button w-10 h-10 flex items-center justify-center rounded-full">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.75} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* 삭제 가능한 방이 하나도 없으면 버튼 자체를 숨겨 UI 노이즈 최소화 */}
+          {deletableTrips.length > 0 && (
+            <button
+              onClick={openDeleteSheet}
+              aria-label="모임방 삭제"
+              className="home-create-button w-10 h-10 flex items-center justify-center rounded-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-7 0v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V7" />
+              </svg>
+            </button>
+          )}
+          <button onClick={() => setShowCreate(true)} aria-label="여행 모임 만들기" className="home-create-button w-10 h-10 flex items-center justify-center rounded-full">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.75} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="home-content px-4 pb-0">
@@ -667,7 +880,20 @@ export default function HomePage() {
               {[...trips].sort((a, b) => {
                 const order = { during: 0, before: 1, after: 2 };
                 return order[getTripStatus(a.startDate, a.nights)] - order[getTripStatus(b.startDate, b.nights)];
-              }).map((trip, index) => <TripCard key={trip.id} trip={trip} animationDelayMs={Math.min(index, 6) * 55} />)}
+              }).map((trip, index) => (
+                <TripCard
+                  key={trip.id}
+                  trip={trip}
+                  animationDelayMs={Math.min(index, 6) * 55}
+                  unreadCount={unreadCounts[trip.id] ?? 0}
+                />
+              ))}
+              {loadingMore && (
+                <p className="text-center text-xs text-gray-400 py-3">불러오는 중...</p>
+              )}
+              {/* sentinel: 하단이 뷰포트 근처에 들어오면 IntersectionObserver가 다음 페이지 요청.
+                  hasNext=false거나 loadingMore 중이면 useEffect가 옵저버를 붙이지 않음. */}
+              {hasNext && <div ref={sentinelRef} aria-hidden className="h-1" />}
             </div>
           )}
         </div>
@@ -678,13 +904,9 @@ export default function HomePage() {
           onClose={() => setShowCreate(false)}
           className="max-h-[90vh] overflow-y-auto"
         >
-          {(close) => (
+          {() => (
             <>
-            <div className="flex items-center justify-between px-4 pt-5 pb-3 border-b border-gray-100">
-              <h2 className="text-lg font-bold">여행 모임 만들기</h2>
-              <button onClick={close} className="text-blue-500 font-medium">닫기</button>
-            </div>
-            <div className="p-4 flex flex-col gap-5">
+            <div className="flex flex-col gap-5 px-4 pb-4">
               <div>
                 <label className="text-sm font-semibold mb-1.5 block">여행 이름</label>
                 <input ref={tripTitleRef} className="w-full p-3 bg-gray-100 rounded-xl text-sm outline-none" placeholder="여행 이름을 입력해주세요" value={tripTitle} onChange={e => setTripTitle(e.target.value)} />
@@ -731,112 +953,114 @@ export default function HomePage() {
         </AnimatedBottomSheet>
       )}
 
-      <div
-        className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-      >
-        <div className={`trip-floating-tab-bar home-floating-tab-bar pointer-events-auto ${showLogout ? "is-profile" : "is-home"}`}>
-          <span className="trip-floating-tab-indicator" aria-hidden="true" />
-          <button
-            type="button"
-            onClick={() => {
-              setShowLogout(false);
-              setConfirmLogout(false);
-            }}
-            className="trip-floating-tab-button"
-            aria-label="여행 모임 목록"
-            aria-current={!showLogout ? "page" : undefined}
-          >
-            <span className={`trip-floating-tab-icon ${!showLogout ? "is-active" : ""}`}>
-              <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.75 11.25 12 4.5l8.25 6.75M5.75 10.75V20h4.5v-5.25h3.5V20h4.5v-9.25" />
-              </svg>
-            </span>
-            <span className="sr-only">여행 모임 목록</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowLogout(true);
-              setConfirmLogout(false);
-            }}
-            className="trip-floating-tab-button"
-            aria-label="내 정보"
-            aria-current={showLogout ? "page" : undefined}
-          >
-            <span className={`trip-floating-tab-icon ${showLogout ? "is-active" : ""}`}>
-              <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.75 7.75a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.75 19.25a7.25 7.25 0 0 1 14.5 0" />
-              </svg>
-            </span>
-            <span className="sr-only">내 정보</span>
-          </button>
-        </div>
-      </div>
-
-      {showLogout && (
+      {showDeleteSheet && (
         <AnimatedBottomSheet
-          onClose={() => {
-            setShowLogout(false);
-            setConfirmLogout(false);
-          }}
-          className="px-5 pt-5 pb-6"
+          onClose={() => (bulkDeleting ? undefined : setShowDeleteSheet(false))}
+          className="max-h-[80vh] overflow-y-auto"
         >
-          {(close) => (
-            <>
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <p className="text-lg font-bold">{confirmLogout ? "로그아웃" : "내 정보"}</p>
+          {() => (
+            <div className="flex flex-col gap-4 px-4 pb-4">
+              <div>
+                <p className="text-lg font-bold">모임방 삭제</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  방장으로 있고 여행 시작 전날까지 남은 모임방만 삭제할 수 있어요.
+                </p>
+              </div>
+
+              {deletableTrips.length === 0 ? (
+                <p className="rounded-2xl bg-gray-50 py-8 text-center text-sm text-gray-400">
+                  삭제 가능한 모임방이 없어요.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {deletableTrips.map(t => (
+                    <DeletableTripRow
+                      key={t.id}
+                      trip={t}
+                      selected={selectedDeleteIds.has(t.id)}
+                      onToggle={toggleDeleteSelection}
+                    />
+                  ))}
                 </div>
+              )}
+
+              <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={close}
-                  className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center"
-                  aria-label="닫기"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="home-logout-body">
-                {confirmLogout ? (
-                  <div className="home-logout-confirm-item rounded-2xl bg-gray-50 p-5 mb-4 text-center">
-                    <p className="font-bold">정말 로그아웃하시겠습니까?</p>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl bg-gray-50 p-4 mb-4">
-                    <p className="text-sm text-gray-500 mb-3">현재 계정</p>
-                    <div className="flex items-center gap-3">
-                      <Avatar user={{ ...currentUser, name: currentUser.name || "사용자" }} size={42} />
-                      <p className="font-bold">{currentUser.name || "사용자"}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className={`home-logout-actions ${confirmLogout ? "is-confirming" : ""}`}>
-                <button
-                  type="button"
-                  onClick={close}
-                  disabled={!confirmLogout}
-                  aria-hidden={!confirmLogout}
-                  tabIndex={confirmLogout ? 0 : -1}
-                  className="home-logout-cancel-action py-4 rounded-2xl bg-gray-100 text-gray-700 font-bold active:opacity-80"
+                  onClick={() => setShowDeleteSheet(false)}
+                  disabled={bulkDeleting}
+                  className="flex-1 rounded-2xl border border-gray-200 bg-white py-4 text-sm font-semibold text-gray-600 active:opacity-80 disabled:opacity-40"
                 >
                   취소
                 </button>
                 <button
                   type="button"
-                  onClick={confirmLogout ? handleLogout : () => setConfirmLogout(true)}
-                  className="home-logout-main-action py-4 rounded-2xl bg-red-500 text-white font-bold active:opacity-80"
+                  onClick={openDeleteConfirm}
+                  disabled={selectedDeleteIds.size === 0 || bulkDeleting}
+                  className="flex-1 rounded-2xl bg-red-500 py-4 text-sm font-bold text-white active:opacity-80 disabled:opacity-40"
                 >
-                  로그아웃
+                  {selectedDeleteIds.size > 0 ? `${selectedDeleteIds.size}개 삭제` : "삭제"}
                 </button>
               </div>
-            </>
+            </div>
           )}
         </AnimatedBottomSheet>
       )}
+
+      {confirmMounted && (
+        <div
+          className={`delete-confirm-backdrop fixed inset-0 z-[120] flex items-center justify-center bg-black/55 px-5 ${
+            confirmOpen ? "is-open" : ""
+          } ${confirmClosing ? "is-closing" : ""}`}
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="delete-trips-title"
+          aria-describedby="delete-trips-description"
+          onClick={closeDeleteConfirm}
+        >
+          <div
+            className="delete-confirm-card w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-5 shadow-2xl"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-500">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14H6L5 6M10 11v5M14 11v5" />
+                </svg>
+              </div>
+              <h2 id="delete-trips-title" className="text-lg font-bold text-gray-900">
+                선택한 {selectedDeleteIds.size}개 모임방을 삭제할까요?
+              </h2>
+              <p id="delete-trips-description" className="mt-2 text-sm leading-6 text-gray-500">
+                모임방과 관련된 정보가 함께 삭제되며
+                <br />
+                삭제 후에는 되돌릴 수 없습니다.
+              </p>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                autoFocus
+                onClick={closeDeleteConfirm}
+                disabled={bulkDeleting}
+                className="rounded-2xl bg-gray-100 py-3.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void performBulkDelete()}
+                disabled={bulkDeleting}
+                className="rounded-2xl bg-red-500 py-3.5 text-sm font-semibold text-white transition-[background-color,transform] hover:bg-red-600 active:scale-[0.98] disabled:opacity-50"
+              >
+                {bulkDeleting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <HomeBottomNavigation activeTab="home" />
     </div>
   );
 }

@@ -38,3 +38,13 @@ gradlew.bat
 db_dev.mv.db
 db_dev.trace.db
 db_dev.lock.db
+
+### headroom ###
+.tokensave
+
+### claude ###
+.claude
+docs/*
+
+# env files (can opt-in for committing if needed)
+.env*

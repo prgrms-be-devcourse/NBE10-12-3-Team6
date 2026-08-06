@@ -1,5 +1,10 @@
 plugins {
     java
+    kotlin("jvm") version "2.4.0"
+    kotlin("plugin.spring") version "2.4.0"
+    kotlin("plugin.jpa") version "2.4.0"
+    kotlin("plugin.lombok") version "2.4.0"
+    kotlin("kapt") version "2.4.0"
     id("org.springframework.boot") version "4.0.7"
     id("io.spring.dependency-management") version "1.1.7"
 }
@@ -18,11 +23,20 @@ repositories {
     mavenCentral()
 }
 
+kapt {
+    keepJavacAnnotationProcessors = true
+    includeCompileClasspath = false
+}
+
 dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation("tools.jackson.module:jackson-module-kotlin")
 
     implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 
@@ -56,6 +70,15 @@ dependencies {
     // AWS S3 연동을 위한 의존성
     implementation("org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE")
 
+    // 목록용 WebP 이미지 생성
+    runtimeOnly("com.github.usefulness:webp-imageio:0.10.2")
+
+    // Mail
+    implementation("org.springframework.boot:spring-boot-starter-mail")
+
+    // Redis
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
     testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
@@ -63,14 +86,13 @@ dependencies {
     testCompileOnly("org.projectlombok:lombok")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testAnnotationProcessor("org.projectlombok:lombok")
-
+    implementation("com.google.firebase:firebase-admin:9.10.0")
 
 
     // QFile 생성 및 가져오기
-    annotationProcessor("com.querydsl:querydsl-apt:5.1.0:jakarta")
-    annotationProcessor("com.querydsl:querydsl-jpa:5.1.0:jakarta")
-    annotationProcessor("jakarta.persistence:jakarta.persistence-api")
-    annotationProcessor("jakarta.annotation:jakarta.annotation-api")
+    kapt("com.querydsl:querydsl-apt:5.1.0:jakarta")
+    kapt("jakarta.persistence:jakarta.persistence-api")
+    kapt("jakarta.annotation:jakarta.annotation-api")
 
     //스프링 배치
     implementation ("org.springframework.boot:spring-boot-starter-batch-jdbc")
@@ -78,6 +100,11 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+}
+
+tasks.withType<JavaExec> {
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
 tasks.register<Copy>("installGitHooks") {

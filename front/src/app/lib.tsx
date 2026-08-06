@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { User, PlanTheme } from "./store";
+import { AUTH_ME_PATH, clearStoredAuthentication, getMe, rememberCookieAuthentication } from "./authStorage";
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 
@@ -30,12 +31,27 @@ export function colorStyle(color: string) {
 
 export function Avatar({ user, size = 36 }: { user: User; size?: number }) {
   const c = colorStyle(user.color);
+  const iconSize = Math.max(18, Math.round(size * 0.5));
   return (
     <div
-      className="rounded-full flex items-center justify-center font-bold text-sm shrink-0"
+      className="rounded-full flex items-center justify-center shrink-0"
       style={{ width: size, height: size, background: c.bg, color: c.text }}
     >
-      {user.name[0]}
+      <svg
+        aria-hidden="true"
+        width={iconSize}
+        height={iconSize}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M15.75 7.75a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.75 19.25a7.25 7.25 0 0 1 14.5 0"
+        />
+      </svg>
     </div>
   );
 }
@@ -68,17 +84,31 @@ export function ThemeBadge({ theme }: { theme: PlanTheme }) {
 
 export const API_BASE =
 typeof window !== "undefined"
-  ? (process.env.NEXT_PUBLIC_API_BASE ?? window.location.origin)
+  ? (process.env.NEXT_PUBLIC_API_BASE ?? `${window.location.protocol}//${window.location.hostname}:8080`)
   : (process.env.NEXT_PUBLIC_API_BASE ?? "http://192.168.0.5:8080");
+
+export const WS_BASE = API_BASE.replace(/^http/, "ws");
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
 
 export function useAuthGuard() {
   const router = useRouter();
   useEffect(() => {
-    if (!localStorage.getItem("accessToken")) {
-      router.replace("/");
-    }
+    let cancelled = false;
+
+    getMe().then((result) => {
+      if (cancelled) return;
+      if (result.ok) {
+        rememberCookieAuthentication();
+      } else {
+        clearStoredAuthentication();
+        router.replace("/");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 }
 
@@ -88,6 +118,11 @@ export async function apiFetch(
   input: string,
   init: RequestInit = {},
 ): Promise<Response> {
+  // /auth/me 자기 자신은 getMe()의 공유 캐시를 직접 쓰는 호출자(useAuthGuard 등)를 위한 것이므로
+  // 여기서 또 기다릴 필요가 없다 — 순환 대기 방지
+  if (!input.includes(AUTH_ME_PATH)) {
+    await getMe();
+  }
   const accessToken =
     typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
   const refreshToken =
@@ -99,10 +134,16 @@ export async function apiFetch(
       : {}),
   };
   const res = await fetch(input, { ...init, headers, credentials: "include" });
+  // 401: 인증 실패(토큰 만료/구 토큰/미인증) → 로그인 페이지.
+  // 이전에는 백엔드가 미인증도 403으로 내려줘서 이 분기가 죽어있었는데,
+  // SecurityConfig.authenticationEntryPoint를 401로 바꾸면서 실제로 동작하게 됨.
+  // 403/404: 로그인은 됐지만 접근 권한 없음(비회원/비소유자) 또는 리소스 없음 → 홈으로.
+  // "너 누군진 알겠는데 여긴 못 들어감"이므로 로그인 페이지가 아닌 홈으로 튕겨야 함.
   if (res.status === 401) {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+    clearStoredAuthentication();
     window.location.replace("/");
+  } else if (res.status === 403 || res.status === 404) {
+    window.location.replace("/home");
   }
   return res;
 }
@@ -142,7 +183,7 @@ export function PageHeader({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 pt-12 pb-2 px-4">
+    <div className="app-safe-header flex items-center gap-3 px-4 pb-2">
       {onBack ? (
         <button onClick={onBack} className="text-blue-500 p-1 -ml-1">
           <svg

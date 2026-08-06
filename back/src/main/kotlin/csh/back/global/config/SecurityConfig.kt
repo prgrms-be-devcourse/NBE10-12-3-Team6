@@ -1,0 +1,141 @@
+package csh.back.global.config
+
+import csh.back.domain.member.repository.RefreshTokenRepository
+import csh.back.domain.member.service.MemberService
+import csh.back.global.filter.DeviceIdFilter
+import csh.back.global.jwt.CookieNames
+import csh.back.global.jwt.JwtAuthenticationFilter
+import csh.back.global.jwt.JwtUtil
+import csh.back.global.oauth2.KakaoOAuth2SuccessHandler
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpMethod
+import org.springframework.http.ResponseCookie
+import org.springframework.security.config.annotation.web.builders.HttpSecurity
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.savedrequest.NullRequestCache
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.CorsConfigurationSource
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+
+@Configuration
+@EnableWebSecurity
+class SecurityConfig(
+    private val jwtUtil: JwtUtil,
+    private val refreshTokenRepository: RefreshTokenRepository,
+    private val memberService: MemberService,
+    private val kakaoOAuth2SuccessHandler: KakaoOAuth2SuccessHandler,
+) {
+
+    @Value("\${cors.allowed-origins}")
+    private lateinit var allowedOrigins: List<String>
+
+    @Bean
+    fun filterChain(http: HttpSecurity): SecurityFilterChain {
+        http
+            .cors { cors -> cors.configurationSource(corsConfigurationSource()) }
+            .csrf { csrf -> csrf.disable() }
+            // OAuth2 인가 요청 중 state 파라미터를 세션에 저장해야 하므로 IF_REQUIRED 사용
+            // JWT 필터는 매 요청마다 쿠키에서 토큰을 읽으므로 세션 생성 여부와 무관하게 동작
+            .sessionManagement { session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+            }
+            .headers { headers ->
+                headers.frameOptions { frame -> frame.sameOrigin() }
+            }
+            // 이 API는 JWT 쿠키 기반이라 "로그인 후 원래 요청 페이지로 리다이렉트" 기능을 쓰지 않는다.
+            // 기본 HttpSessionRequestCache는 미인증 요청마다 세션을 만들어 요청을 저장하므로,
+            // 매 401 발생 시 불필요한 세션 생성 + 로그 스팸(Saved request ... to session)이 발생했다.
+            .requestCache { cache -> cache.requestCache(NullRequestCache()) }
+            .authorizeHttpRequests { auth ->
+                // 회원가입, 로그인은 인증 없이 접근 허용
+                auth.requestMatchers(
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/v3/api-docs/**",
+                    "/swagger-resources/**",
+                    "/h2-console/**",
+                    "/api/v1/auth/signup",
+                    "/api/v1/auth/login",
+                    "/api/v1/auth/check_email",
+                    "/api/v1/auth/verify_email",
+                    // 비밀번호 재설정 (비로그인 상태) — recovery code 검증 + 새 비번 저장 두 단계 모두 미인증 허용
+                    "/api/v1/auth/password-reset/**",
+                    "/uploadedimages/**",
+                    "/actuator/prometheus",
+                    "/oauth2/authorization/**",
+                ).permitAll()
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    // 그 외 모든 요청은 JWT 필터를 거치되 인증 강제하지 않음
+                    .anyRequest().authenticated()
+            }
+            .oauth2Login { oauth2 ->
+                oauth2.successHandler(kakaoOAuth2SuccessHandler)
+            }
+            .exceptionHandling { ex ->
+                // oauth2Login() 기본 EntryPoint는 미인증 요청에 302(로그인 리다이렉트)를 반환하므로 API에 부적절.
+                // 401(미인증)/403(접근권한 없음)을 명확히 구분해서 내려줘야 프론트가 각각 다른 리다이렉트를 걸 수 있음:
+                //   401 → 로그인 페이지, 403 → 홈. 이전에는 둘 다 403이라 프론트가 구분 불가였음.
+                // 응답 바디는 GlobalExceptionHandler의 ErrorResponse와 동일한 shape 유지.
+                // (GET /oauth2/authorization/kakao는 permitAll이라 이 핸들러를 거치지 않음)
+                //
+                // 무한 리다이렉트 루프 방지 (401에서 반드시 쿠키 만료):
+                //   서버 재시작으로 refresh_tokens가 리셋되거나 DB의 토큰이 무효화된 경우, 브라우저 httpOnly 쿠키는
+                //   여전히 살아있으므로 프론트에서 JS로 지울 수 없음. 그 상태로 Next.js middleware는 쿠키 존재만 보고
+                //   인증됨으로 오판하여 /home으로 튕기고, /home이 다시 401을 받는 루프가 발생.
+                //   401 응답에 Set-Cookie Max-Age=0을 함께 실어 브라우저가 즉시 쿠키를 제거하도록 한다.
+                //
+                // 만료 쿠키 속성은 원본 발급 시(JwtAuthenticationFilter.setAccessTokenCookie / setRefreshTokenCookie)와
+                // 동일하게(HttpOnly, Path=/, SameSite=Lax) 맞춰야 브라우저가 확실히 같은 쿠키로 인식하고 삭제한다.
+                // ResponseCookie를 사용하면 원본과 대칭이 유지되고 문자열 하드코딩 오타도 방지된다.
+                ex.authenticationEntryPoint { _, response, _ ->
+                    listOf(CookieNames.ACCESS_TOKEN, CookieNames.REFRESH_TOKEN).forEach { name ->
+                        val expired = ResponseCookie.from(name, "")
+                            .httpOnly(true)
+                            .path("/")
+                            .maxAge(0)
+                            .sameSite("Lax")
+                            .build()
+                        response.addHeader(HttpHeaders.SET_COOKIE, expired.toString())
+                    }
+                    response.status = jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED
+                    response.contentType = "application/json;charset=UTF-8"
+                    response.writer.write("""{"statusCode":401,"message":"인증이 필요합니다."}""")
+                }
+                ex.accessDeniedHandler { _, response, _ ->
+                    response.status = jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN
+                    response.contentType = "application/json;charset=UTF-8"
+                    response.writer.write("""{"statusCode":403,"message":"접근 권한이 없습니다."}""")
+                }
+            }
+            // JwtAuthenticationFilter: Spring 기본 로그인 필터 앞에 위치
+            // DeviceIdFilter: OAuth2AuthorizationRequestRedirectFilter보다 먼저 실행되어
+            // OAuth2 인증 흐름(리다이렉트 → 콜백 → SuccessHandler) 전체에서 device_id attribute를 사용 가능하게 함
+            .addFilterBefore(JwtAuthenticationFilter(jwtUtil, refreshTokenRepository, memberService), UsernamePasswordAuthenticationFilter::class.java)
+            .addFilterBefore(DeviceIdFilter(), OAuth2AuthorizationRequestRedirectFilter::class.java)
+
+        return http.build()
+    }
+
+    @Bean
+    fun corsConfigurationSource(): CorsConfigurationSource {
+        val configuration = CorsConfiguration()
+        configuration.allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+        configuration.allowedOrigins = allowedOrigins
+        configuration.allowedHeaders = listOf("*")
+        configuration.exposedHeaders = listOf("Authorization")
+        configuration.allowCredentials = true
+        configuration.maxAge = 3600L
+
+        val source = UrlBasedCorsConfigurationSource()
+        source.registerCorsConfiguration("/**", configuration)
+        return source
+    }
+
+}
