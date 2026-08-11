@@ -1,0 +1,40 @@
+# macOS
+.DS_Store
+
+# Xcode user-specific settings
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+
+# Xcode build artifacts
+DerivedData/
+build/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# Swift Package Manager local artifacts
+.build/
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+
+# Dependency build artifacts
+Pods/
+Carthage/Build/
+
+# Apple signing credentials
+*.p12
+*.mobileprovision
+*.cer
+*.pem
+*.key
+
+# Local environment and secret files
+.env
+.env.*
+Secrets.swift
+Secrets.plist
+Secrets.xcconfig
+
